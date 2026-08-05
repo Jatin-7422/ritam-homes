@@ -9,6 +9,7 @@ import HowItWorks from "./components/Landing-Page/HowItWorks";
 import Testimonials from "./components/Landing-Page/Testimonials";
 import Footer from "./components/Landing-Page/Footer";
 import AboutUs from "./components/Landing-Page/AboutUs";
+import { Analytics } from "@vercel/analytics/react";
 
 // Import your logo for the preloader
 import logo from "./assets/newlogo.png";
@@ -74,6 +75,7 @@ export default function App() {
         <AboutUs />
         <Testimonials />
         <Footer />
+        <Analytics />
       </div>
     </>
   );
