@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
-import Navbar from "./components/Navbar";
-import Hero from "./components/Hero";
-import SearchBar from "./components/SearchBar";
-import StatsBar from "./components/StatsBar";
-import FeaturedProperties from "./components/FeaturedProperties";
-import WhyChooseUs from "./components/WhyChooseUs";
-import HowItWorks from "./components/HowItWorks";
-import Testimonials from "./components/Testimonials";
-import Footer from "./components/Footer";
-import AboutUs from "./components/AboutUs";
+import Navbar from "./components/Landing-Page/Navbar";
+import Hero from "./components/Landing-Page/Hero";
+import SearchBar from "./components/Landing-Page/SearchBar";
+import StatsBar from "./components/Landing-Page/StatsBar";
+import FeaturedProperties from "./components/Landing-Page/FeaturedProperties";
+import WhyChooseUs from "./components/Landing-Page/WhyChooseUs";
+import HowItWorks from "./components/Landing-Page/HowItWorks";
+import Testimonials from "./components/Landing-Page/Testimonials";
+import Footer from "./components/Landing-Page/Footer";
+import AboutUs from "./components/Landing-Page/AboutUs";
 
 // Import your logo for the preloader
 import logo from "./assets/newlogo.png";

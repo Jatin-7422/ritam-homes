@@ -1,7 +1,7 @@
 // 1. Put the import at the VERY TOP of the file (outside the function)
 import React, { useState } from "react";
 import { Menu, X } from "lucide-react";
-import logo from "../assets/newlogo.png"; // Make sure your downloaded PNG is saved in src/assets/
+import logo from "../../assets/newlogo.png"; // Make sure your downloaded PNG is saved in src/assets/
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
