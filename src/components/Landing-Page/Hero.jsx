@@ -1,5 +1,8 @@
 import React from "react";
-import { ArrowRight, ShieldCheck, UserCheck } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
+
+// 1. Import your image from the assets folder
+import heroImage from "../../assets/bg.jpg"; // Adjust filename and extension (.png/.webp) as needed
 
 export default function Hero() {
   return (
@@ -34,89 +37,34 @@ export default function Hero() {
             List Your Property
           </button>
         </div>
-
-        {/* Social Proof */}
-        <div className="flex items-center gap-4 pt-2">
-          <div className="flex -space-x-2">
-            <img
-              className="inline-block h-8 w-8 rounded-full ring-2 ring-[#F6F2EA] object-cover"
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80"
-              alt="Avatar"
-            />
-            <img
-              className="inline-block h-8 w-8 rounded-full ring-2 ring-[#F6F2EA] object-cover"
-              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80"
-              alt="Avatar"
-            />
-            <img
-              className="inline-block h-8 w-8 rounded-full ring-2 ring-[#F6F2EA] object-cover"
-              src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80"
-              alt="Avatar"
-            />
-            <img
-              className="inline-block h-8 w-8 rounded-full ring-2 ring-[#F6F2EA] object-cover"
-              src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80"
-              alt="Avatar"
-            />
-          </div>
-          <div>
-            <div className="flex text-amber-600 text-xs">★★★★★</div>
-            <p className="text-[11px] font-semibold text-[#57463D]">
-              Trusted by{" "}
-              <span className="font-extrabold text-[#2D1F1A]">25,000+</span>{" "}
-              happy tenants
-            </p>
-          </div>
-        </div>
       </div>
 
       {/* Right Image Container */}
       <div className="lg:col-span-6 relative">
         <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
+          {/* 2. Use the imported image variable here */}
           <img
-            src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80"
-            alt="Luxury Home"
+            src={heroImage}
+            alt="Property Exterior"
             className="w-full h-[430px] object-cover"
           />
         </div>
 
-        {/* Top Overlay Badge */}
-        <div
-          style={{ backgroundColor: "rgba(246, 242, 234, 0.85)" }}
-          className="absolute top-5 left-5 backdrop-blur-md p-3 px-4 rounded-2xl shadow-sm border border-white/60 flex items-center gap-3"
-        >
-          <div className="p-2 rounded-xl bg-[#EFEAE1] text-[#2D1F1A]">
+        {/* Top Overlay Badge (Floating Glassmorphism) */}
+        <div className="absolute top-5 left-5 bg-white/30 backdrop-blur-md p-3 px-4 rounded-2xl shadow-xl border border-white/40 flex items-center gap-3 animate-bounce [animation-duration:4s]">
+          <div className="p-2 rounded-xl bg-[#2D1F1A]/10 text-[#2D1F1A]">
             <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
             <p className="text-xs font-bold text-[#2D1F1A]">Verified Owners</p>
-            <p className="text-[10px] text-[#6E5D53] font-medium">
+            <p className="text-[10px] text-[#57463D] font-medium">
               All owners verified for your safety
             </p>
           </div>
         </div>
 
-        {/* Bottom Left Badge */}
-        <div
-          style={{ backgroundColor: "rgba(246, 242, 234, 0.85)" }}
-          className="absolute bottom-16 left-5 backdrop-blur-md p-3 px-4 rounded-2xl shadow-sm border border-white/60 flex items-center gap-3"
-        >
-          <div className="p-2 rounded-xl bg-[#EFEAE1] text-[#2D1F1A]">
-            <UserCheck className="w-4 h-4" />
-          </div>
-          <div>
-            <p className="text-xs font-bold text-[#2D1F1A]">Happy Tenants</p>
-            <p className="text-[10px] text-[#6E5D53] font-medium">
-              10,000+ and growing
-            </p>
-          </div>
-        </div>
-
-        {/* Price Floating Card */}
-        <div
-          style={{ backgroundColor: "rgba(246, 242, 234, 0.9)" }}
-          className="absolute bottom-5 right-5 backdrop-blur-md p-4 rounded-2xl shadow-lg border border-white/60 min-w-[190px]"
-        >
+        {/* Price Floating Card (Floating Glassmorphism) */}
+        <div className="absolute bottom-5 right-5 bg-white/35 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-white/50 min-w-[190px] animate-bounce [animation-duration:5s]">
           <div className="text-lg font-black text-[#2D1F1A]">
             ₹22,000{" "}
             <span className="text-xs font-normal text-[#6E5D53]">/month</span>
