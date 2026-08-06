@@ -24,19 +24,13 @@ export default function Navbar() {
             href="#home"
             className="text-[#2D1F1A] font-bold border-b-2 border-[#2D1F1A] pb-0.5"
           >
-            Home
+            Explore
           </a>
           <a href="#properties" className="hover:text-[#2D1F1A]">
             Properties
           </a>
           <a href="#how-it-works" className="hover:text-[#2D1F1A]">
             How it works
-          </a>
-          <a href="#for-tenants" className="hover:text-[#2D1F1A]">
-            For Tenants
-          </a>
-          <a href="#for-owners" className="hover:text-[#2D1F1A]">
-            For Owners
           </a>
           <a href="#about" className="hover:text-[#2D1F1A]">
             About Us
