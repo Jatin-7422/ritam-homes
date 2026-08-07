@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; // 1. Import useNavigate hook
 import {
   Search,
   MapPin,
@@ -11,6 +12,13 @@ import {
 
 export default function PropertySearchBar() {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate(); // 2. Initialize navigation hook
+
+  // Handle Search Submission
+  const handleSearch = (e) => {
+    e.preventDefault();
+    navigate("/login"); // 3. Redirect user to /login page
+  };
 
   // Multilingual marquee items
   const phrases = [
@@ -91,7 +99,11 @@ export default function PropertySearchBar() {
             <X className="w-4 h-4" />
           </button>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center">
+          {/* Form wrapper triggers handleSearch on submit */}
+          <form
+            onSubmit={handleSearch}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-center"
+          >
             {/* Location Input */}
             <div className="bg-white p-3 rounded-xl border border-[#E3D7C8] flex flex-col justify-center">
               <label className="text-[10px] font-extrabold text-[#6E5D53] uppercase tracking-wider mb-1">
@@ -156,11 +168,14 @@ export default function PropertySearchBar() {
             </div>
 
             {/* Search Properties Submit Button */}
-            <button className="h-full py-3.5 px-6 bg-[#2D1F1A] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-[#3E2E27] transition-all shadow-md active:scale-95">
+            <button
+              type="submit"
+              className="h-full py-3.5 px-6 bg-[#2D1F1A] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-[#3E2E27] transition-all shadow-md active:scale-95 cursor-pointer"
+            >
               <Search className="w-4 h-4 text-[#C5924E]" />
               Search Properties
             </button>
-          </div>
+          </form>
         </div>
       )}
     </div>
