@@ -1,28 +1,81 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
-import logo from "../../assets/newlogo.png";
+
+// Import both white and dark/black logos
+import logoWhite from "../../assets/whitelogo.png";
+import logoDark from "../../assets/newlogo.png";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const location = useLocation();
+
+  // Pages that have a light background
+  const lightBgRoutes = ["/contact" ,"/signup", "/login"];
+  const isLightPage = lightBgRoutes.includes(location.pathname);
+
+  // Handle backdrop transition on page scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 20) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Automatically close mobile menu when changing routes
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location]);
+
+  // Check if a given route is currently active
+  const isActive = (path) => location.pathname === path;
+
+  // Logo Logic:
+  // Show dark logo ONLY on light pages before scrolling down.
+  // Switch to white logo when scrolled or on dark pages.
+  const currentLogo = isLightPage && !isScrolled ? logoDark : logoWhite;
+
+  // Text color helper: Dark text for light page header before scrolling
+  const isDarkText = isLightPage && !isScrolled;
 
   return (
-    <header className="absolute top-0 left-0 w-full z-50 bg-transparent px-8 py-5">
+    <header
+      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 px-4 sm:px-8 py-4 ${
+        isScrolled
+          ? "bg-[#2D1F1A]/90 backdrop-blur-md shadow-xl border-b border-white/10 py-3"
+          : "bg-transparent"
+      }`}
+    >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Logo - Home Link */}
-        <Link to="/" className="flex items-center">
+        <Link to="/" className="flex items-center group">
           <img
-            src={logo}
+            src={currentLogo}
             alt="Ritam Homes"
-            className="h-12 md:h-14 w-auto object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.7)]"
+            className="h-10 sm:h-12 md:h-14 w-auto object-contain transition-all duration-300 group-hover:scale-105"
           />
         </Link>
 
         {/* Navigation Links (Desktop) */}
-        <nav className="hidden md:flex items-center gap-8 text-xs font-semibold text-white/90">
+        <nav
+          className={`hidden md:flex items-center gap-8 text-xs font-semibold ${
+            isDarkText ? "text-[#2D1F1A]" : "text-white/90"
+          }`}
+        >
           <Link
             to="/"
-            className="text-white font-bold border-b-2 border-[#C5924E] pb-0.5"
+            className={`transition-colors pb-0.5 ${
+              isActive("/")
+                ? "font-bold border-b-2 border-[#C5924E]"
+                : "hover:text-[#C5924E]"
+            }`}
           >
             Explore
           </Link>
@@ -43,7 +96,11 @@ export default function Navbar() {
           </a>
           <Link
             to="/contact"
-            className="hover:text-[#C5924E] transition-colors"
+            className={`transition-colors pb-0.5 ${
+              isActive("/contact")
+                ? "font-bold border-b-2 border-[#C5924E]"
+                : "hover:text-[#C5924E]"
+            }`}
           >
             Contact
           </Link>
@@ -54,16 +111,22 @@ export default function Navbar() {
           {/* Login Button */}
           <Link
             to="/login"
-            className="px-5 py-2.5 text-xs font-bold rounded-xl border border-white/40 bg-black/20 backdrop-blur-md text-white hover:bg-white hover:text-[#2D1F1A] transition-all text-center cursor-pointer"
+            className={`px-5 py-2.5 text-xs font-bold rounded-xl transition-all text-center cursor-pointer ${
+              isActive("/login")
+                ? "bg-[#2D1F1A] text-white shadow-md"
+                : isDarkText
+                  ? "border border-[#2D1F1A]/30 text-[#2D1F1A] hover:bg-[#2D1F1A] hover:text-white"
+                  : "border border-white/40 bg-black/20 backdrop-blur-md text-white hover:bg-white hover:text-[#2D1F1A]"
+            }`}
           >
             Login
           </Link>
 
-          {/* Get Started Button -> Routes to /signup */}
+          {/* Get Started Button */}
           <Link
             to="/signup"
             style={{ backgroundColor: "#C5924E", color: "#2D1F1A" }}
-            className="px-5 py-2.5 text-xs font-bold rounded-xl hover:opacity-90 transition-all text-center shadow-lg cursor-pointer"
+            className="px-5 py-2.5 text-xs font-bold rounded-xl hover:opacity-90 transition-all text-center shadow-lg active:scale-95 cursor-pointer"
           >
             Get Started
           </Link>
@@ -72,7 +135,11 @@ export default function Navbar() {
         {/* Hamburger Menu Button (Mobile) */}
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="md:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors focus:outline-none cursor-pointer"
+          className={`md:hidden p-2 rounded-xl transition-colors focus:outline-none cursor-pointer ${
+            isDarkText
+              ? "text-[#2D1F1A] hover:bg-black/5"
+              : "text-white hover:bg-white/10"
+          }`}
           aria-label="Toggle Menu"
         >
           {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -81,12 +148,13 @@ export default function Navbar() {
 
       {/* Mobile Drawer Menu */}
       {isOpen && (
-        <div className="md:hidden bg-[#2D1F1A]/95 backdrop-blur-md border-b border-white/10 mt-4 pt-4 pb-6 space-y-4 px-4 rounded-2xl shadow-2xl">
+        <div className="md:hidden bg-[#2D1F1A]/95 backdrop-blur-xl border border-white/10 mt-3 p-5 space-y-4 rounded-2xl shadow-2xl">
           <nav className="flex flex-col gap-3 text-sm font-semibold text-white/80">
             <Link
               to="/"
-              onClick={() => setIsOpen(false)}
-              className="text-white font-bold border-b border-white/10 pb-2"
+              className={`pb-2 border-b border-white/10 transition-colors ${
+                isActive("/") ? "text-[#C5924E] font-bold" : "hover:text-white"
+              }`}
             >
               Home
             </Link>
@@ -113,28 +181,32 @@ export default function Navbar() {
             </a>
             <Link
               to="/contact"
-              onClick={() => setIsOpen(false)}
-              className="hover:text-[#C5924E] pb-1 transition-colors"
+              className={`pb-1 transition-colors ${
+                isActive("/contact")
+                  ? "text-[#C5924E] font-bold"
+                  : "hover:text-white"
+              }`}
             >
               Contact
             </Link>
           </nav>
 
           {/* Action Buttons (Mobile) */}
-          <div className="flex flex-col gap-2 pt-2">
+          <div className="flex flex-col gap-2.5 pt-2">
             <Link
               to="/login"
-              onClick={() => setIsOpen(false)}
-              className="w-full px-5 py-2.5 text-xs font-bold rounded-xl border border-white/30 bg-white/10 text-white text-center"
+              className={`w-full px-5 py-2.5 text-xs font-bold rounded-xl text-center transition-all ${
+                isActive("/login")
+                  ? "bg-white text-[#2D1F1A]"
+                  : "border border-white/30 bg-white/10 text-white"
+              }`}
             >
               Login
             </Link>
-            {/* Get Started Button -> Routes to /signup */}
             <Link
               to="/signup"
-              onClick={() => setIsOpen(false)}
               style={{ backgroundColor: "#C5924E", color: "#2D1F1A" }}
-              className="w-full px-5 py-2.5 text-xs font-bold rounded-xl text-center"
+              className="w-full px-5 py-2.5 text-xs font-bold rounded-xl text-center shadow-md active:scale-95"
             >
               Get Started
             </Link>
