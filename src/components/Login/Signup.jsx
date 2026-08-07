@@ -17,7 +17,6 @@ import {
   ShieldCheck,
   Tag,
   CalendarCheck,
-  Shield,
 } from "lucide-react";
 
 import { supabase } from "../../supabaseClient";
@@ -50,6 +49,7 @@ export default function Signup() {
     }));
   };
 
+  // 🔐 Handle Email & Password Signup
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -89,7 +89,6 @@ export default function Signup() {
           "Account created! Please check your inbox to confirm your email before signing in.",
         );
       } else {
-        // Direct redirect based on role
         navigate(role === "owner" ? "/owner-dashboard" : "/tenant-dashboard", {
           replace: true,
         });
@@ -103,15 +102,13 @@ export default function Signup() {
     }
   };
 
+  // 🌐 Handle OAuth Social Logins (Google / Facebook)
   const handleOAuthLogin = async (provider) => {
     try {
       setErrorMsg("");
-
-      // Pass the selected role into user metadata during OAuth sign in/up
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          // Redirect back to home or a specific auth handling route
           redirectTo: `${window.location.origin}/`,
           queryParams: {
             access_type: "offline",
@@ -129,9 +126,38 @@ export default function Signup() {
     }
   };
 
+  // 📱 Handle Phone OTP Login/Signup Flow
+  const handlePhoneAuth = async () => {
+    if (!formData.phone) {
+      setErrorMsg("Please enter a valid phone number first.");
+      return;
+    }
+    try {
+      setErrorMsg("");
+      setLoading(true);
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formData.phone,
+        options: {
+          data: {
+            full_name: formData.fullName,
+            role: role,
+            location: formData.location,
+          },
+        },
+      });
+
+      if (error) throw error;
+      setSuccessMsg("OTP sent to your phone! Please check your messages.");
+    } catch (error) {
+      setErrorMsg(error.message || "Failed to send OTP to phone.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F8F5EE] flex flex-col font-sans relative overflow-x-hidden text-[#2D1F1A]">
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 pt-16 sm:pt-24 pb-8 lg:pb-16 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start z-10">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 pt-28 sm:pt-32 pb-12 lg:pb-16 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start z-10">
         {/* LEFT BRANDING COLUMN */}
         <div className="lg:col-span-5 flex flex-col justify-between space-y-10 pr-0 lg:pr-4">
           <div className="space-y-6">
@@ -147,7 +173,7 @@ export default function Signup() {
 
             <div className="space-y-5 pt-3">
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-2xl bg-[#FAF6F0] border border-[#E8DFC8] text-[#C5924E] shrink-0">
+                <div className="p-3 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] text-[#C5924E] shrink-0">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
@@ -161,7 +187,7 @@ export default function Signup() {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-2xl bg-[#FAF6F0] border border-[#E8DFC8] text-[#C5924E] shrink-0">
+                <div className="p-3 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] text-[#C5924E] shrink-0">
                   <Tag className="w-5 h-5" />
                 </div>
                 <div>
@@ -175,7 +201,7 @@ export default function Signup() {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-2xl bg-[#FAF6F0] border border-[#E8DFC8] text-[#C5924E] shrink-0">
+                <div className="p-3 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] text-[#C5924E] shrink-0">
                   <CalendarCheck className="w-5 h-5" />
                 </div>
                 <div>
@@ -190,7 +216,7 @@ export default function Signup() {
             </div>
           </div>
 
-          <div className="relative rounded-3xl overflow-hidden border border-[#E3D7C8] shadow-lg mt-8 group hidden lg:block">
+          <div className="relative rounded-3xl overflow-hidden border border-[#EADBCE] shadow-lg mt-8 group hidden lg:block">
             <img
               src={houseImage}
               alt="Luxury Estate"
@@ -205,10 +231,10 @@ export default function Signup() {
         </div>
 
         {/* RIGHT SIGNUP FORM CARD */}
-        <div className="lg:col-span-7 bg-white rounded-3xl p-7 sm:p-12 shadow-xl border border-[#E3D9CC]/80 flex flex-col justify-between">
+        <div className="lg:col-span-7 bg-white rounded-3xl p-6 sm:p-10 shadow-2xl border border-[#EADBCE] flex flex-col justify-between">
           <div>
-            <div className="flex items-start justify-between mb-8">
-              <div className="space-y-1.5">
+            <div className="flex items-start justify-between mb-6">
+              <div className="space-y-1">
                 <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#2D1F1A]">
                   Create Account
                 </h2>
@@ -230,56 +256,56 @@ export default function Signup() {
             </div>
 
             {/* Role Switcher */}
-            <div className="p-1.5 bg-[#FAF6F0] rounded-2xl flex items-center border border-[#E8DFC8] mb-8 gap-1.5">
+            <div className="p-1 bg-[#FAF7F2] rounded-xl flex items-center border border-[#EADBCE] mb-6 gap-1">
               <button
                 type="button"
                 onClick={() => setRole("tenant")}
-                className={`flex-1 py-3 px-3 text-[11px] sm:text-xs font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
+                className={`flex-1 py-2.5 px-3 text-xs font-bold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
                   role === "tenant"
-                    ? "bg-white text-[#2D1F1A] shadow-md border border-[#E3D7C8]"
-                    : "text-[#8C7A6B] hover:text-[#2D1F1A]"
+                    ? "bg-[#2D1F1A] text-white shadow-sm"
+                    : "text-[#6E5D53] hover:text-[#2D1F1A]"
                 }`}
               >
-                <UserCheck className="w-4 h-4 text-[#C5924E] shrink-0" />
-                <span className="truncate">I'm a Tenant</span>
+                <UserCheck className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
+                <span className="truncate">Tenant</span>
               </button>
               <button
                 type="button"
                 onClick={() => setRole("owner")}
-                className={`flex-1 py-3 px-3 text-[11px] sm:text-xs font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
+                className={`flex-1 py-2.5 px-3 text-xs font-bold rounded-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
                   role === "owner"
-                    ? "bg-white text-[#2D1F1A] shadow-md border border-[#E3D7C8]"
-                    : "text-[#8C7A6B] hover:text-[#2D1F1A]"
+                    ? "bg-[#2D1F1A] text-white shadow-sm"
+                    : "text-[#6E5D53] hover:text-[#2D1F1A]"
                 }`}
               >
-                <Building className="w-4 h-4 text-[#C5924E] shrink-0" />
-                <span className="truncate">I'm an Owner</span>
+                <Building className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
+                <span className="truncate">Owner</span>
               </button>
             </div>
 
             {errorMsg && (
-              <div className="mb-5 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2.5">
+              <div className="mb-4 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
                 <span>{errorMsg}</span>
               </div>
             )}
 
             {successMsg && (
-              <div className="mb-5 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2.5">
+              <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
                 <span>{successMsg}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-[#2D1F1A]">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[#2D1F1A] uppercase tracking-wider">
                     Full Name
                   </label>
-                  <div className="relative rounded-xl border border-[#E3D7C8] focus-within:border-[#C5924E] transition-all bg-white">
+                  <div className="relative rounded-xl border border-[#E3D7C8] focus-within:border-[#C5924E] transition-all bg-[#FAF7F2]">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <User className="h-4 w-4 text-[#A39284]" />
+                      <User className="h-4 w-4 text-[#8C5E47]" />
                     </div>
                     <input
                       type="text"
@@ -288,18 +314,18 @@ export default function Signup() {
                       placeholder="Enter your full name"
                       value={formData.fullName}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-3.5 py-3 text-xs focus:outline-none text-[#2D1F1A] placeholder-[#B5A89E] rounded-xl"
+                      className="w-full pl-10 pr-3.5 py-3 text-xs focus:outline-none text-[#2D1F1A] placeholder-[#B5A89E] rounded-xl bg-transparent"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-[#2D1F1A]">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[#2D1F1A] uppercase tracking-wider">
                     Email Address
                   </label>
-                  <div className="relative rounded-xl border border-[#E3D7C8] focus-within:border-[#C5924E] transition-all bg-white">
+                  <div className="relative rounded-xl border border-[#E3D7C8] focus-within:border-[#C5924E] transition-all bg-[#FAF7F2]">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <Mail className="h-4 w-4 text-[#A39284]" />
+                      <Mail className="h-4 w-4 text-[#8C5E47]" />
                     </div>
                     <input
                       type="email"
@@ -308,37 +334,37 @@ export default function Signup() {
                       placeholder="Enter your email"
                       value={formData.email}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-3.5 py-3 text-xs focus:outline-none text-[#2D1F1A] placeholder-[#B5A89E] rounded-xl"
+                      className="w-full pl-10 pr-3.5 py-3 text-xs focus:outline-none text-[#2D1F1A] placeholder-[#B5A89E] rounded-xl bg-transparent"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-[#2D1F1A]">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[#2D1F1A] uppercase tracking-wider">
                     Phone Number
                   </label>
-                  <div className="relative rounded-xl border border-[#E3D7C8] focus-within:border-[#C5924E] transition-all bg-white">
+                  <div className="relative rounded-xl border border-[#E3D7C8] focus-within:border-[#C5924E] transition-all bg-[#FAF7F2]">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <Phone className="h-4 w-4 text-[#A39284]" />
+                      <Phone className="h-4 w-4 text-[#8C5E47]" />
                     </div>
                     <input
                       type="tel"
                       name="phone"
-                      placeholder="Enter your phone number"
+                      placeholder="Enter phone number"
                       value={formData.phone}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-3.5 py-3 text-xs focus:outline-none text-[#2D1F1A] placeholder-[#B5A89E] rounded-xl"
+                      className="w-full pl-10 pr-3.5 py-3 text-xs focus:outline-none text-[#2D1F1A] placeholder-[#B5A89E] rounded-xl bg-transparent"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-[#2D1F1A]">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[#2D1F1A] uppercase tracking-wider">
                     Password
                   </label>
-                  <div className="relative rounded-xl border border-[#E3D7C8] focus-within:border-[#C5924E] transition-all bg-white">
+                  <div className="relative rounded-xl border border-[#E3D7C8] focus-within:border-[#C5924E] transition-all bg-[#FAF7F2]">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <Lock className="h-4 w-4 text-[#A39284]" />
+                      <Lock className="h-4 w-4 text-[#8C5E47]" />
                     </div>
                     <input
                       type={showPassword ? "text" : "password"}
@@ -347,12 +373,12 @@ export default function Signup() {
                       placeholder="Create a password"
                       value={formData.password}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-10 py-3 text-xs focus:outline-none text-[#2D1F1A] placeholder-[#B5A89E] rounded-xl"
+                      className="w-full pl-10 pr-10 py-3 text-xs focus:outline-none text-[#2D1F1A] placeholder-[#B5A89E] rounded-xl bg-transparent"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#A39284] hover:text-[#2D1F1A]"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#8C5E47] hover:text-[#2D1F1A]"
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -364,30 +390,30 @@ export default function Signup() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-[#2D1F1A]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[#2D1F1A] uppercase tracking-wider">
                     Confirm Password
                   </label>
-                  <div className="relative rounded-xl border border-[#E3D7C8] focus-within:border-[#C5924E] transition-all bg-white">
+                  <div className="relative rounded-xl border border-[#E3D7C8] focus-within:border-[#C5924E] transition-all bg-[#FAF7F2]">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <Lock className="h-4 w-4 text-[#A39284]" />
+                      <Lock className="h-4 w-4 text-[#8C5E47]" />
                     </div>
                     <input
                       type={showConfirmPassword ? "text" : "password"}
                       name="confirmPassword"
                       required
-                      placeholder="Confirm your password"
+                      placeholder="Confirm password"
                       value={formData.confirmPassword}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-10 py-3 text-xs focus:outline-none text-[#2D1F1A] placeholder-[#B5A89E] rounded-xl"
+                      className="w-full pl-10 pr-10 py-3 text-xs focus:outline-none text-[#2D1F1A] placeholder-[#B5A89E] rounded-xl bg-transparent"
                     />
                     <button
                       type="button"
                       onClick={() =>
                         setShowConfirmPassword(!showConfirmPassword)
                       }
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#A39284] hover:text-[#2D1F1A]"
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#8C5E47] hover:text-[#2D1F1A]"
                     >
                       {showConfirmPassword ? (
                         <EyeOff className="h-4 w-4" />
@@ -398,13 +424,13 @@ export default function Signup() {
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-[#2D1F1A]">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-[#2D1F1A] uppercase tracking-wider">
                     Location (Optional)
                   </label>
-                  <div className="relative rounded-xl border border-[#E3D7C8] focus-within:border-[#C5924E] transition-all bg-white">
+                  <div className="relative rounded-xl border border-[#E3D7C8] focus-within:border-[#C5924E] transition-all bg-[#FAF7F2]">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <MapPin className="h-4 w-4 text-[#A39284]" />
+                      <MapPin className="h-4 w-4 text-[#8C5E47]" />
                     </div>
                     <input
                       type="text"
@@ -412,20 +438,20 @@ export default function Signup() {
                       placeholder="Enter your city"
                       value={formData.location}
                       onChange={handleChange}
-                      className="w-full pl-10 pr-3.5 py-3 text-xs focus:outline-none text-[#2D1F1A] placeholder-[#B5A89E] rounded-xl"
+                      className="w-full pl-10 pr-3.5 py-3 text-xs focus:outline-none text-[#2D1F1A] placeholder-[#B5A89E] rounded-xl bg-transparent"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5 pt-2">
+              <div className="flex items-center gap-2.5 pt-1">
                 <input
                   type="checkbox"
                   id="agreedToTerms"
                   name="agreedToTerms"
                   checked={formData.agreedToTerms}
                   onChange={handleChange}
-                  className="rounded border-[#E3D7C8] text-[#2D1F1A] focus:ring-[#C5924E] w-4 h-4 cursor-pointer shrink-0"
+                  className="rounded border-[#E3D7C8] text-[#C5924E] focus:ring-[#C5924E] w-4 h-4 cursor-pointer shrink-0 accent-[#C5924E]"
                 />
                 <label
                   htmlFor="agreedToTerms"
@@ -452,7 +478,7 @@ export default function Signup() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 px-4 bg-[#2D1F1A] hover:bg-[#1f1512] text-white font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-[0.99] disabled:opacity-60 mt-3"
+                className="w-full py-3.5 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white font-bold text-xs rounded-xl transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-[0.99] disabled:opacity-60 mt-2"
               >
                 {loading ? (
                   <>
@@ -468,21 +494,19 @@ export default function Signup() {
               </button>
             </form>
 
-            <div className="relative flex items-center justify-center my-7">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-[#EADBCE]" />
-              </div>
-              <span className="relative bg-white px-3 text-[10px] font-medium text-[#8C7A6B]">
+            <div className="relative flex items-center justify-center my-5">
+              <div className="border-t border-[#EADBCE] w-full" />
+              <span className="bg-white px-3 text-[10px] font-bold text-[#8C5E47] uppercase tracking-wider absolute">
                 or continue with
               </span>
             </div>
 
             {/* Social / Alternate Login Buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <button
                 type="button"
                 onClick={() => handleOAuthLogin("google")}
-                className="py-3 px-3 border border-[#E3D7C8] rounded-xl text-xs font-semibold text-[#2D1F1A] bg-white hover:bg-[#F8F5EE] flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+                className="py-2.5 px-3 border border-[#EADBCE] rounded-xl text-xs font-semibold text-[#2D1F1A] bg-white hover:bg-[#FAF7F2] flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
               >
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                   <path
@@ -508,7 +532,7 @@ export default function Signup() {
               <button
                 type="button"
                 onClick={() => handleOAuthLogin("facebook")}
-                className="py-3 px-3 border border-[#E3D7C8] rounded-xl text-xs font-semibold text-[#2D1F1A] bg-white hover:bg-[#F8F5EE] flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+                className="py-2.5 px-3 border border-[#EADBCE] rounded-xl text-xs font-semibold text-[#2D1F1A] bg-white hover:bg-[#FAF7F2] flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
               >
                 <svg
                   className="w-4 h-4 fill-[#1877F2] shrink-0"
@@ -521,11 +545,11 @@ export default function Signup() {
 
               <button
                 type="button"
-                onClick={() => handleOAuthLogin("phone")}
-                className="py-3 px-3 border border-[#E3D7C8] rounded-xl text-xs font-semibold text-[#2D1F1A] bg-white hover:bg-[#F8F5EE] flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+                onClick={handlePhoneAuth}
+                className="py-2.5 px-3 border border-[#EADBCE] rounded-xl text-xs font-semibold text-[#2D1F1A] bg-white hover:bg-[#FAF7F2] flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
               >
-                <Phone className="w-4 h-4 text-[#2D1F1A] shrink-0" />
-                <span>Mobile Number</span>
+                <Phone className="w-4 h-4 text-[#8C5E47] shrink-0" />
+                <span>Mobile OTP</span>
               </button>
             </div>
           </div>
