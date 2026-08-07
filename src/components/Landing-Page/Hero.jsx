@@ -15,9 +15,9 @@ import heroImage from "../../assets/newbg.png"; // Adjust filename as needed
 
 export default function Hero() {
   return (
-    <section className="relative w-full min-h-screen flex items-center pt-24 pb-12 overflow-hidden font-sans">
+    <section className="relative w-full max-w-full overflow-hidden min-h-screen flex items-center pt-24 pb-12 font-sans bg-[#2D1F1A]">
       {/* 1. FULL BACKGROUND IMAGE & DARK OVERLAY */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 pointer-events-none">
         <img
           src={heroImage}
           alt="Ritam Homes Exterior"
@@ -29,20 +29,15 @@ export default function Hero() {
       </div>
 
       {/* 2. MAIN HERO CONTENT */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-12 w-full flex flex-col justify-between min-h-[80vh]">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 md:px-12 w-full flex flex-col justify-between min-h-[80vh] box-border">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pt-6">
           {/* Left Main Content */}
           <div className="lg:col-span-8 space-y-6">
-            {/* Tag Badge */}
-            <div className="inline-block px-3.5 py-1.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[10px] font-bold text-[#C5924E] uppercase tracking-wider shadow-sm">
-              Homes You Can Actually Trust
-            </div>
-
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-6xl md:text-7xl font-black text-white leading-[1.08] tracking-tight">
-              Renting a home, <br />
+              Home you can, <br />
               <span className="font-serif italic font-normal text-[#C5924E]">
-                the smart way.
+                Actually Trust.
               </span>
             </h1>
 
@@ -69,9 +64,9 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* Right Floating Card Overlay */}
-          <div className="lg:col-span-4 hidden lg:flex flex-col gap-4 items-end">
-            {/* Top Badge */}
+          {/* Floating Badges & Cards - Mobile Inline Layout & Desktop Floating Overlay */}
+          <div className="lg:col-span-4 flex flex-col sm:flex-row lg:flex-col gap-4 items-start sm:items-center lg:items-end lg:pr-8">
+            {/* Verified Badge */}
             <div className="bg-black/40 backdrop-blur-md p-3.5 px-4 rounded-2xl shadow-xl border border-white/20 flex items-center gap-3 animate-bounce [animation-duration:4s]">
               <div className="p-2 rounded-xl bg-[#C5924E]/20 text-[#C5924E]">
                 <ShieldCheck className="w-5 h-5" />
@@ -85,7 +80,7 @@ export default function Hero() {
             </div>
 
             {/* Featured Property Card */}
-            <div className="bg-black/40 backdrop-blur-md p-4 rounded-2xl shadow-xl border border-white/20 min-w-[220px]">
+            <div className="bg-black/50 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-white/20 min-w-[200px] sm:min-w-[220px] lg:mr-12 animate-bounce [animation-duration:5s] transition-all">
               <div className="text-xl font-black text-white">
                 ₹22,000{" "}
                 <span className="text-xs font-normal text-[#D5C9B8]">
