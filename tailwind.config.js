@@ -13,6 +13,10 @@ export default {
           card: "#EFEAE1",
         },
       },
+      fontFamily: {
+        sans: ['"Times New Roman"', "Times", "serif"],
+        serif: ['"Times New Roman"', "Times", "serif"],
+      },
     },
   },
   plugins: [],
