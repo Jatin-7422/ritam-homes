@@ -73,13 +73,14 @@ export default function Login() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
+          // Dynamically matches localhost or your Vercel production URL
           redirectTo: `${window.location.origin}/`,
           queryParams: {
             access_type: "offline",
             prompt: "consent",
           },
           data: {
-            role: role,
+            role: role, // Passes the selected tenant/owner role metadata
           },
         },
       });
