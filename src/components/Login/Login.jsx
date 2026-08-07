@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Mail,
   Lock,
@@ -10,13 +10,21 @@ import {
   LockKeyhole,
   UserCheck,
   Building,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
-// Import your assets/interior image if you have one locally
+
+// Import Supabase client & local assets
+import { supabase } from "../../supabaseClient";
 import heroBg from "../../assets/login.jpg";
 
 export default function Login() {
+  const navigate = useNavigate();
   const [role, setRole] = useState("tenant"); // "tenant" or "owner"
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -31,14 +39,58 @@ export default function Login() {
     }));
   };
 
+  // 🔐 Handle Email & Password Login
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // 🔌 READY FOR SUPABASE AUTH WITH ROLE:
-    console.log("Logging in as:", role, "with data:", formData);
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (error) throw error;
+
+      console.log("Logged in successfully:", data);
+
+      // Redirect based on selected role
+      navigate(role === "owner" ? "/owner-dashboard" : "/tenant-dashboard");
+    } catch (error) {
+      setErrorMsg(
+        error.message || "Failed to log in. Please check your credentials.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 🌐 Handle Social Auth (Google / Facebook)
+  const handleOAuthLogin = async (provider) => {
+    try {
+      setErrorMsg("");
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+          data: {
+            role: role,
+          },
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      setErrorMsg(error.message || `Failed to sign in with ${provider}`);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F5EE] py-10 px-4 sm:px-6 lg:px-8 flex items-center justify-center font-sans">
+    <div className="min-h-screen bg-[#F8F5EE] pt-28 sm:pt-32 pb-16 px-4 sm:px-6 lg:px-8 flex items-center justify-center font-sans relative z-10">
       <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-6 bg-white rounded-3xl p-4 sm:p-6 shadow-2xl border border-[#EADBCE]">
         {/* LEFT COLUMN: Visual Banner & Feature Badges */}
         <div className="lg:col-span-5 relative rounded-2xl overflow-hidden min-h-[500px] flex flex-col justify-between p-6 sm:p-8 text-[#2D1F1A]">
@@ -68,7 +120,6 @@ export default function Login() {
 
           {/* Bottom Dark Feature Card */}
           <div className="relative z-10 bg-[#2D1F1A]/95 backdrop-blur-md rounded-2xl p-5 border border-[#3E2E27] space-y-4 text-white shadow-xl mt-8">
-            {/* Feature 1 */}
             <div className="flex items-start gap-3">
               <div className="p-2 bg-[#FAF7F2]/10 rounded-xl text-[#C5924E] shrink-0">
                 <ShieldCheck className="w-4 h-4" />
@@ -83,7 +134,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Feature 2 */}
             <div className="flex items-start gap-3">
               <div className="p-2 bg-[#FAF7F2]/10 rounded-xl text-[#C5924E] shrink-0">
                 <MessageSquare className="w-4 h-4" />
@@ -98,7 +148,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Feature 3 */}
             <div className="flex items-start gap-3">
               <div className="p-2 bg-[#FAF7F2]/10 rounded-xl text-[#C5924E] shrink-0">
                 <LockKeyhole className="w-4 h-4" />
@@ -127,6 +176,14 @@ export default function Login() {
                 Enter your details to access your account
               </p>
             </div>
+
+            {/* Error Message Alert */}
+            {errorMsg && (
+              <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
 
             {/* Role Toggle Selector */}
             <div className="p-1 bg-[#FAF7F2] rounded-xl flex items-center justify-between border border-[#EADBCE]">
@@ -240,9 +297,17 @@ export default function Login() {
               {/* Log In Button */}
               <button
                 type="submit"
-                className="w-full py-3.5 bg-[#2D1F1A] text-white font-bold text-xs rounded-xl hover:bg-[#3E2E27] shadow-md transition-all active:scale-[0.99] mt-2 cursor-pointer"
+                disabled={loading}
+                className="w-full py-3.5 bg-[#2D1F1A] text-white font-bold text-xs rounded-xl hover:bg-[#3E2E27] shadow-md transition-all active:scale-[0.99] mt-2 cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                Log In
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" />
+                    Logging in...
+                  </>
+                ) : (
+                  "Log In"
+                )}
               </button>
             </form>
 
@@ -269,7 +334,11 @@ export default function Login() {
 
             {/* Social Logins */}
             <div className="space-y-2.5">
-              <button className="w-full py-2.5 px-4 border border-[#EADBCE] rounded-xl text-xs font-semibold text-[#2D1F1A] bg-white hover:bg-[#FAF7F2] flex items-center justify-center gap-3 transition-all cursor-pointer">
+              <button
+                type="button"
+                onClick={() => handleOAuthLogin("google")}
+                className="w-full py-2.5 px-4 border border-[#EADBCE] rounded-xl text-xs font-semibold text-[#2D1F1A] bg-white hover:bg-[#FAF7F2] flex items-center justify-center gap-3 transition-all cursor-pointer"
+              >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path
                     fill="#4285F4"
@@ -291,7 +360,11 @@ export default function Login() {
                 Continue with Google
               </button>
 
-              <button className="w-full py-2.5 px-4 border border-[#EADBCE] rounded-xl text-xs font-semibold text-[#2D1F1A] bg-white hover:bg-[#FAF7F2] flex items-center justify-center gap-3 transition-all cursor-pointer">
+              <button
+                type="button"
+                onClick={() => handleOAuthLogin("facebook")}
+                className="w-full py-2.5 px-4 border border-[#EADBCE] rounded-xl text-xs font-semibold text-[#2D1F1A] bg-white hover:bg-[#FAF7F2] flex items-center justify-center gap-3 transition-all cursor-pointer"
+              >
                 <svg className="w-4 h-4 fill-[#1877F2]" viewBox="0 0 24 24">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
