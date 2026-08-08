@@ -3,7 +3,7 @@ import { Sparkles, Target, User } from "lucide-react";
 
 import shyamImg from "../../assets/Members/Shyam.PNG";
 import cofounderImg from "../../assets/Members/SriRam.jpeg";
-import Ledsoftwaredeveloper from "../../assets/Members/Jatin.PNG";
+import Ledsoftwaredeveloper from "../../assets/Members/Jatin.png";
 import BuisnessAnalyst from "../../assets/Members/Manoj.jpeg";
 import StrategyAnalyst from "../../assets/Members/Aditya.PNG";
 
