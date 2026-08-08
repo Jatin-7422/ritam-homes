@@ -48,12 +48,12 @@ export default function Contact() {
     setErrorMessage("");
 
     try {
-      // 🔑 Replace these with your actual EmailJS credentials
+   
       const serviceID = "service_mjzfobu";
       const templateID = "template_oss25wf";
       const publicKey = "0wrRljuwKzAP6sMcf";
 
-      // 🎯 Parameters mapping to your EmailJS template variables
+      
       const templateParams = {
         name: formData.name,
         email: formData.email,
