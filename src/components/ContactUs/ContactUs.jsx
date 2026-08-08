@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import emailjs from "@emailjs/browser";
 import {
   Mail,
   PhoneCall,
@@ -13,6 +14,7 @@ import {
   Tag,
   Headphones,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 
 // Background Images
@@ -30,6 +32,7 @@ export default function Contact() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,12 +42,29 @@ export default function Contact() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrorMessage("");
 
-    // Simulate API call delay
-    setTimeout(() => {
+    try {
+      // 🔑 Replace these with your actual EmailJS credentials
+      const serviceID = "service_mjzfobu";
+      const templateID = "template_oss25wf";
+      const publicKey = "0wrRljuwKzAP6sMcf";
+
+      // 🎯 Parameters mapping to your EmailJS template variables
+      const templateParams = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || "Not provided",
+        role: formData.role,
+        message: formData.message,
+        time: new Date().toLocaleString(),
+      };
+
+      await emailjs.send(serviceID, templateID, templateParams, publicKey);
+
       setIsSubmitting(false);
       setIsSubmitted(true);
       setFormData({
@@ -57,7 +77,13 @@ export default function Contact() {
 
       // Reset success banner after 5 seconds
       setTimeout(() => setIsSubmitted(false), 5000);
-    }, 1000);
+    } catch (err) {
+      console.error("EmailJS Error:", err);
+      setIsSubmitting(false);
+      setErrorMessage(
+        `Failed to send: ${err.text || "Check console for details."}`,
+      );
+    }
   };
 
   return (
@@ -200,6 +226,13 @@ export default function Contact() {
               <div className="mb-4 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2 animate-fade-in">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 Thank you! Your message has been sent successfully.
+              </div>
+            )}
+
+            {errorMessage && (
+              <div className="mb-4 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs font-medium flex items-center gap-2 animate-fade-in">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                {errorMessage}
               </div>
             )}
 
