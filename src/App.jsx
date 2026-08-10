@@ -29,6 +29,7 @@ import ContactUs from "./components/ContactUs/ContactUs";
 import TenantDashboard from "./components/Tenant/TenantDashboard";
 import OwnerDashboard from "./components/Owner/OwnerDashboard";
 import Signup from "./components/Login/Signup";
+import NewProperty from "./components/Owner/NewProperty";
 
 // Analytics
 import { Analytics } from "@vercel/analytics/react";
@@ -213,7 +214,7 @@ function AppContent() {
     const timer = setTimeout(() => {
       setFadeOut(true);
       setTimeout(() => setLoading(false), 400);
-    }, 800);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [location.pathname]);
@@ -250,7 +251,10 @@ function AppContent() {
         </div>
       )}
 
-      <div className="min-h-screen bg-[#F8F5EE] text-[#1E293B] font-sans flex flex-col justify-between">
+      {/* Main Container handles smooth route layout transitions */}
+      <div
+        className={`min-h-screen bg-[#F8F5EE] text-[#1E293B] font-sans flex flex-col justify-between transition-opacity duration-300 ${loading ? "opacity-0" : "opacity-100"}`}
+      >
         <Navbar />
 
         <main className="flex-grow">
@@ -259,6 +263,7 @@ function AppContent() {
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/owner-properties" element={<NewProperty />} />
 
             {/* 🛡️ Protected Tenant Dashboard */}
             <Route
