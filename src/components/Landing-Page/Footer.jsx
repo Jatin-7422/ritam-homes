@@ -1,7 +1,20 @@
 import React from "react";
+import { useLocation } from "react-router-dom";
 import logo from "../../assets/newlogo.png";
 
 export default function Footer() {
+  const location = useLocation();
+
+  // Hide footer on dashboard, owner, and tenant pages
+  const isDashboard =
+    location.pathname.includes("dashboard") ||
+    location.pathname.includes("owner") ||
+    location.pathname.includes("tenant");
+
+  if (isDashboard) {
+    return null;
+  }
+
   return (
     <footer className="bg-stone-200/60 text-stone-900 pt-12 pb-6 border-t border-stone-300 px-6">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-5 gap-8 pb-8 border-b border-stone-300 text-xs">
