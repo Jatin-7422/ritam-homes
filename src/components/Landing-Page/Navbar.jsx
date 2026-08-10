@@ -11,10 +11,6 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
 
-  // Pages that have a light background
-  const lightBgRoutes = ["/contact" ,"/signup", "/login"];
-  const isLightPage = lightBgRoutes.includes(location.pathname);
-
   // Handle backdrop transition on page scroll
   useEffect(() => {
     const handleScroll = () => {
@@ -33,6 +29,20 @@ export default function Navbar() {
   useEffect(() => {
     setIsOpen(false);
   }, [location]);
+
+  // 1. HIDE NAVBAR ON DASHBOARD ROUTES (Moved below all hooks)
+  const isDashboard =
+    location.pathname.includes("dashboard") ||
+    location.pathname.includes("owner") ||
+    location.pathname.includes("tenant");
+
+  if (isDashboard) {
+    return null; // Returns nothing on dashboard pages, removing it completely
+  }
+
+  // Pages that have a light background
+  const lightBgRoutes = ["/contact", "/signup", "/login"];
+  const isLightPage = lightBgRoutes.includes(location.pathname);
 
   // Check if a given route is currently active
   const isActive = (path) => location.pathname === path;
