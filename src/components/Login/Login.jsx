@@ -14,20 +14,28 @@ import {
   Loader2,
   ShieldAlert,
 } from "lucide-react";
+import emailjs from "@emailjs/browser";
 
-// Import Supabase client & local assets
 import { supabase } from "../../supabaseClient";
 import heroBg from "../../assets/login.jpg";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [role, setRole] = useState("tenant"); // "tenant" or "owner"
+  const [role, setRole] = useState("tenant");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
-  // Cross-Role Blocking State
   const [blockedRoleInfo, setBlockedRoleInfo] = useState(null);
+
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [generatedOtp, setGeneratedOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -43,7 +51,6 @@ export default function Login() {
     }));
   };
 
-  // 🔐 Handle Email & Password Login with Role Integrity Enforcement
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -60,9 +67,7 @@ export default function Login() {
 
       const userRole = data.user?.user_metadata?.role || "tenant";
 
-      // ENFORCE INTEGRITY: Check if they are logging into the correct portal tab
       if (userRole !== role) {
-        // Sign them out immediately so session doesn't cross-contaminate
         await supabase.auth.signOut();
 
         setBlockedRoleInfo({
@@ -73,7 +78,6 @@ export default function Login() {
         return;
       }
 
-      // Successful match -> Route to correct dashboard
       if (userRole === "owner") {
         navigate("/owner-dashboard", { replace: true });
       } else {
@@ -87,35 +91,98 @@ export default function Login() {
     }
   };
 
-  // 🌐 Handle Social Auth (Google / Facebook)
-  const handleOAuthLogin = async (provider) => {
+  // STEP 1: Generate 6-digit OTP and send it via EmailJS
+  const handleSendResetOtp = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
     try {
-      setErrorMsg("");
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${window.location.origin}/`,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-          data: {
-            role: role,
-          },
-        },
-      });
-      if (error) throw error;
+      const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedOtp(randomOtp);
+
+      const templateParams = {
+        email: forgotEmail,
+        token: randomOtp,
+      };
+
+      await emailjs.send(
+        "service_mjzfobu",
+        "template_pon69wu",
+        templateParams,
+        "0wrRljuwKzAP6sMcf",
+      );
+
+      setForgotStep(2);
+      setSuccessMsg(
+        "6-digit OTP sent to your email via EmailJS. Please check your inbox.",
+      );
     } catch (error) {
-      setErrorMsg(error.message || `Failed to sign in with ${provider}`);
+      setErrorMsg(error.text || error.message || "Failed to send reset code.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // STEP 2: Verify the OTP Code entered matches what was sent via EmailJS
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    if (otpCode.trim() !== generatedOtp) {
+      setErrorMsg("Invalid OTP code. Please try again.");
+      return;
+    }
+
+    setSuccessMsg("OTP verified successfully! Create your new password.");
+    setForgotStep(3);
+  };
+
+  // STEP 3: Update Password in Supabase Database
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
+      // Trigger a behind-the-scenes recovery flow or update directly if session allows
+      await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/`,
+      });
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      setSuccessMsg("Password updated successfully! You can now log in.");
+
+      setTimeout(async () => {
+        await supabase.auth.signOut();
+        setIsForgotPassword(false);
+        setForgotStep(1);
+        setForgotEmail("");
+        setOtpCode("");
+        setGeneratedOtp("");
+        setNewPassword("");
+        setSuccessMsg("");
+      }, 2500);
+    } catch (error) {
+      setErrorMsg(error.message || "Failed to update password in Supabase.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-[#F8F5EE] pt-28 sm:pt-32 pb-16 px-4 sm:px-6 lg:px-8 flex items-center justify-center font-sans relative z-10">
       <div className="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-6 bg-white rounded-3xl p-4 sm:p-6 shadow-2xl border border-[#EADBCE]">
-        {/* LEFT COLUMN: Visual Banner & Feature Badges */}
+        {/* Left Hero Section */}
         <div className="lg:col-span-5 relative rounded-2xl overflow-hidden min-h-[500px] flex flex-col justify-between p-6 sm:p-8 text-[#2D1F1A]">
-          {/* Background Image / Warm Overlay */}
           <div className="absolute inset-0 z-0">
             <img
               src={heroBg}
@@ -125,7 +192,6 @@ export default function Login() {
             <div className="absolute inset-0 bg-gradient-to-t from-[#2D1F1A]/90 via-[#2D1F1A]/40 to-[#FAF7F2]/80" />
           </div>
 
-          {/* Top Text Content */}
           <div className="relative z-10 space-y-2">
             <span className="text-xs font-bold uppercase tracking-wider text-[#C5924E]">
               Welcome Back!
@@ -139,7 +205,6 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Bottom Dark Feature Card */}
           <div className="relative z-10 bg-[#2D1F1A]/95 backdrop-blur-md rounded-2xl p-5 border border-[#3E2E27] space-y-4 text-white shadow-xl mt-8">
             <div className="flex items-start gap-3">
               <div className="p-2 bg-[#FAF7F2]/10 rounded-xl text-[#C5924E] shrink-0">
@@ -185,10 +250,170 @@ export default function Login() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Form & Social Auth OR Blocked State */}
+        {/* Right Form Section */}
         <div className="lg:col-span-7 p-4 sm:p-8 flex flex-col justify-center">
-          {blockedRoleInfo ? (
-            /* 🚫 CROSS-ROLE WARNING MESSAGE SCREEN */
+          {isForgotPassword ? (
+            <div className="max-w-md mx-auto w-full space-y-6">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPassword(false);
+                    setErrorMsg("");
+                    setSuccessMsg("");
+                  }}
+                  className="text-xs font-bold text-[#8C5E47] hover:text-[#2D1F1A] flex items-center gap-1.5 mb-4 cursor-pointer"
+                >
+                  &larr; Back to login
+                </button>
+                <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#2D1F1A]">
+                  Reset Password
+                </h2>
+                <p className="text-xs text-[#6E5D53] mt-1 font-medium">
+                  {forgotStep === 1 &&
+                    "Enter your email to receive a verification OTP"}
+                  {forgotStep === 2 &&
+                    "Enter the 6-digit code sent to your inbox"}
+                  {forgotStep === 3 && "Create a secure new password"}
+                </p>
+              </div>
+
+              {errorMsg && (
+                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {successMsg && (
+                <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>{successMsg}</span>
+                </div>
+              )}
+
+              {/* STEP 1: Send OTP via EmailJS */}
+              {forgotStep === 1 && (
+                <form onSubmit={handleSendResetOtp} className="space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#2D1F1A] uppercase tracking-wider mb-1.5">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 text-[#8C5E47] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="email"
+                        required
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        placeholder="Enter your email"
+                        className="w-full pl-10 pr-4 py-3 text-xs bg-[#FAF7F2] border border-[#E3D7C8] rounded-xl focus:outline-none focus:border-[#C5924E] transition-all"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3.5 bg-[#2D1F1A] text-white font-bold text-xs rounded-xl hover:bg-[#3E2E27] shadow-md transition-all active:scale-[0.99] mt-2 cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" />
+                        Sending OTP...
+                      </>
+                    ) : (
+                      "Send OTP"
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* STEP 2: Verify OTP Code */}
+              {forgotStep === 2 && (
+                <form onSubmit={handleVerifyOtp} className="space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#2D1F1A] uppercase tracking-wider mb-1.5">
+                      Verification Code (OTP)
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-[#8C5E47] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        maxLength={6}
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value)}
+                        placeholder="Enter 6-digit OTP code"
+                        className="w-full pl-10 pr-4 py-3 text-xs bg-[#FAF7F2] border border-[#E3D7C8] rounded-xl focus:outline-none focus:border-[#C5924E] transition-all tracking-widest font-bold font-mono"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3.5 bg-[#2D1F1A] text-white font-bold text-xs rounded-xl hover:bg-[#3E2E27] shadow-md transition-all active:scale-[0.99] mt-2 cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" />
+                        Verifying...
+                      </>
+                    ) : (
+                      "Verify OTP"
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* STEP 3: Update Password */}
+              {forgotStep === 3 && (
+                <form onSubmit={handleUpdatePassword} className="space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#2D1F1A] uppercase tracking-wider mb-1.5">
+                      New Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-[#8C5E47] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        required
+                        minLength={6}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new password"
+                        className="w-full pl-10 pr-10 py-3 text-xs bg-[#FAF7F2] border border-[#E3D7C8] rounded-xl focus:outline-none focus:border-[#C5924E] transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#8C5E47] hover:text-[#2D1F1A]"
+                      >
+                        {showNewPassword ? (
+                          <EyeOff className="w-4 h-4" />
+                        ) : (
+                          <Eye className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3.5 bg-[#2D1F1A] text-white font-bold text-xs rounded-xl hover:bg-[#3E2E27] shadow-md transition-all active:scale-[0.99] mt-2 cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" />
+                        Updating Password...
+                      </>
+                    ) : (
+                      "Update Password"
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
+          ) : blockedRoleInfo ? (
             <div className="max-w-md mx-auto w-full py-8 text-center space-y-6">
               <div className="w-16 h-16 bg-amber-50 border border-amber-200 text-[#C5924E] rounded-2xl flex items-center justify-center mx-auto shadow-sm">
                 <ShieldAlert className="w-8 h-8" />
@@ -236,9 +461,7 @@ export default function Login() {
               </div>
             </div>
           ) : (
-            /* REGULAR LOGIN FORM & VIEW */
             <div className="max-w-md mx-auto w-full space-y-6">
-              {/* Form Header */}
               <div>
                 <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#2D1F1A]">
                   Log in to your account
@@ -248,7 +471,6 @@ export default function Login() {
                 </p>
               </div>
 
-              {/* Error Message Alert */}
               {errorMsg && (
                 <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
@@ -256,7 +478,6 @@ export default function Login() {
                 </div>
               )}
 
-              {/* Role Toggle Selector */}
               <div className="p-1 bg-[#FAF7F2] rounded-xl flex items-center justify-between border border-[#EADBCE]">
                 <button
                   type="button"
@@ -284,9 +505,7 @@ export default function Login() {
                 </button>
               </div>
 
-              {/* Login Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Email Address */}
                 <div>
                   <label className="block text-[11px] font-bold text-[#2D1F1A] uppercase tracking-wider mb-1.5">
                     Email Address
@@ -305,18 +524,24 @@ export default function Login() {
                   </div>
                 </div>
 
-                {/* Password */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-[11px] font-bold text-[#2D1F1A] uppercase tracking-wider">
                       Password
                     </label>
-                    <a
-                      href="#forgot"
-                      className="text-[11px] font-bold text-[#C5924E] hover:underline"
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPassword(true);
+                        setForgotStep(1);
+                        setErrorMsg("");
+                        setSuccessMsg("");
+                        setForgotEmail(formData.email);
+                      }}
+                      className="text-[11px] font-bold text-[#C5924E] hover:underline cursor-pointer bg-transparent border-none p-0"
                     >
                       Forgot password?
-                    </a>
+                    </button>
                   </div>
                   <div className="relative">
                     <Lock className="w-4 h-4 text-[#8C5E47] absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -343,29 +568,6 @@ export default function Login() {
                   </div>
                 </div>
 
-                {/* Remember Me & Help */}
-                <div className="flex items-center justify-between pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="rememberMe"
-                      checked={formData.rememberMe}
-                      onChange={handleChange}
-                      className="w-4 h-4 accent-[#C5924E] rounded border-[#E3D7C8]"
-                    />
-                    <span className="text-xs text-[#6E5D53] font-medium">
-                      Remember me
-                    </span>
-                  </label>
-                  <a
-                    href="#help"
-                    className="text-xs text-[#8C5E47] hover:underline font-medium"
-                  >
-                    Need help?
-                  </a>
-                </div>
-
-                {/* Log In Button */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -382,7 +584,6 @@ export default function Login() {
                 </button>
               </form>
 
-              {/* Create Account Option Link */}
               <div className="text-center pt-2">
                 <p className="text-xs text-[#6E5D53]">
                   Don't have an account yet?{" "}
@@ -394,73 +595,6 @@ export default function Login() {
                   </Link>
                 </p>
               </div>
-
-              {/* Divider */}
-              <div className="relative flex items-center justify-center my-4">
-                <div className="border-t border-[#EADBCE] w-full" />
-                <span className="bg-white px-3 text-[10px] font-bold text-[#8C5E47] uppercase tracking-wider absolute">
-                  or continue with
-                </span>
-              </div>
-
-              {/* Social Logins */}
-              <div className="space-y-2.5">
-                <button
-                  type="button"
-                  onClick={() => handleOAuthLogin("google")}
-                  className="w-full py-2.5 px-4 border border-[#EADBCE] rounded-xl text-xs font-semibold text-[#2D1F1A] bg-white hover:bg-[#FAF7F2] flex items-center justify-center gap-3 transition-all cursor-pointer"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                    />
-                  </svg>
-                  Continue with Google
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleOAuthLogin("facebook")}
-                  className="w-full py-2.5 px-4 border border-[#EADBCE] rounded-xl text-xs font-semibold text-[#2D1F1A] bg-white hover:bg-[#FAF7F2] flex items-center justify-center gap-3 transition-all cursor-pointer"
-                >
-                  <svg className="w-4 h-4 fill-[#1877F2]" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                  </svg>
-                  Continue with Facebook
-                </button>
-              </div>
-
-              {/* Terms Disclaimer */}
-              <p className="text-[10px] text-center text-[#6E5D53] leading-relaxed">
-                By continuing, you agree to our{" "}
-                <a
-                  href="#terms"
-                  className="font-bold text-[#C5924E] hover:underline"
-                >
-                  Terms of Service
-                </a>{" "}
-                and{" "}
-                <a
-                  href="#privacy"
-                  className="font-bold text-[#C5924E] hover:underline"
-                >
-                  Privacy Policy
-                </a>
-                .
-              </p>
             </div>
           )}
         </div>
