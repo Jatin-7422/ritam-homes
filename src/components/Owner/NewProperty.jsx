@@ -225,8 +225,7 @@ export default function AddPropertyDashboard() {
     if (currentStep !== 4) return;
 
     const apiKey =
-      import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
-      "AIzaSyDcXRgjLqeMmRbNgtgwfuN91pjL0b4XKxw";
+      import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
     if (window.google && window.google.maps) {
       setIsMapLoaded(true);
