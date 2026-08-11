@@ -31,6 +31,7 @@ import OwnerDashboard from "./components/Owner/OwnerDashboard";
 import Signup from "./components/Login/Signup";
 import NewProperty from "./components/Owner/NewProperty";
 
+
 // Analytics
 import { Analytics } from "@vercel/analytics/react";
 
@@ -263,7 +264,24 @@ function AppContent() {
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-            <Route path="/owner-properties" element={<NewProperty />} />
+
+            {/* 🛡️ Protected Add Property Route (Owner Only) */}
+            <Route
+              path="/owner-properties"
+              element={
+                <ProtectedRoute allowedRole="owner">
+                  <NewProperty />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/add-property"
+              element={
+                <ProtectedRoute allowedRole="owner">
+                  <NewProperty />
+                </ProtectedRoute>
+              }
+            />
 
             {/* 🛡️ Protected Tenant Dashboard */}
             <Route
