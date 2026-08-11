@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
-import logoWhite from "../../assets/newlogo.png"; // or use your dark logo if needed
+import logoWhite from "../../assets/newlogo.png";
 import {
   Home,
   Heart,
@@ -277,8 +277,6 @@ export default function TenantDashboard() {
             </Link>
           </div>
         </div>
-
-        {/* TOP METRICS CARDS ROW */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div className="bg-white p-4 rounded-2xl border border-[#E3D9CC] shadow-xs flex items-center justify-between">
             <div className="space-y-1">
