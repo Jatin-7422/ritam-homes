@@ -1,1 +1,1 @@
-{/** this is a simple profile component for the tenant */}
+{/** hii this is insan */}
