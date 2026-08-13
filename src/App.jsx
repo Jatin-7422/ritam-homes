@@ -7,7 +7,6 @@ import {
   Navigate,
   Link,
   useNavigate,
-  Outlet,
 } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import { Loader2, ShieldAlert, ArrowLeft } from "lucide-react";
@@ -81,7 +80,9 @@ function ProtectedRoute({ children, allowedRole }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F8F5EE] flex items-center justify-center">
+      <div
+        className={`min-h-screen w-full bg-[#F8F5EE] text-[#1E293B] font-sans flex flex-col justify-between transition-opacity duration-300 overflow-x-hidden ${loading ? "opacity-0" : "opacity-100"}`}
+      >
         <Loader2 className="w-8 h-8 animate-spin text-[#C5924E]" />
       </div>
     );
@@ -183,11 +184,9 @@ function AppContent() {
         } = await supabase.auth.getSession();
 
         if (session) {
-          // Check if user selected a specific role tab right before clicking Google login
           const intendedRole = localStorage.getItem("oauth_intended_role");
           let userRole = session.user?.user_metadata?.role || "tenant";
 
-          // If they explicitly selected a different role tab, update their metadata in Supabase
           if (intendedRole && intendedRole !== userRole) {
             const { data: updateData } = await supabase.auth.updateUser({
               data: { role: intendedRole },
@@ -196,7 +195,6 @@ function AppContent() {
             localStorage.removeItem("oauth_intended_role");
           }
 
-          // Clear URL parameters to prevent looping/lingering tokens
           window.history.replaceState(
             {},
             document.title,
@@ -227,9 +225,15 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, [location.pathname]);
 
-  // Check if current route belongs to dashboard layouts (to hide landing page Navbar/Footer if needed)
+  // Precise routing check for dashboard vs landing page layouts to maintain mobile view integrity
   const isDashboardRoute =
-    location.pathname.startsWith("/owner-") ||
+    location.pathname === "/owner-dashboard" ||
+    location.pathname.startsWith("/owner-dashboard/") ||
+    location.pathname === "/owner-properties" ||
+    location.pathname === "/owner-visits" ||
+    location.pathname === "/owner-bookings" ||
+    location.pathname === "/owner-earnings" ||
+    location.pathname === "/owner-settings" ||
     location.pathname === "/add-property" ||
     location.pathname === "/tenant-dashboard";
 
@@ -265,13 +269,12 @@ function AppContent() {
         </div>
       )}
 
-      {/* Main Container handles smooth route layout transitions */}
       <div
-        className={`min-h-screen bg-[#F8F5EE] text-[#1E293B] font-sans flex flex-col justify-between transition-opacity duration-300 ${loading ? "opacity-0" : "opacity-100"}`}
+        className={`min-h-screen bg-[#F8F5EE] text-[#1E293B] font-sans flex flex-col justify-between transition-opacity duration-300 overflow-x-hidden ${loading ? "opacity-0" : "opacity-100"}`}
       >
         {!isDashboardRoute && <Navbar />}
 
-        <main className="flex-grow flex flex-col">
+        <main className="flex-grow flex flex-col w-full">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/contact" element={<ContactUs />} />
