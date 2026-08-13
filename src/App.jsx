@@ -7,6 +7,7 @@ import {
   Navigate,
   Link,
   useNavigate,
+  Outlet,
 } from "react-router-dom";
 import { supabase } from "./supabaseClient";
 import { Loader2, ShieldAlert, ArrowLeft } from "lucide-react";
@@ -28,9 +29,15 @@ import Login from "./components/Login/Login";
 import ContactUs from "./components/ContactUs/ContactUs";
 import TenantDashboard from "./components/Tenant/TenantDashboard";
 import OwnerDashboard from "./components/Owner/OwnerDashboard";
+import OwnerOverview from "./components/Owner/OwnerOverview";
 import Signup from "./components/Login/Signup";
 import NewProperty from "./components/Owner/NewProperty";
-
+import OwnerProperties from "./components/Owner/owner_properties";
+import OwnerPropertyDetails from "./components/Owner/OwnerPropertyDetails";
+import OwnerVisits from "./components/Owner/OwnerVisits";
+import OwnerBookings from "./components/Owner/OwnerBookings";
+import OwnerEarnings from "./components/Owner/OwnerEarnings";
+import OwnerSettings from "./components/Owner/OwnerSettings";
 
 // Analytics
 import { Analytics } from "@vercel/analytics/react";
@@ -220,6 +227,12 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, [location.pathname]);
 
+  // Check if current route belongs to dashboard layouts (to hide landing page Navbar/Footer if needed)
+  const isDashboardRoute =
+    location.pathname.startsWith("/owner-") ||
+    location.pathname === "/add-property" ||
+    location.pathname === "/tenant-dashboard";
+
   return (
     <>
       {loading && (
@@ -256,32 +269,35 @@ function AppContent() {
       <div
         className={`min-h-screen bg-[#F8F5EE] text-[#1E293B] font-sans flex flex-col justify-between transition-opacity duration-300 ${loading ? "opacity-0" : "opacity-100"}`}
       >
-        <Navbar />
+        {!isDashboardRoute && <Navbar />}
 
-        <main className="flex-grow">
+        <main className="flex-grow flex flex-col">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
 
-            {/* 🛡️ Protected Add Property Route (Owner Only) */}
+            {/* 🛡️ Protected Owner Dashboard & Nested Tab Routes */}
             <Route
-              path="/owner-properties"
               element={
                 <ProtectedRoute allowedRole="owner">
-                  <NewProperty />
+                  <OwnerDashboard />
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="/add-property"
-              element={
-                <ProtectedRoute allowedRole="owner">
-                  <NewProperty />
-                </ProtectedRoute>
-              }
-            />
+            >
+              <Route path="/owner-dashboard" element={<OwnerOverview />} />
+              <Route path="/owner-properties" element={<OwnerProperties />} />
+              <Route
+                path="/owner-dashboard/property/:id"
+                element={<OwnerPropertyDetails />}
+              />
+              <Route path="/add-property" element={<NewProperty />} />
+              <Route path="/owner-visits" element={<OwnerVisits />} />
+              <Route path="/owner-bookings" element={<OwnerBookings />} />
+              <Route path="/owner-earnings" element={<OwnerEarnings />} />
+              <Route path="/owner-settings" element={<OwnerSettings />} />
+            </Route>
 
             {/* 🛡️ Protected Tenant Dashboard */}
             <Route
@@ -292,20 +308,10 @@ function AppContent() {
                 </ProtectedRoute>
               }
             />
-
-            {/* 🛡️ Protected Owner Dashboard */}
-            <Route
-              path="/owner-dashboard"
-              element={
-                <ProtectedRoute allowedRole="owner">
-                  <OwnerDashboard />
-                </ProtectedRoute>
-              }
-            />
           </Routes>
         </main>
 
-        <Footer />
+        {!isDashboardRoute && <Footer />}
         <Analytics />
       </div>
     </>
