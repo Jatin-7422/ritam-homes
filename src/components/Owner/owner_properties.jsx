@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import {
   Loader2,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 export default function OwnerProperties() {
+  const navigate = useNavigate();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -53,7 +54,8 @@ export default function OwnerProperties() {
   }, []);
 
   // Handle property deletion
-  const handleDelete = async (id) => {
+  const handleDelete = async (e, id) => {
+    e.stopPropagation(); // Prevents card click navigation when deleting
     if (!window.confirm("Are you sure you want to delete this property?"))
       return;
 
@@ -84,19 +86,19 @@ export default function OwnerProperties() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-serif font-bold text-[#2D1F1A]">
-            My Properties
+            My Properties 🏡
           </h1>
           <p className="text-sm text-[#6E5D53] mt-1">
             Manage your listed properties, track status, and add new listings.
           </p>
         </div>
-        <Link
-          to="/add-property"
-          className="px-5 py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white font-medium text-sm rounded-xl transition-all shadow-md flex items-center gap-2"
+        <button
+          onClick={() => navigate("/owner-dashboard/new-property")}
+          className="px-5 py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white font-medium text-sm rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 text-[#C5924E]" />
           <span>Add New Property</span>
-        </Link>
+        </button>
       </div>
 
       {/* Error State */}
@@ -120,20 +122,23 @@ export default function OwnerProperties() {
             You haven't listed any properties yet. Get started by adding your
             first property for tenants to discover.
           </p>
-          <Link
-            to="/add-property"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#C5924E] hover:bg-[#B4813F] text-white font-medium text-sm rounded-xl transition-all shadow-sm"
+          <button
+            onClick={() => navigate("/owner-dashboard/new-property")}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#C5924E] hover:bg-[#B4813F] text-white font-medium text-sm rounded-xl transition-all shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Add Property Now</span>
-          </Link>
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {properties.map((property) => (
             <div
               key={property.id}
-              className="bg-white rounded-3xl border border-[#EADBCE] shadow-sm overflow-hidden flex flex-col justify-between transition-all hover:shadow-md"
+              onClick={() =>
+                navigate(`/owner-dashboard/property/${property.id}`)
+              }
+              className="bg-white rounded-3xl border border-[#EADBCE] shadow-sm overflow-hidden flex flex-col justify-between transition-all hover:shadow-md cursor-pointer group"
             >
               <div>
                 {/* Property Image Banner (Fallback if no image) */}
@@ -142,19 +147,19 @@ export default function OwnerProperties() {
                     <img
                       src={property.images[0]}
                       alt={property.title}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
                     <Home className="w-12 h-12 text-[#C5924E]/40" />
                   )}
-                  <span className="absolute top-3 right-3 px-3 py-1 bg-white/90 backdrop-blur-sm text-[#2D1F1A] text-xs font-bold rounded-full shadow-sm">
+                  <span className="absolute top-3 right-3 px-3 py-1 bg-white/90 backdrop-blur-sm text-[#2D1F1A] text-xs font-bold rounded-full shadow-sm border border-[#EADBCE]">
                     Active
                   </span>
                 </div>
 
                 {/* Content */}
                 <div className="p-5 space-y-3">
-                  <h3 className="text-lg font-serif font-bold text-[#2D1F1A] line-clamp-1">
+                  <h3 className="text-lg font-serif font-bold text-[#2D1F1A] line-clamp-1 group-hover:text-[#C5924E] transition-colors">
                     {property.title}
                   </h3>
 
@@ -184,8 +189,8 @@ export default function OwnerProperties() {
                 </div>
 
                 <button
-                  onClick={() => handleDelete(property.id)}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                  onClick={(e) => handleDelete(e, property.id)}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer z-10"
                   title="Delete Property"
                 >
                   <Trash2 className="w-4 h-4" />
