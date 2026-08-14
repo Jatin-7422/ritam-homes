@@ -93,7 +93,7 @@ export default function OwnerProperties() {
           </p>
         </div>
         <button
-          onClick={() => navigate("/owner-dashboard/new-property")}
+          onClick={() => navigate("/add-property")}
           className="px-5 py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white font-medium text-sm rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer"
         >
           <Plus className="w-4 h-4 text-[#C5924E]" />
