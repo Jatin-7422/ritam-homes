@@ -404,8 +404,15 @@ export default function NewProperty() {
             return (
               <button
                 key={item.step}
-                onClick={() => setCurrentStep(item.step)}
-                className={`flex items-center gap-3.5 p-3 rounded-xl text-left transition-all cursor-pointer border ${
+                onClick={() => {
+                  // Optional: allow going back freely, but guard forward progression if needed
+                  if (item.step < currentStep) {
+                    setCurrentStep(item.step);
+                  }
+                }}
+                className={`flex items-center gap-3.5 p-3 rounded-xl text-left transition-all ${
+                  item.step < currentStep ? "cursor-pointer" : "cursor-default"
+                } border ${
                   isSelected
                     ? "bg-[#2D1F1A] text-white border-[#2D1F1A] shadow-md"
                     : "bg-[#FBF9F4] text-[#2D1F1A] border-[#E3D9CC] hover:bg-[#F2ECE1]"
@@ -537,7 +544,7 @@ export default function NewProperty() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
-                    Property Title
+                    Property Title <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -598,7 +605,7 @@ export default function NewProperty() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
-                    Monthly rent (₹)
+                    Monthly rent (₹) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -616,7 +623,7 @@ export default function NewProperty() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
-                    Security deposit (₹)
+                    Security deposit (₹) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -634,7 +641,8 @@ export default function NewProperty() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
-                    Built-up area (sq. ft.)
+                    Built-up area (sq. ft.){" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -652,7 +660,7 @@ export default function NewProperty() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
-                    Floor / total floors
+                    Floor / total floors <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -1272,6 +1280,35 @@ export default function NewProperty() {
 
             <button
               onClick={() => {
+                // Validation checks per step before continuing
+                if (currentStep === 1) {
+                  if (photos.length < 3) {
+                    alert("Please add at least 3 photos to continue.");
+                    return;
+                  }
+                } else if (currentStep === 2) {
+                  if (!propertyDetails.title.trim()) {
+                    alert("Please enter a property title.");
+                    return;
+                  }
+                  if (!propertyDetails.monthlyRent) {
+                    alert("Please enter the monthly rent.");
+                    return;
+                  }
+                  if (!propertyDetails.securityDeposit) {
+                    alert("Please enter the security deposit.");
+                    return;
+                  }
+                  if (!propertyDetails.builtUpArea) {
+                    alert("Please enter the built-up area.");
+                    return;
+                  }
+                  if (!propertyDetails.floorDetails.trim()) {
+                    alert("Please enter floor details.");
+                    return;
+                  }
+                }
+
                 if (currentStep < totalSteps) {
                   setCurrentStep((prev) => prev + 1);
                 } else {
