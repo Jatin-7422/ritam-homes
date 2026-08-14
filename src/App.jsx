@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, createContext, useContext } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -9,7 +9,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { supabase } from "./supabaseClient";
-import { Loader2, ShieldAlert, ArrowLeft } from "lucide-react";
+import { Loader2, ShieldAlert, ArrowLeft, CheckCircle2 } from "lucide-react";
 
 // Layout Components
 import Navbar from "./components/Landing-Page/Navbar";
@@ -44,6 +44,55 @@ import { Analytics } from "@vercel/analytics/react";
 // Logo
 import logo from "./assets/newlogo.png";
 
+// ==========================================
+// 🌐 GLOBAL APP CONTEXT & PROVIDER
+// ==========================================
+export const AppContext = createContext(null);
+
+export function AppProvider({ children }) {
+  const [userInfo, setUserInfo] = useState({
+    fullName: "Master",
+    email: "jatinkumar7422@gmail.com",
+    phone: "+91 98765 43210",
+    businessName: "Master Properties",
+    role: "Property Owner",
+    memberSince: "14 August 2025",
+    location: "Bangalore, Karnataka, India",
+    isVerified: true,
+  });
+
+  const [preferences, setPreferences] = useState({
+    theme: "Light Warm", // "Light Warm" | "Dark Mode" | "System Default"
+    currency: "INR (₹)",
+    language: "English",
+  });
+
+  const [toastMessage, setToastMessage] = useState("");
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(""), 3500);
+  };
+
+  return (
+    <AppContext.Provider
+      value={{
+        userInfo,
+        setUserInfo,
+        preferences,
+        setPreferences,
+        toastMessage,
+        showToast,
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+// ==========================================
+// 🛡️ PROTECTED ROUTE
+// ==========================================
 function ProtectedRoute({ children, allowedRole }) {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -80,20 +129,16 @@ function ProtectedRoute({ children, allowedRole }) {
 
   if (loading) {
     return (
-      <div
-        className={`min-h-screen w-full bg-[#F8F5EE] text-[#1E293B] font-sans flex flex-col justify-between transition-opacity duration-300 overflow-x-hidden ${loading ? "opacity-0" : "opacity-100"}`}
-      >
+      <div className="min-h-screen w-full bg-[#F8F5EE] text-[#1E293B] font-sans flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-[#C5924E]" />
       </div>
     );
   }
 
-  // If not logged in, redirect to login page
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If logged in as the wrong role, show an explicit warning message
   if (allowedRole && userRole !== allowedRole) {
     const currentRoleName = userRole === "owner" ? "Owner" : "Tenant";
     const targetRoleName = allowedRole === "owner" ? "Owner" : "Tenant";
@@ -165,15 +210,18 @@ function Home() {
   );
 }
 
-// 🔄 Inner App Component (Listens to real OAuth redirects & syncs selected role)
-function AppContent() {
+// 🔄 Inner App Layout that respects Global Theme & Toasts
+function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
 
+  // Consume Global Context for themes and global toasts
+  const { preferences, toastMessage } = useContext(AppContext);
+  const isDarkTheme = preferences.theme === "Dark Mode";
+
   useEffect(() => {
-    // Check if URL has incoming OAuth tokens/code from Google provider
     const checkOAuthReturn = async () => {
       const hash = window.location.hash;
       const search = window.location.search;
@@ -225,7 +273,6 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, [location.pathname]);
 
-  // Precise routing check for dashboard vs landing page layouts to maintain mobile view integrity
   const isDashboardRoute =
     location.pathname === "/owner-dashboard" ||
     location.pathname.startsWith("/owner-dashboard/") ||
@@ -238,7 +285,19 @@ function AppContent() {
     location.pathname === "/tenant-dashboard";
 
   return (
-    <>
+    <div
+      className={`min-h-screen font-sans flex flex-col justify-between transition-colors duration-300 overflow-x-hidden ${
+        isDarkTheme ? "bg-[#1A120B] text-white" : "bg-[#F8F5EE] text-[#1E293B]"
+      }`}
+    >
+      {/* Global Toast Notifications */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 bg-[#2D1F1A] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#C5924E] text-xs font-bold flex items-center gap-3 animate-bounce">
+          <CheckCircle2 className="w-4 h-4 text-[#C5924E]" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {loading && (
         <div
           className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#F6F2EA] transition-opacity duration-400 ease-in-out ${
@@ -269,62 +328,60 @@ function AppContent() {
         </div>
       )}
 
-      <div
-        className={`min-h-screen bg-[#F8F5EE] text-[#1E293B] font-sans flex flex-col justify-between transition-opacity duration-300 overflow-x-hidden ${loading ? "opacity-0" : "opacity-100"}`}
-      >
-        {!isDashboardRoute && <Navbar />}
+      {!isDashboardRoute && <Navbar />}
 
-        <main className="flex-grow flex flex-col w-full">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/contact" element={<ContactUs />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
+      <main className="flex-grow flex flex-col w-full">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/contact" element={<ContactUs />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
-            {/* 🛡️ Protected Owner Dashboard & Nested Tab Routes */}
+          {/* 🛡️ Protected Owner Dashboard & Nested Tab Routes */}
+          <Route
+            element={
+              <ProtectedRoute allowedRole="owner">
+                <OwnerDashboard />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/owner-dashboard" element={<OwnerOverview />} />
+            <Route path="/owner-properties" element={<OwnerProperties />} />
             <Route
-              element={
-                <ProtectedRoute allowedRole="owner">
-                  <OwnerDashboard />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/owner-dashboard" element={<OwnerOverview />} />
-              <Route path="/owner-properties" element={<OwnerProperties />} />
-              <Route
-                path="/owner-dashboard/property/:id"
-                element={<OwnerPropertyDetails />}
-              />
-              <Route path="/add-property" element={<NewProperty />} />
-              <Route path="/owner-visits" element={<OwnerVisits />} />
-              <Route path="/owner-bookings" element={<OwnerBookings />} />
-              <Route path="/owner-earnings" element={<OwnerEarnings />} />
-              <Route path="/owner-settings" element={<OwnerSettings />} />
-            </Route>
-
-            {/* 🛡️ Protected Tenant Dashboard */}
-            <Route
-              path="/tenant-dashboard"
-              element={
-                <ProtectedRoute allowedRole="tenant">
-                  <TenantDashboard />
-                </ProtectedRoute>
-              }
+              path="/owner-dashboard/property/:id"
+              element={<OwnerPropertyDetails />}
             />
-          </Routes>
-        </main>
+            <Route path="/add-property" element={<NewProperty />} />
+            <Route path="/owner-visits" element={<OwnerVisits />} />
+            <Route path="/owner-bookings" element={<OwnerBookings />} />
+            <Route path="/owner-earnings" element={<OwnerEarnings />} />
+            <Route path="/owner-settings" element={<OwnerSettings />} />
+          </Route>
 
-        {!isDashboardRoute && <Footer />}
-        <Analytics />
-      </div>
-    </>
+          {/* 🛡️ Protected Tenant Dashboard */}
+          <Route
+            path="/tenant-dashboard"
+            element={
+              <ProtectedRoute allowedRole="tenant">
+                <TenantDashboard />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </main>
+
+      {!isDashboardRoute && <Footer />}
+      <Analytics />
+    </div>
   );
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      <AppContent />
+      <AppProvider>
+        <AppLayout />
+      </AppProvider>
     </BrowserRouter>
   );
 }

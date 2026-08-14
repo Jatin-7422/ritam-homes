@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import logoWhite from "../../assets/whitelogo.png";
+import { AppContext } from "../../App"; // Adjust the relative path if needed to point to your App.jsx
 import {
   LayoutDashboard,
   Building2,
@@ -25,16 +26,15 @@ import {
 export default function OwnerDashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [userProfile, setUserProfile] = useState({
-    name: "Rahul",
-    email: "",
-    avatar: "",
-  });
+
+  // Consume global context data
+  const { userInfo, setUserInfo, preferences } = useContext(AppContext);
+  const isDarkTheme = preferences.theme === "Dark Mode";
 
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Fetch Session
+  // Fetch Session & Sync Supabase User Data into Global Context if not already set
   useEffect(() => {
     const fetchSession = async () => {
       try {
@@ -47,18 +47,25 @@ export default function OwnerDashboard() {
             user.user_metadata?.full_name ||
             user.user_metadata?.name ||
             user.email.split("@")[0];
-          setUserProfile({
-            name: fullName.charAt(0).toUpperCase() + fullName.slice(1),
+
+          const formattedName =
+            fullName.charAt(0).toUpperCase() + fullName.slice(1);
+
+          // Update global userInfo with session data if it's default
+          setUserInfo((prev) => ({
+            ...prev,
+            fullName:
+              prev.fullName === "Master" ? formattedName : prev.fullName,
             email: user.email,
-            avatar: user.user_metadata?.avatar_url || "",
-          });
+            avatar: user.user_metadata?.avatar_url || prev.avatar || "",
+          }));
         }
       } catch (err) {
         console.error("Auth session error:", err);
       }
     };
     fetchSession();
-  }, []);
+  }, [setUserInfo]);
 
   // Auth state listener
   useEffect(() => {
@@ -90,7 +97,7 @@ export default function OwnerDashboard() {
     { name: "Dashboard", icon: LayoutDashboard, path: "/owner-dashboard" },
     { name: "My Properties", icon: Building2, path: "/owner-properties" },
     { name: "Add New Property", icon: PlusCircle, path: "/add-property" },
-    { name: "Visit Requests", icon: CalendarCheck, path: "/owner-visits" }, // Fixed route path matching App.jsx
+    { name: "Visit Requests", icon: CalendarCheck, path: "/owner-visits" },
     { name: "Bookings", icon: Calendar, path: "/owner-bookings" },
     { name: "Tenants", icon: Users, path: "/owner-tenants" },
     { name: "Earnings", icon: IndianRupee, path: "/owner-earnings" },
@@ -102,7 +109,9 @@ export default function OwnerDashboard() {
 
   return (
     <div
-      className={`min-h-screen bg-[#F8F5EE] font-sans text-[#2D1F1A] flex flex-col md:flex-row relative transition-opacity duration-500 ${isLoggingOut ? "opacity-90" : "opacity-100"}`}
+      className={`min-h-screen font-sans flex flex-col md:flex-row relative transition-colors duration-300 ${
+        isDarkTheme ? "bg-[#1A120B] text-white" : "bg-[#F8F5EE] text-[#2D1F1A]"
+      } ${isLoggingOut ? "opacity-90" : "opacity-100"}`}
     >
       {/* LOGOUT OVERLAY */}
       {isLoggingOut && (
@@ -127,7 +136,9 @@ export default function OwnerDashboard() {
 
       {/* PERSISTENT SIDEBAR */}
       <aside
-        className={`w-72 bg-[#2D1F1A] text-[#D1C4B9] flex flex-col justify-between flex-shrink-0 z-50 fixed inset-y-0 left-0 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`w-72 bg-[#2D1F1A] text-[#D1C4B9] flex flex-col justify-between flex-shrink-0 z-50 fixed inset-y-0 left-0 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
         <div className="flex flex-col h-full overflow-hidden">
           {/* Logo & Close */}
@@ -147,25 +158,25 @@ export default function OwnerDashboard() {
             </button>
           </div>
 
-          {/* User Profile Card */}
+          {/* User Profile Card (Dynamic from Context) */}
           <div className="mx-3 my-3 p-3 bg-[#221A17] border border-[#3A2E2A] rounded-xl flex items-center gap-3 shadow-inner flex-shrink-0">
-            {userProfile.avatar ? (
+            {userInfo.avatar ? (
               <img
-                src={userProfile.avatar}
-                alt={userProfile.name}
+                src={userInfo.avatar}
+                alt={userInfo.fullName}
                 className="w-9 h-9 rounded-full object-cover border border-[#C5924E]/50"
               />
             ) : (
               <div className="w-9 h-9 rounded-full bg-[#C5924E] flex items-center justify-center text-[#2D1F1A] font-bold text-sm shadow">
-                {userProfile.name.charAt(0).toUpperCase()}
+                {userInfo.fullName.charAt(0).toUpperCase()}
               </div>
             )}
             <div className="flex-1 min-w-0">
               <h4 className="text-white font-bold text-xs truncate">
-                {userProfile.name}
+                {userInfo.fullName}
               </h4>
               <p className="text-[10px] text-[#9E8B7F] truncate">
-                {userProfile.email}
+                {userInfo.businessName}
               </p>
               <div className="flex items-center gap-1 mt-0.5 text-[10px] text-green-400 font-medium">
                 <ShieldCheck className="w-3 h-3" /> Verified Owner
@@ -192,7 +203,9 @@ export default function OwnerDashboard() {
                 >
                   <div className="flex items-center gap-3">
                     <Icon
-                      className={`w-4 h-4 ${isActive ? "text-[#2D1F1A]" : "text-[#9E8B7F]"}`}
+                      className={`w-4 h-4 ${
+                        isActive ? "text-[#2D1F1A]" : "text-[#9E8B7F]"
+                      }`}
                     />
                     <span>{item.name}</span>
                   </div>
@@ -216,15 +229,29 @@ export default function OwnerDashboard() {
 
       {/* MAIN CONTAINER FOR OUTLET CONTENT */}
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="w-full bg-[#F8F5EE] px-6 sm:px-10 pt-6 pb-2 flex items-center justify-between">
+        <header
+          className={`w-full px-6 sm:px-10 pt-6 pb-2 flex items-center justify-between transition-colors ${
+            isDarkTheme ? "bg-[#1A120B]" : "bg-[#F8F5EE]"
+          }`}
+        >
           <button
             onClick={() => setIsSidebarOpen(true)}
-            className="md:hidden p-2 bg-white border border-[#E3D9CC] rounded-xl text-[#2D1F1A] hover:bg-[#E3D9CC]/50 transition-colors cursor-pointer"
+            className={`md:hidden p-2 border rounded-xl transition-colors cursor-pointer ${
+              isDarkTheme
+                ? "bg-[#251B14] border-neutral-800 text-white hover:bg-neutral-800"
+                : "bg-white border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#E3D9CC]/50"
+            }`}
           >
             <Menu className="w-5 h-5" />
           </button>
           <div className="ml-auto">
-            <button className="relative p-2.5 bg-white border border-[#E3D9CC] rounded-full text-[#2D1F1A] hover:bg-[#E3D9CC]/50 transition-colors cursor-pointer">
+            <button
+              className={`relative p-2.5 border rounded-full transition-colors cursor-pointer ${
+                isDarkTheme
+                  ? "bg-[#251B14] border-neutral-800 text-white hover:bg-neutral-800"
+                  : "bg-white border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#E3D9CC]/50"
+              }`}
+            >
               <Bell className="w-4 h-4" />
             </button>
           </div>
