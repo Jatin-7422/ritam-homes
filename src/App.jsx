@@ -8,7 +8,7 @@ import {
   Link,
   useNavigate,
 } from "react-router-dom";
-import { supabase } from "./supabaseClient";
+
 import { Loader2, ShieldAlert, ArrowLeft } from "lucide-react";
 
 // Layout Components
@@ -30,13 +30,14 @@ import TenantDashboard from "./components/Tenant/TenantDashboard";
 import OwnerDashboard from "./components/Owner/OwnerDashboard";
 import Signup from "./components/Login/Signup";
 import NewProperty from "./components/Owner/NewProperty";
-
+import ExploreProperties from "./components/Tenant/ExploreProperties";
 
 // Analytics
 import { Analytics } from "@vercel/analytics/react";
 
-// Logo
-import logo from "./assets/newlogo.png";
+// Database Client & Logo
+import { supabase } from "./supabaseClient";
+import logo from "./assets/newlogo.png"; // ✅ Fixed import variable name
 
 function ProtectedRoute({ children, allowedRole }) {
   const [loading, setLoading] = useState(true);
@@ -193,7 +194,7 @@ function AppContent() {
           window.history.replaceState(
             {},
             document.title,
-            window.location.pathname,
+            window.location.pathname
           );
 
           if (userRole === "owner") {
@@ -254,7 +255,9 @@ function AppContent() {
 
       {/* Main Container handles smooth route layout transitions */}
       <div
-        className={`min-h-screen bg-[#F8F5EE] text-[#1E293B] font-sans flex flex-col justify-between transition-opacity duration-300 ${loading ? "opacity-0" : "opacity-100"}`}
+        className={`min-h-screen bg-[#F8F5EE] text-[#1E293B] font-sans flex flex-col justify-between transition-opacity duration-300 ${
+          loading ? "opacity-0" : "opacity-100"
+        }`}
       >
         <Navbar />
 
@@ -283,12 +286,20 @@ function AppContent() {
               }
             />
 
-            {/* 🛡️ Protected Tenant Dashboard */}
+            {/* 🛡️ Protected Tenant Routes */}
             <Route
               path="/tenant-dashboard"
               element={
                 <ProtectedRoute allowedRole="tenant">
                   <TenantDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/explore-properties"
+              element={
+                <ProtectedRoute allowedRole="tenant">
+                  <ExploreProperties />
                 </ProtectedRoute>
               }
             />

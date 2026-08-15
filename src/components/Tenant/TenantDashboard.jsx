@@ -270,7 +270,7 @@ export default function TenantDashboard() {
             </div>
 
             <Link
-              to="/"
+              to="/explore-properties"
               className="px-5 py-2.5 bg-[#2D1F1A] text-white text-xs font-bold rounded-xl hover:bg-[#3E2E27] transition-all cursor-pointer shadow-xs"
             >
               Explore Properties
