@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import logoWhite from "../../assets/whitelogo.png";
-import { AppContext } from "../../App"; // Adjust the relative path if needed to point to your App.jsx
+import { AppContext } from "../../App"; // Adjust path if needed
 import {
   LayoutDashboard,
   Building2,
@@ -29,12 +29,13 @@ export default function OwnerDashboard() {
 
   // Consume global context data
   const { userInfo, setUserInfo, preferences } = useContext(AppContext);
-  const isDarkTheme = preferences.theme === "Dark Mode";
+  const isDarkTheme =
+    preferences.theme === "Dark Mode" || preferences.theme === "Dark";
 
-  const navigate = useNavigate();
+  const useNavigateInstance = useNavigate();
   const location = useLocation();
 
-  // Fetch Session & Sync Supabase User Data into Global Context if not already set
+  // Sync basic auth data without overriding user-updated context states
   useEffect(() => {
     const fetchSession = async () => {
       try {
@@ -43,20 +44,17 @@ export default function OwnerDashboard() {
         } = await supabase.auth.getSession();
         if (session && session.user) {
           const user = session.user;
-          const fullName =
-            user.user_metadata?.full_name ||
-            user.user_metadata?.name ||
-            user.email.split("@")[0];
-
-          const formattedName =
-            fullName.charAt(0).toUpperCase() + fullName.slice(1);
-
-          // Update global userInfo with session data if it's default
           setUserInfo((prev) => ({
             ...prev,
+            email: prev.email || user.email,
             fullName:
-              prev.fullName === "Master" ? formattedName : prev.fullName,
-            email: user.email,
+              prev.fullName !== "Master"
+                ? prev.fullName
+                : user.user_metadata?.full_name || prev.fullName,
+            businessName:
+              user.user_metadata?.business_name || prev.businessName,
+            phone: user.user_metadata?.phone || prev.phone,
+            location: user.user_metadata?.location || prev.location,
             avatar: user.user_metadata?.avatar_url || prev.avatar || "",
           }));
         }
@@ -73,11 +71,11 @@ export default function OwnerDashboard() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" || !session) {
-        navigate("/login", { replace: true });
+        useNavigateInstance("/login", { replace: true });
       }
     });
     return () => subscription?.unsubscribe();
-  }, [navigate]);
+  }, [useNavigateInstance]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -89,7 +87,7 @@ export default function OwnerDashboard() {
       console.error("Logout error:", e);
     }
     setTimeout(() => {
-      navigate("/login", { replace: true });
+      useNavigateInstance("/login", { replace: true });
     }, 600);
   };
 
@@ -101,9 +99,9 @@ export default function OwnerDashboard() {
     { name: "Bookings", icon: Calendar, path: "/owner-bookings" },
     { name: "Tenants", icon: Users, path: "/owner-tenants" },
     { name: "Earnings", icon: IndianRupee, path: "/owner-earnings" },
-    { name: "Documents", icon: FileText, path: "/owner-documents" },
+    { name: "Documents", icon: FileText, path: "/owner-dashboard/documents" },
     { name: "Messages", icon: MessageSquare, path: "/owner-messages" },
-    { name: "Reviews", icon: Star, path: "/owner-reviews" },
+    { name: "Reviews", icon: Star, path: "/owner-dashboard/reviews" },
     { name: "Account Settings", icon: Settings, path: "/owner-settings" },
   ];
 
@@ -158,7 +156,7 @@ export default function OwnerDashboard() {
             </button>
           </div>
 
-          {/* User Profile Card (Dynamic from Context) */}
+          {/* User Profile Card */}
           <div className="mx-3 my-3 p-3 bg-[#221A17] border border-[#3A2E2A] rounded-xl flex items-center gap-3 shadow-inner flex-shrink-0">
             {userInfo.avatar ? (
               <img
@@ -168,7 +166,9 @@ export default function OwnerDashboard() {
               />
             ) : (
               <div className="w-9 h-9 rounded-full bg-[#C5924E] flex items-center justify-center text-[#2D1F1A] font-bold text-sm shadow">
-                {userInfo.fullName.charAt(0).toUpperCase()}
+                {userInfo.fullName
+                  ? userInfo.fullName.charAt(0).toUpperCase()
+                  : "M"}
               </div>
             )}
             <div className="flex-1 min-w-0">
