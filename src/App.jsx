@@ -38,6 +38,10 @@ import OwnerBookings from "./components/Owner/OwnerBookings";
 import OwnerEarnings from "./components/Owner/OwnerEarnings";
 import OwnerSettings from "./components/Owner/OwnerSettings";
 
+// Newly Added Owner Components ("Coming Soon" modules)
+import OwnerReviews from "./components/Owner/OwnerReviews";
+import OwnerDocuments from "./components/Owner/OwnerDocuments";
+
 // Analytics
 import { Analytics } from "@vercel/analytics/react";
 
@@ -51,20 +55,20 @@ export const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const [userInfo, setUserInfo] = useState({
-    fullName: "Master",
-    email: "jatinkumar7422@gmail.com",
-    phone: "+91 98765 43210",
+    fullName: "Owner",
+    email: "",
+    phone: "",
     businessName: "Master Properties",
-    role: "Property Owner",
-    memberSince: "14 August 2025",
+    role: "owner",
+    memberSince: "",
     location: "Bangalore, Karnataka, India",
     isVerified: true,
   });
 
   const [preferences, setPreferences] = useState({
-    theme: "Light Warm", // "Light Warm" | "Dark Mode" | "System Default"
+    theme: localStorage.getItem("dashboard_theme") || "Light Warm", // "Light Warm" | "Dark Mode"
     currency: "INR (₹)",
-    language: "English",
+    language: localStorage.getItem("dashboard_lang") || "English",
   });
 
   const [toastMessage, setToastMessage] = useState("");
@@ -73,6 +77,43 @@ export function AppProvider({ children }) {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(""), 3500);
   };
+
+  // Sync theme & language to localStorage
+  useEffect(() => {
+    localStorage.setItem("dashboard_theme", preferences.theme);
+  }, [preferences.theme]);
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_lang", preferences.language);
+  }, [preferences.language]);
+
+  // Fetch Supabase session user data on load
+  useEffect(() => {
+    const fetchSessionUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user) {
+        const metadata = session.user.user_metadata || {};
+        const rawName =
+          metadata.full_name ||
+          metadata.name ||
+          session.user.email?.split("@")[0] ||
+          "Owner";
+        const formattedName =
+          rawName.charAt(0).toUpperCase() + rawName.slice(1);
+
+        setUserInfo((prev) => ({
+          ...prev,
+          fullName: formattedName,
+          email: session.user.email || "",
+          phone: metadata.phone || "",
+          role: metadata.role || "owner",
+        }));
+      }
+    };
+    fetchSessionUser();
+  }, []);
 
   return (
     <AppContext.Provider
@@ -219,7 +260,8 @@ function AppLayout() {
 
   // Consume Global Context for themes and global toasts
   const { preferences, toastMessage } = useContext(AppContext);
-  const isDarkTheme = preferences.theme === "Dark Mode";
+  const isDarkTheme =
+    preferences.theme === "Dark Mode" || preferences.theme === "Dark";
 
   useEffect(() => {
     const checkOAuthReturn = async () => {
@@ -350,6 +392,11 @@ function AppLayout() {
             <Route
               path="/owner-dashboard/property/:id"
               element={<OwnerPropertyDetails />}
+            />
+            <Route path="/owner-dashboard/reviews" element={<OwnerReviews />} />
+            <Route
+              path="/owner-dashboard/documents"
+              element={<OwnerDocuments />}
             />
             <Route path="/add-property" element={<NewProperty />} />
             <Route path="/owner-visits" element={<OwnerVisits />} />
