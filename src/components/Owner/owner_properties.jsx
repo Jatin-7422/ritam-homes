@@ -53,22 +53,54 @@ export default function OwnerProperties() {
     fetchProperties();
   }, []);
 
-  // Handle property deletion
-  const handleDelete = async (e, id) => {
+  // Handle property deletion (including associated storage images)
+  const handleDelete = async (e, property) => {
     e.stopPropagation(); // Prevents card click navigation when deleting
-    if (!window.confirm("Are you sure you want to delete this property?"))
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this property and its images?",
+      )
+    )
       return;
 
     try {
-      const { error } = await supabase.from("properties").delete().eq("id", id);
+      // 1. Extract file paths from the property's images array to delete from Supabase Storage
+      if (property.images && property.images.length > 0) {
+        const filePaths = property.images
+          .map((url) => {
+            // Adjust the bucket name string if your bucket name is different from "properties"
+            const parts = url.split("/properties/");
+            return parts.length > 1 ? parts[1] : null;
+          })
+          .filter(Boolean);
 
-      if (error) throw error;
+        if (filePaths.length > 0) {
+          const { error: storageError } = await supabase.storage
+            .from("properties")
+            .remove(filePaths);
 
-      // Update state to remove deleted property instantly
-      setProperties(properties.filter((prop) => prop.id !== id));
+          if (storageError) {
+            console.error(
+              "Error deleting images from storage:",
+              storageError.message,
+            );
+          }
+        }
+      }
+
+      // 2. Delete the property record from the database
+      const { error: dbError } = await supabase
+        .from("properties")
+        .delete()
+        .eq("id", property.id);
+
+      if (dbError) throw dbError;
+
+      // 3. Update state to remove deleted property instantly
+      setProperties(properties.filter((prop) => prop.id !== property.id));
     } catch (err) {
       console.error("Error deleting property:", err.message);
-      alert("Failed to delete property.");
+      alert("Failed to delete property: " + err.message);
     }
   };
 
@@ -123,7 +155,7 @@ export default function OwnerProperties() {
             first property for tenants to discover.
           </p>
           <button
-            onClick={() => navigate("/owner-dashboard/new-property")}
+            onClick={() => navigate("/add-property")}
             className="inline-flex items-center gap-2 px-6 py-3 bg-[#C5924E] hover:bg-[#B4813F] text-white font-medium text-sm rounded-xl transition-all shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -189,7 +221,7 @@ export default function OwnerProperties() {
                 </div>
 
                 <button
-                  onClick={(e) => handleDelete(e, property.id)}
+                  onClick={(e) => handleDelete(e, property)}
                   className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer z-10"
                   title="Delete Property"
                 >
