@@ -9,6 +9,7 @@ import {
   Building2,
   Calendar,
   AlertCircle,
+  MessageSquare,
 } from "lucide-react";
 
 export default function OwnerPropertyDetails() {
@@ -18,9 +19,11 @@ export default function OwnerPropertyDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeImage, setActiveImage] = useState(0);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   useEffect(() => {
     fetchPropertyDetails();
+    checkCurrentUser();
   }, [id]);
 
   const fetchPropertyDetails = async () => {
@@ -44,6 +47,40 @@ export default function OwnerPropertyDetails() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const checkCurrentUser = async () => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData?.session) {
+      setCurrentUserId(sessionData.session.user.id);
+    }
+  };
+
+  const handleStartChat = async (propertyId, ownerId) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session) {
+      alert("Please log in to chat with the owner.");
+      return;
+    }
+
+    const currentUserId = sessionData.session.user.id;
+    if (currentUserId === ownerId) {
+      alert("You cannot chat with yourself on your own property.");
+      return;
+    }
+
+    // Insert initial system/greeting message if conversation doesn't exist yet
+    await supabase.from("messages").insert([
+      {
+        property_id: propertyId,
+        sender_id: currentUserId,
+        receiver_id: ownerId,
+        content: "Hi, I'm interested in this property. Is it still available?",
+      },
+    ]);
+
+    // Navigate to messages tab
+    navigate("/messages");
   };
 
   if (loading) {
@@ -75,6 +112,9 @@ export default function OwnerPropertyDetails() {
     property.images && property.images.length > 0
       ? property.images
       : ["https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=800"];
+
+  // Handle different schema column naming conventions for owner/user ID
+  const ownerId = property.owner_id || property.user_id;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
@@ -199,6 +239,17 @@ export default function OwnerPropertyDetails() {
             </div>
 
             <div className="space-y-3">
+              {/* Show Chat button ONLY if logged-in user is NOT the owner */}
+              {ownerId && currentUserId !== ownerId && (
+                <button
+                  onClick={() => handleStartChat(property.id, ownerId)}
+                  className="w-full py-3 bg-[#C5924E] hover:bg-[#b08043] text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Chat with Owner</span>
+                </button>
+              )}
+
               <button
                 onClick={() => navigate("/owner-properties")}
                 className="w-full py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
