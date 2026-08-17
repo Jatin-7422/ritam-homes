@@ -37,6 +37,7 @@ import OwnerVisits from "./components/Owner/OwnerVisits";
 import OwnerBookings from "./components/Owner/OwnerBookings";
 import OwnerEarnings from "./components/Owner/OwnerEarnings";
 import OwnerSettings from "./components/Owner/OwnerSettings";
+import Messages from "./components/Messages";
 
 // Newly Added Owner Components ("Coming Soon" modules)
 import OwnerReviews from "./components/Owner/OwnerReviews";
@@ -315,6 +316,7 @@ function AppLayout() {
     return () => clearTimeout(timer);
   }, [location.pathname]);
 
+  // Updated to include /messages in the dashboard routes check so Navbar/Footer stay hidden
   const isDashboardRoute =
     location.pathname === "/owner-dashboard" ||
     location.pathname.startsWith("/owner-dashboard/") ||
@@ -324,6 +326,7 @@ function AppLayout() {
     location.pathname === "/owner-earnings" ||
     location.pathname === "/owner-settings" ||
     location.pathname === "/add-property" ||
+    location.pathname === "/messages" ||
     location.pathname === "/tenant-dashboard";
 
   return (
@@ -403,6 +406,7 @@ function AppLayout() {
             <Route path="/owner-bookings" element={<OwnerBookings />} />
             <Route path="/owner-earnings" element={<OwnerEarnings />} />
             <Route path="/owner-settings" element={<OwnerSettings />} />
+            <Route path="/messages" element={<Messages />} />
           </Route>
 
           {/* 🛡️ Protected Tenant Dashboard */}
