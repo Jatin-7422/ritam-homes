@@ -2,6 +2,34 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import { MapPin, Loader2 } from "lucide-react";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import AddressAutocomplete from "./AddressAutocomplete";
+
+// Fix default Leaflet marker icon issue in React
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
+
+// Helper component to recenter map and fix sizing when container visibility changes across steps
+function RecenterMap({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, 15);
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [center, map]);
+  return null;
+}
 
 export default function NewProperty() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,19 +101,11 @@ export default function NewProperty() {
   const [dragSlotValue, setDragSlotValue] = useState(true);
   const [pickedDayIndex, setPickedDayIndex] = useState(0);
 
-  // Step 4: Location & Google Maps State
-  const [locationData, setLocationData] = useState({
-    addressSearch: "",
-    lat: 12.9716,
-    lng: 77.5946,
-    addressText: "Bengaluru, Karnataka",
-  });
-
-  const mapContainerRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const markerInstanceRef = useRef(null);
-  const searchInputRef = useRef(null);
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  // Step 4: Location State
+  const [locationAddress, setLocationAddress] = useState(
+    "Bengaluru, Karnataka",
+  );
+  const [mapCenter, setMapCenter] = useState([12.9716, 77.5946]); // Default Bengaluru coords
 
   // Photo handlers
   const handlePhotoUpload = (e) => {
@@ -137,159 +157,6 @@ export default function NewProperty() {
     return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
   }, []);
 
-  // Load Google Maps API Script dynamically when Step 4 is active
-  useEffect(() => {
-    if (currentStep !== 4) return;
-
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-    if (window.google && window.google.maps) {
-      setIsMapLoaded(true);
-      initGoogleMap();
-      return;
-    }
-
-    if (document.getElementById("google-maps-script")) {
-      const checkinterval = setInterval(() => {
-        if (window.google && window.google.maps) {
-          clearInterval(checkinterval);
-          setIsMapLoaded(true);
-          initGoogleMap();
-        }
-      }, 100);
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = "google-maps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      setIsMapLoaded(true);
-      initGoogleMap();
-    };
-    script.onerror = () => {
-      console.error("Failed to load Google Maps script.");
-    };
-    document.head.appendChild(script);
-  }, [currentStep]);
-
-  // Initialize Google Map & Autocomplete
-  const initGoogleMap = () => {
-    if (!mapContainerRef.current || !window.google) return;
-
-    const initialLat = locationData.lat;
-    const initialLng = locationData.lng;
-
-    const map = new window.google.maps.Map(mapContainerRef.current, {
-      center: { lat: initialLat, lng: initialLng },
-      zoom: 14,
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-    });
-
-    mapInstanceRef.current = map;
-
-    const marker = new window.google.maps.Marker({
-      position: { lat: initialLat, lng: initialLng },
-      map: map,
-      draggable: true,
-      animation: window.google.maps.Animation.DROP,
-    });
-
-    markerInstanceRef.current = marker;
-
-    marker.addListener("dragend", (event) => {
-      const lat = event.latLng.lat();
-      const lng = event.latLng.lng();
-      updateLocationFromCoords(lat, lng);
-    });
-
-    map.addListener("click", (event) => {
-      const lat = event.latLng.lat();
-      const lng = event.latLng.lng();
-      marker.setPosition({ lat, lng });
-      updateLocationFromCoords(lat, lng);
-    });
-
-    if (searchInputRef.current) {
-      const autocomplete = new window.google.maps.places.Autocomplete(
-        searchInputRef.current,
-        {
-          componentRestrictions: { country: ["in"] },
-        },
-      );
-
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        if (!place.geometry || !place.geometry.location) return;
-
-        const lat = place.geometry.location.lat();
-        const lng = place.geometry.location.lng();
-        const addressText = place.formatted_address || place.name;
-
-        map.setCenter({ lat, lng });
-        map.setZoom(15);
-        marker.setPosition({ lat, lng });
-
-        setLocationData({
-          addressSearch: addressText,
-          lat,
-          lng,
-          addressText,
-        });
-      });
-    }
-  };
-
-  const updateLocationFromCoords = (lat, lng) => {
-    if (!window.google) return;
-    const geocoder = new window.google.maps.Geocoder();
-    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-      if (status === "OK" && results[0]) {
-        const addressText = results[0].formatted_address;
-        setLocationData((prev) => ({
-          ...prev,
-          lat: parseFloat(lat.toFixed(4)),
-          lng: parseFloat(lng.toFixed(4)),
-          addressText,
-          addressSearch: addressText,
-        }));
-      } else {
-        setLocationData((prev) => ({
-          ...prev,
-          lat: parseFloat(lat.toFixed(4)),
-          lng: parseFloat(lng.toFixed(4)),
-          addressText: `Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`,
-        }));
-      }
-    });
-  };
-
-  const handleUseCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          if (mapInstanceRef.current && markerInstanceRef.current) {
-            mapInstanceRef.current.setCenter({ lat, lng });
-            mapInstanceRef.current.setZoom(16);
-            markerInstanceRef.current.setPosition({ lat, lng });
-          }
-          updateLocationFromCoords(lat, lng);
-        },
-        () => {
-          alert(
-            "Location access denied. Please search your address or click on the map.",
-          );
-        },
-      );
-    }
-  };
-
   // DATABASE SUBMISSION LOGIC
   const handlePublishProperty = async () => {
     setIsSubmitting(true);
@@ -338,9 +205,7 @@ export default function NewProperty() {
           `${propertyDetails.configuration} ${propertyDetails.propertyType}`,
         description: `${propertyDetails.furnishing}, ${propertyDetails.facing}, Preferred: ${propertyDetails.preferredTenant}. Water Supply: ${propertyDetails.waterSupply}.`,
         price: parseFloat(propertyDetails.monthlyRent) || 0,
-        location: locationData.addressText,
-        latitude: locationData.lat,
-        longitude: locationData.lng,
+        location: locationAddress,
         images: uploadedImageUrls,
       };
 
@@ -383,7 +248,7 @@ export default function NewProperty() {
           List a new property
         </h1>
         <p className="text-xs sm:text-sm text-[#6E5D53] mt-1">
-          Add photos, details, your visit availability, and the exact location.
+          Add photos, details, your visit availability, and the address.
         </p>
       </div>
 
@@ -398,14 +263,13 @@ export default function NewProperty() {
               sub: "Furnishing, rent, amenities",
             },
             { step: 3, label: "Visit availability", sub: "Set your slots" },
-            { step: 4, label: "Location", sub: "Pin it on the map" },
+            { step: 4, label: "Location", sub: "Enter your address" },
           ].map((item) => {
             const isSelected = currentStep === item.step;
             return (
               <button
                 key={item.step}
                 onClick={() => {
-                  // Optional: allow going back freely, but guard forward progression if needed
                   if (item.step < currentStep) {
                     setCurrentStep(item.step);
                   }
@@ -1204,64 +1068,63 @@ export default function NewProperty() {
             </div>
           )}
 
-          {/* STEP 4: LOCATION */}
+          {/* STEP 4: LOCATION (FIXED DROPDOWN OVERLAP & PRECISE MAP CENTERING) */}
           {currentStep === 4 && (
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-serif font-bold text-[#2D1F1A]">
-                  Confirm the location
+                  Confirm the location address
                 </h3>
                 <p className="text-xs text-[#6E5D53] mt-0.5">
-                  Search your address or click/drag the pin on the map so
-                  tenants find the exact building.
+                  Type or search your property address. The map updates
+                  automatically, and the exact coordinates are pinned.
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search your address or locality"
-                  value={locationData.addressSearch}
-                  onChange={(e) =>
-                    setLocationData({
-                      ...locationData,
-                      addressSearch: e.target.value,
-                    })
-                  }
-                  className="flex-1 px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
-                />
-                <button
-                  onClick={handleUseCurrentLocation}
-                  type="button"
-                  className="px-4 py-2.5 bg-white border border-[#C5924E] text-[#2D1F1A] rounded-xl text-xs font-bold hover:bg-[#C5924E]/10 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
-                >
-                  <MapPin className="w-4 h-4 text-[#C5924E]" /> Use current
-                  location
-                </button>
+              <div className="space-y-4">
+                {/* Explicit z-40 ensures dropdown list floats cleanly over the map */}
+                <div className="relative space-y-2 z-40">
+                  <label className="text-xs font-bold text-[#2D1F1A]">
+                    Property Address <span className="text-red-500">*</span>
+                  </label>
+                  <AddressAutocomplete
+                    value={locationAddress}
+                    onChange={(val) => setLocationAddress(val)}
+                    onSelect={(selectedAddress, lat, lon) => {
+                      setLocationAddress(selectedAddress);
+                      if (lat && lon) {
+                        setMapCenter([lat, lon]);
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Leaflet map container isolated at z-10 */}
+                <div className="relative z-10 w-full h-64 rounded-2xl overflow-hidden border border-[#E3D9CC] shadow-xs">
+                  <MapContainer
+                    center={mapCenter}
+                    zoom={15}
+                    scrollWheelZoom={false}
+                    style={{ width: "100%", height: "100%" }}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={mapCenter} />
+                    <RecenterMap center={mapCenter} />
+                  </MapContainer>
+                </div>
               </div>
 
-              <div className="relative h-80 w-full rounded-2xl border border-[#E3D9CC] overflow-hidden shadow-inner bg-[#EFECE3]">
-                {!isMapLoaded && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-[#F8F5EE]/80 z-10 text-xs text-[#6E5D53] gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" />{" "}
-                    Loading Google Maps...
-                  </div>
-                )}
-                <div ref={mapContainerRef} className="w-full h-full" />
-              </div>
-
-              <div className="text-xs flex flex-col sm:flex-row justify-between gap-2 bg-[#F8F5EE] p-3 rounded-xl border border-[#E3D9CC]">
+              <div className="text-xs flex items-center justify-between bg-[#F8F5EE] p-4 rounded-xl border border-[#E3D9CC]">
                 <div>
                   <span className="font-bold text-[#2D1F1A]">
-                    Pinned Address:{" "}
+                    Saved Address in Database:{" "}
                   </span>
                   <span className="text-[#6E5D53]">
-                    {locationData.addressText}
+                    {locationAddress || "No address entered yet"}
                   </span>
-                </div>
-                <div className="text-[#6E5D53] font-mono text-[11px]">
-                  Lat: {locationData.lat}, Lng: {locationData.lng}
                 </div>
               </div>
             </div>
@@ -1280,7 +1143,6 @@ export default function NewProperty() {
 
             <button
               onClick={() => {
-                // Validation checks per step before continuing
                 if (currentStep === 1) {
                   if (photos.length < 3) {
                     alert("Please add at least 3 photos to continue.");
@@ -1305,6 +1167,11 @@ export default function NewProperty() {
                   }
                   if (!propertyDetails.floorDetails.trim()) {
                     alert("Please enter floor details.");
+                    return;
+                  }
+                } else if (currentStep === 4) {
+                  if (!locationAddress.trim()) {
+                    alert("Please enter or select a valid address.");
                     return;
                   }
                 }
