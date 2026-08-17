@@ -39,9 +39,42 @@ import OwnerEarnings from "./components/Owner/OwnerEarnings";
 import OwnerSettings from "./components/Owner/OwnerSettings";
 import Messages from "./components/Messages";
 
-// Newly Added Owner Components ("Coming Soon" modules)
+// Owner Components ("Coming Soon" modules)
 import OwnerReviews from "./components/Owner/OwnerReviews";
 import OwnerDocuments from "./components/Owner/OwnerDocuments";
+
+// Tenant Components (Using your actual file structure)
+import TenantOverview from "./components/Tenant/TenantOverview";
+import ExploreProperty from "./components/Tenant/ExploreProperty";
+import TenantMessageSimulator from "./components/Tenant/TenantMessageSimulator";
+import TenantPropertyDetails from "./components/Tenant/TenantPropertyDetails";
+
+// Temporary Placeholders for remaining links until their files are added
+function TenantBookings() {
+  return (
+    <div className="p-8 text-xl font-bold text-[#2D1F1A]">Tenant Bookings</div>
+  );
+}
+function SavedProperties() {
+  return (
+    <div className="p-8 text-xl font-bold text-[#2D1F1A]">Saved Properties</div>
+  );
+}
+function VisitHistory() {
+  return (
+    <div className="p-8 text-xl font-bold text-[#2D1F1A]">Visit History</div>
+  );
+}
+function TenantDocuments() {
+  return (
+    <div className="p-8 text-xl font-bold text-[#2D1F1A]">Tenant Documents</div>
+  );
+}
+function TenantSettings() {
+  return (
+    <div className="p-8 text-xl font-bold text-[#2D1F1A]">Tenant Settings</div>
+  );
+}
 
 // Analytics
 import { Analytics } from "@vercel/analytics/react";
@@ -67,7 +100,7 @@ export function AppProvider({ children }) {
   });
 
   const [preferences, setPreferences] = useState({
-    theme: localStorage.getItem("dashboard_theme") || "Light Warm", // "Light Warm" | "Dark Mode"
+    theme: localStorage.getItem("dashboard_theme") || "Light Warm",
     currency: "INR (₹)",
     language: localStorage.getItem("dashboard_lang") || "English",
   });
@@ -79,7 +112,6 @@ export function AppProvider({ children }) {
     setTimeout(() => setToastMessage(""), 3500);
   };
 
-  // Sync theme & language to localStorage
   useEffect(() => {
     localStorage.setItem("dashboard_theme", preferences.theme);
   }, [preferences.theme]);
@@ -88,7 +120,6 @@ export function AppProvider({ children }) {
     localStorage.setItem("dashboard_lang", preferences.language);
   }, [preferences.language]);
 
-  // Fetch Supabase session user data on load
   useEffect(() => {
     const fetchSessionUser = async () => {
       const {
@@ -252,14 +283,13 @@ function Home() {
   );
 }
 
-// 🔄 Inner App Layout that respects Global Theme & Toasts
+// 🔄 Inner App Layout
 function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
 
-  // Consume Global Context for themes and global toasts
   const { preferences, toastMessage } = useContext(AppContext);
   const isDarkTheme =
     preferences.theme === "Dark Mode" || preferences.theme === "Dark";
@@ -316,7 +346,6 @@ function AppLayout() {
     return () => clearTimeout(timer);
   }, [location.pathname]);
 
-  // Updated to include /messages in the dashboard routes check so Navbar/Footer stay hidden
   const isDashboardRoute =
     location.pathname === "/owner-dashboard" ||
     location.pathname.startsWith("/owner-dashboard/") ||
@@ -327,7 +356,8 @@ function AppLayout() {
     location.pathname === "/owner-settings" ||
     location.pathname === "/add-property" ||
     location.pathname === "/messages" ||
-    location.pathname === "/tenant-dashboard";
+    location.pathname === "/tenant-dashboard" ||
+    location.pathname.startsWith("/tenant-dashboard/");
 
   return (
     <div
@@ -335,7 +365,6 @@ function AppLayout() {
         isDarkTheme ? "bg-[#1A120B] text-white" : "bg-[#F8F5EE] text-[#1E293B]"
       }`}
     >
-      {/* Global Toast Notifications */}
       {toastMessage && (
         <div className="fixed top-6 right-6 z-50 bg-[#2D1F1A] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#C5924E] text-xs font-bold flex items-center gap-3 animate-bounce">
           <CheckCircle2 className="w-4 h-4 text-[#C5924E]" />
@@ -382,7 +411,7 @@ function AppLayout() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
-          {/* 🛡️ Protected Owner Dashboard & Nested Tab Routes */}
+          {/* Owner Dashboard Routes */}
           <Route
             element={
               <ProtectedRoute allowedRole="owner">
@@ -409,7 +438,7 @@ function AppLayout() {
             <Route path="/messages" element={<Messages />} />
           </Route>
 
-          {/* 🛡️ Protected Tenant Dashboard */}
+          {/* Tenant Dashboard Routes (Mapped properly using relative child routing) */}
           <Route
             path="/tenant-dashboard"
             element={
@@ -417,7 +446,17 @@ function AppLayout() {
                 <TenantDashboard />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route index element={<TenantOverview />} />
+            <Route path="explore" element={<ExploreProperty />} />
+            <Route path="messages" element={<TenantMessageSimulator />} />
+            <Route path="bookings" element={<TenantBookings />} />
+            <Route path="saved" element={<SavedProperties />} />
+            <Route path="visits" element={<VisitHistory />} />
+            <Route path="documents" element={<TenantDocuments />} />
+            <Route path="settings" element={<TenantSettings />} />
+            <Route path="property/:id" element={<TenantPropertyDetails />} />
+          </Route>
         </Routes>
       </main>
 

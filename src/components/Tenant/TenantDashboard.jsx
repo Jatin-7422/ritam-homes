@@ -1,777 +1,275 @@
-import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useContext } from "react";
+import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
-import logoWhite from "../../assets/newlogo.png";
+import logoWhite from "../../assets/whitelogo.png";
+import { AppContext } from "../../App"; // Adjust path if needed
 import {
-  Home,
-  Heart,
-  FileText,
-  CreditCard,
-  Bell,
-  Clock,
+  LayoutDashboard,
   Search,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-  LogOut,
-  Building2,
-  Calendar,
   MessageSquare,
-  ShieldCheck,
-  Star,
-  ChevronRight,
+  Calendar,
+  Heart,
+  Clock,
+  FileText,
   Settings,
-  HelpCircle,
-  Plus,
+  LogOut,
+  Bell,
+  ShieldCheck,
+  Loader2,
+  Menu,
+  X,
 } from "lucide-react";
 
 export default function TenantDashboard() {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [tenantName, setTenantName] = useState("Rahul Sharma");
-  const [activeLease, setActiveLease] = useState(null);
-  const [applications, setApplications] = useState([]);
-  const [savedProperties, setSavedProperties] = useState([]);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Consume global context data
+  const { userInfo, setUserInfo, preferences } = useContext(AppContext);
+  const isDarkTheme =
+    preferences.theme === "Dark Mode" || preferences.theme === "Dark";
+
+  const useNavigateInstance = useNavigate();
+  const location = useLocation();
+
+  // Sync basic auth data without overriding user-updated context states
   useEffect(() => {
-    const fetchTenantData = async () => {
+    const fetchSession = async () => {
       try {
-        setLoading(true);
         const {
           data: { session },
-          error: sessionError,
         } = await supabase.auth.getSession();
-
-        if (sessionError || !session || !session.user) {
-          navigate("/login");
-          return;
-        }
-
-        const user = session.user;
-        setTenantName(
-          user.user_metadata?.full_name ||
-            user.email?.split("@")[0] ||
-            "Rahul Sharma",
-        );
-
-        // Fetch visit requests / applications
-        const { data: visitData, error: visitError } = await supabase
-          .from("visit_requests")
-          .select("*, properties(*)")
-          .eq("tenant_email", user.email);
-
-        if (visitError) {
-          console.error("Error fetching applications:", visitError.message);
-        } else {
-          setApplications(visitData || []);
-          const accepted = (visitData || []).find(
-            (v) => v.status === "Accepted",
-          );
-          if (accepted) {
-            setActiveLease(accepted.properties);
-          }
+        if (session && session.user) {
+          const user = session.user;
+          setUserInfo((prev) => ({
+            ...prev,
+            email: prev.email || user.email,
+            fullName:
+              prev.fullName !== "Master"
+                ? prev.fullName
+                : user.user_metadata?.full_name || prev.fullName,
+            businessName:
+              user.user_metadata?.business_name || prev.businessName,
+            phone: user.user_metadata?.phone || prev.phone,
+            location: user.user_metadata?.location || prev.location,
+            avatar: user.user_metadata?.avatar_url || prev.avatar || "",
+          }));
         }
       } catch (err) {
-        console.error("Unexpected error loading tenant dashboard:", err);
-      } finally {
-        setLoading(false);
+        console.error("Auth session error:", err);
       }
     };
+    fetchSession();
+  }, [setUserInfo]);
 
-    fetchTenantData();
-  }, [navigate]);
+  // Auth state listener
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT" || !session) {
+        useNavigateInstance("/login", { replace: true });
+      }
+    });
+    return () => subscription?.unsubscribe();
+  }, [useNavigateInstance]);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/login");
+    setIsLoggingOut(true);
+    try {
+      await supabase.auth.signOut();
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (e) {
+      console.error("Logout error:", e);
+    }
+    setTimeout(() => {
+      useNavigateInstance("/login", { replace: true });
+    }, 600);
   };
 
-  if (loading) {
-    return (
-      <div className="h-screen bg-[#F8F5EE] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#C5924E]" />
-      </div>
-    );
-  }
+  const navItems = [
+    { name: "Dashboard", icon: LayoutDashboard, path: "/tenant-dashboard" },
+    {
+      name: "Explore Properties",
+      icon: Search,
+      path: "/tenant-dashboard/explore",
+    },
+    {
+      name: "Messages",
+      icon: MessageSquare,
+      path: "/tenant-dashboard/messages",
+    },
+    { name: "My Bookings", icon: Calendar, path: "/tenant-dashboard/bookings" },
+    { name: "Saved Properties", icon: Heart, path: "/tenant-dashboard/saved" },
+    { name: "Visit History", icon: Clock, path: "/tenant-dashboard/visits" },
+    { name: "Documents", icon: FileText, path: "/tenant-dashboard/documents" },
+    {
+      name: "Account Settings",
+      icon: Settings,
+      path: "/tenant-dashboard/settings",
+    },
+  ];
 
   return (
-    <div className="h-screen overflow-hidden bg-[#F8F5EE] font-sans text-[#2D1F1A] flex flex-row">
-      {/* SIDEBAR NAVIGATION */}
-      <aside className="w-72 bg-[#F2ECE1] border-r border-[#E3D9CC] flex flex-col justify-between hidden lg:flex h-screen sticky top-0 p-6 shrink-0">
-        <div className="space-y-8 overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {/* Logo */}
-          <div className="flex items-center">
-            <img
-              src={logoWhite}
-              alt="Ritam Homes Logo"
-              className="w-24 h-24 object-contain"
-            />
+    <div
+      className={`min-h-screen font-sans flex flex-col md:flex-row relative transition-colors duration-300 ${
+        isDarkTheme ? "bg-[#1A120B] text-white" : "bg-[#F8F5EE] text-[#2D1F1A]"
+      } ${isLoggingOut ? "opacity-90" : "opacity-100"}`}
+    >
+      {/* LOGOUT OVERLAY */}
+      {isLoggingOut && (
+        <div className="fixed inset-0 bg-[#2D1F1A]/80 backdrop-blur-xs z-50 flex flex-col items-center justify-center text-white">
+          <Loader2 className="w-12 h-12 animate-spin text-[#C5924E] mb-4" />
+          <p className="font-serif font-bold text-xl">
+            Logging out securely...
+          </p>
+          <p className="text-xs text-[#9E8B7F] mt-1">
+            Redirecting to login page
+          </p>
+        </div>
+      )}
+
+      {/* MOBILE BACKDROP */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-xs transition-opacity"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* PERSISTENT SIDEBAR */}
+      <aside
+        className={`w-72 bg-[#2D1F1A] text-[#D1C4B9] flex flex-col justify-between flex-shrink-0 z-50 fixed inset-y-0 left-0 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* Logo & Close */}
+          <div className="p-4 sm:p-5 flex items-center justify-between border-b border-white/15 flex-shrink-0">
+            <Link to="/" className="flex items-center">
+              <img
+                src={logoWhite}
+                alt="Ritam Homes"
+                className="h-8 w-auto object-contain"
+              />
+            </Link>
+            <button
+              onClick={() => setIsSidebarOpen(false)}
+              className="md:hidden text-[#D1C4B9] hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* User Profile Card Snippet */}
-          <div className="flex items-center gap-3.5 bg-white p-3.5 rounded-2xl border border-[#E3D9CC] shadow-xs">
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80"
-              alt="Rahul Sharma"
-              className="w-12 h-12 rounded-full object-cover border border-[#C5924E]"
-            />
-            <div className="overflow-hidden">
-              <h4 className="text-sm font-bold text-[#2D1F1A] truncate">
-                {tenantName}
+          {/* User Profile Card */}
+          <div className="mx-3 my-3 p-3 bg-[#221A17] border border-[#3A2E2A] rounded-xl flex items-center gap-3 shadow-inner flex-shrink-0">
+            {userInfo.avatar ? (
+              <img
+                src={userInfo.avatar}
+                alt={userInfo.fullName}
+                className="w-9 h-9 rounded-full object-cover border border-[#C5924E]/50"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-[#C5924E] flex items-center justify-center text-[#2D1F1A] font-bold text-sm shadow">
+                {userInfo.fullName
+                  ? userInfo.fullName.charAt(0).toUpperCase()
+                  : "T"}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h4 className="text-white font-bold text-xs truncate">
+                {userInfo.fullName || "Tenant User"}
               </h4>
-              <p className="text-xs text-[#6E5D53]">Tenant</p>
-              <span className="inline-flex items-center gap-1 text-[10px] text-green-700 bg-green-50 font-semibold px-2 py-0.5 rounded-md mt-0.5">
-                <ShieldCheck className="w-3.5 h-3.5" /> Verified Tenant
-              </span>
+              <p className="text-[10px] text-[#9E8B7F] truncate">
+                Tenant Account
+              </p>
+              <div className="flex items-center gap-1 mt-0.5 text-[10px] text-green-400 font-medium">
+                <ShieldCheck className="w-3 h-3" /> Verified Tenant
+              </div>
             </div>
           </div>
 
           {/* Navigation Links */}
-          <nav className="space-y-1.5">
-            <Link
-              to="/tenant-dashboard"
-              className="flex items-center gap-3.5 px-4 py-3.5 bg-[#E3D9CC]/60 text-[#2D1F1A] rounded-xl text-sm font-bold transition-all"
-            >
-              <Home className="w-5 h-5 text-[#C5924E]" /> Dashboard
-            </Link>
-            <Link
-              to="/"
-              className="flex items-center gap-3.5 px-4 py-3.5 text-[#6E5D53] hover:bg-[#E3D9CC]/30 hover:text-[#2D1F1A] rounded-xl text-sm font-medium transition-all"
-            >
-              <Search className="w-5 h-5" /> Explore Properties
-            </Link>
-            <Link
-              to="#"
-              className="flex items-center justify-between px-4 py-3.5 text-[#6E5D53] hover:bg-[#E3D9CC]/30 hover:text-[#2D1F1A] rounded-xl text-sm font-medium transition-all"
-            >
-              <div className="flex items-center gap-3.5">
-                <Calendar className="w-5 h-5" /> My Bookings
-              </div>
-              <span className="bg-[#2D1F1A] text-white text-xs px-2.5 py-0.5 rounded-full font-bold">
-                3
-              </span>
-            </Link>
-            <Link
-              to="#"
-              className="flex items-center justify-between px-4 py-3.5 text-[#6E5D53] hover:bg-[#E3D9CC]/30 hover:text-[#2D1F1A] rounded-xl text-sm font-medium transition-all"
-            >
-              <div className="flex items-center gap-3.5">
-                <Heart className="w-5 h-5" /> Saved Properties
-              </div>
-              <span className="bg-[#2D1F1A] text-white text-xs px-2.5 py-0.5 rounded-full font-bold">
-                8
-              </span>
-            </Link>
-            <Link
-              to="#"
-              className="flex items-center gap-3.5 px-4 py-3.5 text-[#6E5D53] hover:bg-[#E3D9CC]/30 hover:text-[#2D1F1A] rounded-xl text-sm font-medium transition-all"
-            >
-              <Clock className="w-5 h-5" /> Visit History
-            </Link>
-            <Link
-              to="#"
-              className="flex items-center justify-between px-4 py-3.5 text-[#6E5D53] hover:bg-[#E3D9CC]/30 hover:text-[#2D1F1A] rounded-xl text-sm font-medium transition-all"
-            >
-              <div className="flex items-center gap-3.5">
-                <MessageSquare className="w-5 h-5" /> Messages
-              </div>
-              <span className="bg-[#2D1F1A] text-white text-xs px-2.5 py-0.5 rounded-full font-bold">
-                2
-              </span>
-            </Link>
-            <Link
-              to="#"
-              className="flex items-center justify-between px-4 py-3.5 text-[#6E5D53] hover:bg-[#E3D9CC]/30 hover:text-[#2D1F1A] rounded-xl text-sm font-medium transition-all"
-            >
-              <div className="flex items-center gap-3.5">
-                <Bell className="w-5 h-5" /> Notifications
-              </div>
-              <span className="bg-[#2D1F1A] text-white text-xs px-2.5 py-0.5 rounded-full font-bold">
-                5
-              </span>
-            </Link>
-            <Link
-              to="#"
-              className="flex items-center gap-3.5 px-4 py-3.5 text-[#6E5D53] hover:bg-[#E3D9CC]/30 hover:text-[#2D1F1A] rounded-xl text-sm font-medium transition-all"
-            >
-              <FileText className="w-5 h-5" /> Documents
-            </Link>
-            <Link
-              to="#"
-              className="flex items-center gap-3.5 px-4 py-3.5 text-[#6E5D53] hover:bg-[#E3D9CC]/30 hover:text-[#2D1F1A] rounded-xl text-sm font-medium transition-all"
-            >
-              <CreditCard className="w-5 h-5" /> Payment Methods
-            </Link>
-            <Link
-              to="#"
-              className="flex items-center gap-3.5 px-4 py-3.5 text-[#6E5D53] hover:bg-[#E3D9CC]/30 hover:text-[#2D1F1A] rounded-xl text-sm font-medium transition-all"
-            >
-              <Settings className="w-5 h-5" /> Account Settings
-            </Link>
-          </nav>
-        </div>
+          <nav className="px-3 space-y-1 text-xs font-medium overflow-y-auto flex-1 custom-scrollbar">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              // For exact matching on root vs sub-paths
+              const isActive =
+                item.path === "/tenant-dashboard"
+                  ? location.pathname === "/tenant-dashboard"
+                  : location.pathname.startsWith(item.path);
 
-        {/* Go Premium Box & Logout */}
-        <div className="space-y-4 pt-4 bg-[#F2ECE1]">
-          <div className="bg-[#EFE6D8] border border-[#E3D9CC] p-4 rounded-2xl space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-[#2D1F1A] text-[#C5924E] rounded-xl">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-              <h4 className="text-xs font-bold text-[#2D1F1A]">Go Premium</h4>
-            </div>
-            <p className="text-[11px] text-[#6E5D53] leading-relaxed">
-              Get early access to premium listings and priority bookings.
-            </p>
-            <button className="w-full py-2 bg-[#2D1F1A] text-white text-xs font-bold rounded-xl hover:bg-[#3E2E27] transition-all cursor-pointer shadow-xs">
-              Upgrade Now
+              return (
+                <Link
+                  key={item.name}
+                  to={item.path || "#"}
+                  onClick={() => setIsSidebarOpen(false)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-[#C5924E] text-[#2D1F1A] font-bold shadow-lg"
+                      : "hover:bg-[#3A2E2A] text-[#D1C4B9]"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon
+                      className={`w-4 h-4 ${
+                        isActive ? "text-[#2D1F1A]" : "text-[#9E8B7F]"
+                      }`}
+                    />
+                    <span>{item.name}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Logout Footer */}
+          <div className="p-3 border-t border-white/10 bg-[#221A17]/50 flex-shrink-0">
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" /> Logout
             </button>
           </div>
-
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-xs font-semibold text-red-600 hover:text-red-700 px-4 py-2 cursor-pointer transition-colors"
-          >
-            <LogOut className="w-4 h-4" /> Logout
-          </button>
         </div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 h-full overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8">
-        {/* TOP BAR / HEADER */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-[#E3D9CC] shadow-xs">
-          <div>
-            <h1 className="text-2xl font-serif font-bold text-[#2D1F1A]">
-              Welcome back, {tenantName}! 👋
-            </h1>
-            <p className="text-xs sm:text-sm text-[#6E5D53] mt-0.5">
-              Let's find you the perfect place to call home.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Search Bar Input */}
-            <div className="relative hidden sm:block w-64">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-[#6E5D53]" />
-              <input
-                type="text"
-                placeholder="Search properties, locations..."
-                className="w-full bg-[#F8F5EE] border border-[#E3D9CC] rounded-xl pl-9 pr-4 py-2 text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
-              />
-            </div>
-
-            {/* Notification Bell Badge */}
-            <div className="relative p-2.5 bg-[#F8F5EE] border border-[#E3D9CC] rounded-xl text-[#2D1F1A] cursor-pointer hover:bg-[#EFE6D8]">
+      {/* MAIN CONTAINER FOR OUTLET CONTENT */}
+      <main className="flex-1 flex flex-col min-w-0">
+        <header
+          className={`w-full px-6 sm:px-10 pt-6 pb-2 flex items-center justify-between transition-colors ${
+            isDarkTheme ? "bg-[#1A120B]" : "bg-[#F8F5EE]"
+          }`}
+        >
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className={`md:hidden p-2 border rounded-xl transition-colors cursor-pointer ${
+              isDarkTheme
+                ? "bg-[#251B14] border-neutral-800 text-white hover:bg-neutral-800"
+                : "bg-white border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#E3D9CC]/50"
+            }`}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="ml-auto">
+            <button
+              className={`relative p-2.5 border rounded-full transition-colors cursor-pointer ${
+                isDarkTheme
+                  ? "bg-[#251B14] border-neutral-800 text-white hover:bg-neutral-800"
+                  : "bg-white border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#E3D9CC]/50"
+              }`}
+            >
               <Bell className="w-4 h-4" />
-              <span className="absolute -top-1 -right-1 bg-[#C5924E] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                5
-              </span>
-            </div>
-
-            <Link
-              to="/"
-              className="px-5 py-2.5 bg-[#2D1F1A] text-white text-xs font-bold rounded-xl hover:bg-[#3E2E27] transition-all cursor-pointer shadow-xs"
-            >
-              Explore Properties
-            </Link>
+            </button>
           </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-[#E3D9CC] shadow-xs flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-2xl font-serif font-bold text-[#2D1F1A]">3</p>
-              <p className="text-[11px] font-bold text-[#6E5D53]">
-                Upcoming Visits
-              </p>
-              <p className="text-[10px] text-[#C5924E] font-medium">
-                Next: Today, 4:00 PM
-              </p>
-            </div>
-            <div className="w-11 h-11 bg-[#F8F5EE] border border-[#E3D9CC] rounded-xl flex items-center justify-center text-[#2D1F1A]">
-              <Home className="w-5 h-5" />
-            </div>
-          </div>
+        </header>
 
-          <div className="bg-white p-4 rounded-2xl border border-[#E3D9CC] shadow-xs flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-2xl font-serif font-bold text-[#2D1F1A]">8</p>
-              <p className="text-[11px] font-bold text-[#6E5D53]">
-                Saved Properties
-              </p>
-              <p className="text-[10px] text-[#6E5D53] font-medium">
-                Your Favorites
-              </p>
-            </div>
-            <div className="w-11 h-11 bg-[#F8F5EE] border border-[#E3D9CC] rounded-xl flex items-center justify-center text-[#C5924E]">
-              <Heart className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-[#E3D9CC] shadow-xs flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-2xl font-serif font-bold text-[#2D1F1A]">2</p>
-              <p className="text-[11px] font-bold text-[#6E5D53]">
-                Confirmed Bookings
-              </p>
-              <p className="text-[10px] text-[#6E5D53] font-medium">
-                This Month
-              </p>
-            </div>
-            <div className="w-11 h-11 bg-[#F8F5EE] border border-[#E3D9CC] rounded-xl flex items-center justify-center text-[#2D1F1A]">
-              <Calendar className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-[#E3D9CC] shadow-xs flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-2xl font-serif font-bold text-[#2D1F1A]">12</p>
-              <p className="text-[11px] font-bold text-[#6E5D53]">
-                Visit History
-              </p>
-              <p className="text-[10px] text-[#6E5D53] font-medium">
-                Total Visits
-              </p>
-            </div>
-            <div className="w-11 h-11 bg-[#F8F5EE] border border-[#E3D9CC] rounded-xl flex items-center justify-center text-[#2D1F1A]">
-              <Clock className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-[#E3D9CC] shadow-xs flex items-center justify-between">
-            <div className="space-y-1">
-              <p className="text-2xl font-serif font-bold text-[#2D1F1A]">
-                4.8
-              </p>
-              <p className="text-[11px] font-bold text-[#6E5D53]">
-                Account Rating
-              </p>
-              <p className="text-[10px] text-[#6E5D53] font-medium">
-                Based on reviews
-              </p>
-            </div>
-            <div className="w-11 h-11 bg-[#F8F5EE] border border-[#E3D9CC] rounded-xl flex items-center justify-center text-[#C5924E]">
-              <Star className="w-5 h-5 fill-current" />
-            </div>
-          </div>
-        </div>
-
-        {/* MIDDLE SECTION: UPCOMING VISITS & NOTIFICATIONS */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* LEFT 2 COLUMNS: UPCOMING VISITS */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white p-6 rounded-3xl border border-[#E3D9CC] shadow-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-[#E3D9CC] pb-4">
-                <h2 className="text-lg font-serif font-bold text-[#2D1F1A]">
-                  Upcoming Visits
-                </h2>
-                <Link
-                  to="#"
-                  className="text-xs font-bold text-[#C5924E] hover:underline flex items-center gap-1"
-                >
-                  View All Bookings <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-
-              {/* Visit Cards List */}
-              <div className="space-y-4">
-                {/* Item 1 */}
-                <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-[#F8F5EE] rounded-2xl border border-[#E3D9CC] gap-4">
-                  <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <img
-                      src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=300&q=80"
-                      alt="Apartment"
-                      className="w-24 h-20 object-cover rounded-xl border border-[#E3D9CC]"
-                    />
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-bold text-[#2D1F1A]">
-                        2BHK Luxury Apartment
-                      </h4>
-                      <p className="text-xs text-[#6E5D53]">
-                        Koramangala, Bangalore
-                      </p>
-                      <p className="text-xs font-medium text-[#2D1F1A] flex items-center gap-2 pt-1">
-                        <Calendar className="w-3.5 h-3.5 text-[#C5924E]" />{" "}
-                        Today, 4:00 PM &nbsp;|&nbsp;{" "}
-                        <span className="text-[#6E5D53]">With Amit Verma</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2">
-                    <span className="px-3 py-1 bg-green-100 text-green-800 text-[10px] font-bold rounded-full">
-                      Confirmed
-                    </span>
-                    <button className="px-4 py-1.5 bg-white border border-[#E3D9CC] text-[#2D1F1A] text-xs font-semibold rounded-xl hover:bg-[#F2ECE1] cursor-pointer">
-                      View Details
-                    </button>
-                  </div>
-                </div>
-
-                {/* Item 2 */}
-                <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-[#F8F5EE] rounded-2xl border border-[#E3D9CC] gap-4">
-                  <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <img
-                      src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=300&q=80"
-                      alt="Modern Flat"
-                      className="w-24 h-20 object-cover rounded-xl border border-[#E3D9CC]"
-                    />
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-bold text-[#2D1F1A]">
-                        1BHK Modern Flat
-                      </h4>
-                      <p className="text-xs text-[#6E5D53]">
-                        Indiranagar, Bangalore
-                      </p>
-                      <p className="text-xs font-medium text-[#2D1F1A] flex items-center gap-2 pt-1">
-                        <Calendar className="w-3.5 h-3.5 text-[#C5924E]" />{" "}
-                        Tomorrow, 11:00 AM &nbsp;|&nbsp;{" "}
-                        <span className="text-[#6E5D53]">With Priya Nair</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2">
-                    <span className="px-3 py-1 bg-amber-100 text-amber-800 text-[10px] font-bold rounded-full">
-                      Pending
-                    </span>
-                    <button className="px-4 py-1.5 bg-white border border-[#E3D9CC] text-[#2D1F1A] text-xs font-semibold rounded-xl hover:bg-[#F2ECE1] cursor-pointer">
-                      Reschedule
-                    </button>
-                  </div>
-                </div>
-
-                {/* Item 3 */}
-                <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-[#F8F5EE] rounded-2xl border border-[#E3D9CC] gap-4">
-                  <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <img
-                      src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=300&q=80"
-                      alt="Spacious Home"
-                      className="w-24 h-20 object-cover rounded-xl border border-[#E3D9CC]"
-                    />
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-bold text-[#2D1F1A]">
-                        3BHK Spacious Home
-                      </h4>
-                      <p className="text-xs text-[#6E5D53]">
-                        Whitefield, Bangalore
-                      </p>
-                      <p className="text-xs font-medium text-[#2D1F1A] flex items-center gap-2 pt-1">
-                        <Calendar className="w-3.5 h-3.5 text-[#C5924E]" /> 12
-                        May 2025, 3:00 PM &nbsp;|&nbsp;{" "}
-                        <span className="text-[#6E5D53]">With Vikas Singh</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2">
-                    <span className="px-3 py-1 bg-green-100 text-green-800 text-[10px] font-bold rounded-full">
-                      Confirmed
-                    </span>
-                    <button className="px-4 py-1.5 bg-white border border-[#E3D9CC] text-[#2D1F1A] text-xs font-semibold rounded-xl hover:bg-[#F2ECE1] cursor-pointer">
-                      View Details
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Book a New Visit CTA Bar */}
-              <button className="w-full py-3 bg-[#F8F5EE] border border-dashed border-[#C5924E] text-[#2D1F1A] rounded-2xl text-xs font-bold hover:bg-[#F2ECE1] transition-all flex items-center justify-center gap-2 cursor-pointer">
-                <Plus className="w-4 h-4 text-[#C5924E]" /> Book a New Visit
-              </button>
-            </div>
-          </div>
-
-          {/* RIGHT COLUMN: NOTIFICATIONS */}
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-3xl border border-[#E3D9CC] shadow-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-[#E3D9CC] pb-4">
-                <h2 className="text-lg font-serif font-bold text-[#2D1F1A]">
-                  Notifications
-                </h2>
-                <Link
-                  to="#"
-                  className="text-xs font-bold text-[#C5924E] hover:underline flex items-center gap-1"
-                >
-                  View All <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex gap-3 text-xs text-[#2D1F1A] border-b border-[#F8F5EE] pb-3">
-                  <div className="w-7 h-7 bg-green-100 text-green-700 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">
-                      Your visit for{" "}
-                      <span className="font-bold">2BHK Luxury Apartment</span>{" "}
-                      is confirmed.
-                    </p>
-                    <p className="text-[10px] text-[#6E5D53] mt-0.5">
-                      Today, 10:30 AM
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 text-xs text-[#2D1F1A] border-b border-[#F8F5EE] pb-3">
-                  <div className="w-7 h-7 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                    <Calendar className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">
-                      Visit request sent for{" "}
-                      <span className="font-bold">1BHK Modern Flat</span>.
-                    </p>
-                    <p className="text-[10px] text-[#6E5D53] mt-0.5">
-                      Yesterday, 6:15 PM
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 text-xs text-[#2D1F1A] border-b border-[#F8F5EE] pb-3">
-                  <div className="w-7 h-7 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                    <MessageSquare className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">
-                      Amit Verma sent you a message.
-                    </p>
-                    <p className="text-[10px] text-[#6E5D53] mt-0.5">
-                      Yesterday, 5:40 PM
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 text-xs text-[#2D1F1A] border-b border-[#F8F5EE] pb-3">
-                  <div className="w-7 h-7 bg-red-100 text-red-700 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                    <Heart className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">You saved a new property.</p>
-                    <p className="text-[10px] text-[#6E5D53] mt-0.5">
-                      09 May 2025, 8:20 PM
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 text-xs text-[#2D1F1A]">
-                  <div className="w-7 h-7 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">
-                      Your document has been verified.
-                    </p>
-                    <p className="text-[10px] text-[#6E5D53] mt-0.5">
-                      09 May 2025, 11:10 AM
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* QUICK ACTIONS & HELP CARDS */}
-            <div className="bg-white p-6 rounded-3xl border border-[#E3D9CC] shadow-xs space-y-4">
-              <h2 className="text-lg font-serif font-bold text-[#2D1F1A]">
-                Quick Actions
-              </h2>
-              <div className="grid grid-cols-4 gap-2 text-center">
-                <div className="p-3 bg-[#F8F5EE] border border-[#E3D9CC] rounded-2xl hover:bg-[#F2ECE1] cursor-pointer flex flex-col items-center justify-center gap-1.5">
-                  <Search className="w-4 h-4 text-[#2D1F1A]" />
-                  <span className="text-[10px] font-bold text-[#2D1F1A]">
-                    Search Properties
-                  </span>
-                </div>
-                <div className="p-3 bg-[#F8F5EE] border border-[#E3D9CC] rounded-2xl hover:bg-[#F2ECE1] cursor-pointer flex flex-col items-center justify-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-[#2D1F1A]" />
-                  <span className="text-[10px] font-bold text-[#2D1F1A]">
-                    Book Visit
-                  </span>
-                </div>
-                <div className="p-3 bg-[#F8F5EE] border border-[#E3D9CC] rounded-2xl hover:bg-[#F2ECE1] cursor-pointer flex flex-col items-center justify-center gap-1.5">
-                  <MessageSquare className="w-4 h-4 text-[#2D1F1A]" />
-                  <span className="text-[10px] font-bold text-[#2D1F1A]">
-                    Messages
-                  </span>
-                </div>
-                <div className="p-3 bg-[#F8F5EE] border border-[#E3D9CC] rounded-2xl hover:bg-[#F2ECE1] cursor-pointer flex flex-col items-center justify-center gap-1.5">
-                  <FileText className="w-4 h-4 text-[#2D1F1A]" />
-                  <span className="text-[10px] font-bold text-[#2D1F1A]">
-                    My Documents
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-[#EFE6D8] p-5 rounded-3xl border border-[#E3D9CC] space-y-2">
-              <h4 className="text-xs font-bold text-[#2D1F1A]">Need Help?</h4>
-              <p className="text-[11px] text-[#6E5D53]">
-                Our support team is here to assist you.
-              </p>
-              <Link
-                to="#"
-                className="inline-flex items-center justify-between w-full p-3 bg-white border border-[#E3D9CC] rounded-xl text-xs font-bold text-[#2D1F1A] hover:bg-[#F8F5EE] transition-all"
-              >
-                <span>Contact Support</span>
-                <ChevronRight className="w-4 h-4 text-[#C5924E]" />
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* BOTTOM SECTION: SAVED PROPERTIES CAROUSEL/GRID */}
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#E3D9CC] shadow-xs space-y-6">
-          <div className="flex items-center justify-between border-b border-[#E3D9CC] pb-4">
-            <h2 className="text-lg font-serif font-bold text-[#2D1F1A]">
-              Saved Properties
-            </h2>
-            <Link
-              to="#"
-              className="text-xs font-bold text-[#C5924E] hover:underline flex items-center gap-1"
-            >
-              View All <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Card 1 */}
-            <div className="bg-[#F8F5EE] rounded-2xl border border-[#E3D9CC] overflow-hidden flex flex-col justify-between group cursor-pointer">
-              <div className="relative">
-                <img
-                  src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=400&q=80"
-                  alt="Property"
-                  className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <button className="absolute top-3 right-3 p-2 bg-white/95 rounded-full text-[#2D1F1A] shadow-sm hover:bg-white">
-                  <Heart className="w-4 h-4 fill-current text-red-500" />
-                </button>
-              </div>
-              <div className="p-4 space-y-2">
-                <h4 className="text-sm font-bold text-[#2D1F1A]">
-                  Luxury Apartment
-                </h4>
-                <p className="text-xs text-[#6E5D53]">Koramangala, Bangalore</p>
-                <div className="flex items-baseline justify-between pt-1">
-                  <span className="text-sm font-bold text-[#2D1F1A]">
-                    ₹22,000{" "}
-                    <span className="text-[10px] text-[#6E5D53] font-normal">
-                      / month
-                    </span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t border-[#E3D9CC] text-[11px] text-[#6E5D53]">
-                  <span>2 BHK • 1200 sq.ft</span>
-                  <span className="flex items-center gap-1 text-[#2D1F1A] font-bold">
-                    <Star className="w-3.5 h-3.5 text-[#C5924E] fill-current" />{" "}
-                    4.8
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2 */}
-            <div className="bg-[#F8F5EE] rounded-2xl border border-[#E3D9CC] overflow-hidden flex flex-col justify-between group cursor-pointer">
-              <div className="relative">
-                <img
-                  src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=400&q=80"
-                  alt="Property"
-                  className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <button className="absolute top-3 right-3 p-2 bg-white/95 rounded-full text-[#2D1F1A] shadow-sm hover:bg-white">
-                  <Heart className="w-4 h-4 fill-current text-red-500" />
-                </button>
-              </div>
-              <div className="p-4 space-y-2">
-                <h4 className="text-sm font-bold text-[#2D1F1A]">
-                  Cozy 1BHK Flat
-                </h4>
-                <p className="text-xs text-[#6E5D53]">Indiranagar, Bangalore</p>
-                <div className="flex items-baseline justify-between pt-1">
-                  <span className="text-sm font-bold text-[#2D1F1A]">
-                    ₹15,000{" "}
-                    <span className="text-[10px] text-[#6E5D53] font-normal">
-                      / month
-                    </span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t border-[#E3D9CC] text-[11px] text-[#6E5D53]">
-                  <span>1 BHK • 650 sq.ft</span>
-                  <span className="flex items-center gap-1 text-[#2D1F1A] font-bold">
-                    <Star className="w-3.5 h-3.5 text-[#C5924E] fill-current" />{" "}
-                    4.6
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3 */}
-            <div className="bg-[#F8F5EE] rounded-2xl border border-[#E3D9CC] overflow-hidden flex flex-col justify-between group cursor-pointer">
-              <div className="relative">
-                <img
-                  src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=400&q=80"
-                  alt="Property"
-                  className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <button className="absolute top-3 right-3 p-2 bg-white/95 rounded-full text-[#2D1F1A] shadow-sm hover:bg-white">
-                  <Heart className="w-4 h-4 fill-current text-red-500" />
-                </button>
-              </div>
-              <div className="p-4 space-y-2">
-                <h4 className="text-sm font-bold text-[#2D1F1A]">
-                  Spacious Home
-                </h4>
-                <p className="text-xs text-[#6E5D53]">Whitefield, Bangalore</p>
-                <div className="flex items-baseline justify-between pt-1">
-                  <span className="text-sm font-bold text-[#2D1F1A]">
-                    ₹28,000{" "}
-                    <span className="text-[10px] text-[#6E5D53] font-normal">
-                      / month
-                    </span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t border-[#E3D9CC] text-[11px] text-[#6E5D53]">
-                  <span>3 BHK • 1600 sq.ft</span>
-                  <span className="flex items-center gap-1 text-[#2D1F1A] font-bold">
-                    <Star className="w-3.5 h-3.5 text-[#C5924E] fill-current" />{" "}
-                    4.9
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4 */}
-            <div className="bg-[#F8F5EE] rounded-2xl border border-[#E3D9CC] overflow-hidden flex flex-col justify-between group cursor-pointer">
-              <div className="relative">
-                <img
-                  src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=400&q=80"
-                  alt="Property"
-                  className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <button className="absolute top-3 right-3 p-2 bg-white/95 rounded-full text-[#2D1F1A] shadow-sm hover:bg-white">
-                  <Heart className="w-4 h-4 fill-current text-red-500" />
-                </button>
-              </div>
-              <div className="p-4 space-y-2">
-                <h4 className="text-sm font-bold text-[#2D1F1A]">
-                  Premium House
-                </h4>
-                <p className="text-xs text-[#6E5D53]">HSR Layout, Bangalore</p>
-                <div className="flex items-baseline justify-between pt-1">
-                  <span className="text-sm font-bold text-[#2D1F1A]">
-                    ₹45,000{" "}
-                    <span className="text-[10px] text-[#6E5D53] font-normal">
-                      / month
-                    </span>
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pt-2 border-t border-[#E3D9CC] text-[11px] text-[#6E5D53]">
-                  <span>4 BHK • 2500 sq.ft</span>
-                  <span className="flex items-center gap-1 text-[#2D1F1A] font-bold">
-                    <Star className="w-3.5 h-3.5 text-[#C5924E] fill-current" />{" "}
-                    4.9
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Dynamic Outlet Renders Individual Tenant Child Views Cleanly */}
+        <div className="flex-1 flex flex-col">
+          <Outlet />
         </div>
       </main>
     </div>
