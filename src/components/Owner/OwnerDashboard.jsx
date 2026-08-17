@@ -100,7 +100,7 @@ export default function OwnerDashboard() {
     { name: "Tenants", icon: Users, path: "/owner-tenants" },
     { name: "Earnings", icon: IndianRupee, path: "/owner-earnings" },
     { name: "Documents", icon: FileText, path: "/owner-dashboard/documents" },
-    { name: "Messages", icon: MessageSquare, path: "/owner-messages" },
+    { name: "Messages", icon: MessageSquare, path: "/messages " },
     { name: "Reviews", icon: Star, path: "/owner-dashboard/reviews" },
     { name: "Account Settings", icon: Settings, path: "/owner-settings" },
   ];
