@@ -162,18 +162,28 @@ export default function NewProperty() {
     setIsSubmitting(true);
 
     try {
+      // 1. Get current logged-in user securely from Auth session
       const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      if (sessionError || !session) {
+      if (userError || !user) {
         alert("Your session has expired. Please log in again.");
         navigate("/login", { replace: true });
         return;
       }
 
-      const ownerId = session.user.id;
+      const ownerId = user.id;
+
+      // Extract owner details directly from auth metadata or email fallback
+      const ownerName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email.split("@")[0];
+      const ownerPhone = user.user_metadata?.phone || "Not provided";
+      const ownerEmail = user.email;
+
       const uploadedImageUrls = [];
 
       for (let i = 0; i < photos.length; i++) {
@@ -200,15 +210,18 @@ export default function NewProperty() {
         }
       }
 
-      // Payload storing each property attribute in its dedicated database column
+      // Payload storing property attributes along with direct authentication owner info
       const propertyPayload = {
         owner_id: ownerId,
+        owner_name: ownerName,
+        owner_phone: ownerPhone,
+        owner_email: ownerEmail,
         title:
           propertyDetails.title ||
           `${propertyDetails.configuration} ${propertyDetails.propertyType}`,
         location: locationAddress,
-        latitude: latitude, // Added precise coordinate column
-        longitude: longitude, // Added precise coordinate column
+        latitude: latitude,
+        longitude: longitude,
         price: parseFloat(propertyDetails.monthlyRent) || 0,
         type: propertyDetails.propertyType,
         status: "Active",
@@ -247,7 +260,7 @@ export default function NewProperty() {
 
       if (insertError) throw insertError;
 
-      alert("Property published and saved successfully!");
+      alert("Property published and saved successfully with owner info!");
       navigate("/owner-properties");
     } catch (err) {
       console.error("Error publishing property:", err.message);
