@@ -101,7 +101,11 @@ export default function TenantDashboard() {
       path: "/tenant-dashboard/messages",
     },
     { name: "My Bookings", icon: Calendar, path: "/tenant-dashboard/bookings" },
-    { name: "Saved Properties", icon: Heart, path: "/tenant-dashboard/saved" },
+    {
+      name: "Saved Properties",
+      icon: Heart,
+      path: "/tenant-dashboard/saved",
+    },
     { name: "Visit History", icon: Clock, path: "/tenant-dashboard/visits" },
     { name: "Documents", icon: FileText, path: "/tenant-dashboard/documents" },
     {
@@ -194,7 +198,6 @@ export default function TenantDashboard() {
           <nav className="px-3 space-y-1 text-xs font-medium overflow-y-auto flex-1 custom-scrollbar">
             {navItems.map((item) => {
               const Icon = item.icon;
-              // For exact matching on root vs sub-paths
               const isActive =
                 item.path === "/tenant-dashboard"
                   ? location.pathname === "/tenant-dashboard"
@@ -238,9 +241,9 @@ export default function TenantDashboard() {
       </aside>
 
       {/* MAIN CONTAINER FOR OUTLET CONTENT */}
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <header
-          className={`w-full px-6 sm:px-10 pt-6 pb-2 flex items-center justify-between transition-colors ${
+          className={`w-full px-6 sm:px-10 pt-6 pb-2 flex items-center justify-between transition-colors flex-shrink-0 ${
             isDarkTheme ? "bg-[#1A120B]" : "bg-[#F8F5EE]"
           }`}
         >
@@ -267,8 +270,8 @@ export default function TenantDashboard() {
           </div>
         </header>
 
-        {/* Dynamic Outlet Renders Individual Tenant Child Views Cleanly */}
-        <div className="flex-1 flex flex-col">
+        {/* Dynamic Outlet Renders Individual Tenant Child Views Cleanly with independent vertical scrolling */}
+        <div className="flex-1 overflow-y-auto">
           <Outlet />
         </div>
       </main>

@@ -95,7 +95,6 @@ export default function OwnerDashboard() {
     { name: "Dashboard", icon: LayoutDashboard, path: "/owner-dashboard" },
     { name: "My Properties", icon: Building2, path: "/owner-properties" },
     { name: "Add New Property", icon: PlusCircle, path: "/add-property" },
-    { name: "Visit Requests", icon: CalendarCheck, path: "/owner-visits" },
     { name: "Bookings", icon: Calendar, path: "/owner-bookings" },
     { name: "Tenants", icon: Users, path: "/owner-tenants" },
     { name: "Earnings", icon: IndianRupee, path: "/owner-earnings" },

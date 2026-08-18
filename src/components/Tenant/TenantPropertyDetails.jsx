@@ -13,7 +13,6 @@ import {
   Maximize2,
   Home,
   ShieldCheck,
-  Flag,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -33,6 +32,18 @@ export default function PropertyDetails() {
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isSaved, setIsSaved] = useState(false);
+
+  // Visit booking state variables
+  const [visitDate, setVisitDate] = useState("");
+  const [visitTime, setVisitTime] = useState("");
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
+
+  // Simple toast trigger helper
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   useEffect(() => {
     if (id) {
@@ -55,6 +66,77 @@ export default function PropertyDetails() {
       console.error("Error fetching property details:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle Tenant Booking Submission
+  const handleBookVisit = async (e) => {
+    e.preventDefault();
+    if (!visitDate || !visitTime) {
+      showToast("Please select both a date and a time slot.");
+      return;
+    }
+
+    try {
+      setBookingLoading(true);
+
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError || !session || !session.user) {
+        showToast("Please log in as a tenant to book a visit.");
+        return;
+      }
+
+      const user = session.user;
+      const metadata = user.user_metadata || {};
+
+      const tenantName =
+        metadata.full_name ||
+        metadata.name ||
+        user.email?.split("@")[0] ||
+        "Tenant";
+      const tenantEmail = user.email || "";
+      const tenantPhone = metadata.phone || "";
+
+      const ownerId = property?.owner_id || property?.user_id;
+
+      if (!ownerId) {
+        showToast("Error: Property owner information is missing.");
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from("visit_requests")
+        .insert([
+          {
+            property_id: property.id,
+            tenant_id: user.id,
+            owner_id: ownerId,
+            tenant_name: tenantName,
+            tenant_email: tenantEmail,
+            tenant_phone: tenantPhone,
+            visit_date: visitDate,
+            visit_time: visitTime,
+            status: "Pending",
+          },
+        ]);
+
+      if (insertError) {
+        console.error("Error inserting visit request:", insertError);
+        showToast("Failed to submit visit request. Try again.");
+      } else {
+        showToast("Visit request successfully sent to the owner!");
+        setVisitDate("");
+        setVisitTime("");
+      }
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      showToast("An unexpected error occurred.");
+    } finally {
+      setBookingLoading(false);
     }
   };
 
@@ -86,7 +168,6 @@ export default function PropertyDetails() {
     );
   }
 
-  // Parse images securely from images array or image_url
   let imagesList = [
     "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=80",
   ];
@@ -107,7 +188,14 @@ export default function PropertyDetails() {
   const securityDeposit = property.security_deposit || monthlyRent * 2;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 text-[#2D1F1A]">
+    <div className="p-8 max-w-7xl mx-auto space-y-8 text-[#2D1F1A] relative">
+      {/* Toast Notification Banner */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 px-5 py-3 bg-[#2D1F1A] text-white text-xs font-bold rounded-2xl shadow-xl border border-[#C5924E] animate-bounce">
+          {toastMessage}
+        </div>
+      )}
+
       {/* Top Navigation */}
       <div className="flex items-center justify-between">
         <Link
@@ -306,7 +394,7 @@ export default function PropertyDetails() {
           </div>
         </div>
 
-        {/* Right Column: Pricing & Form Specs */}
+        {/* Right Column: Pricing & Interactive Visit Booking Form */}
         <div className="space-y-6">
           {/* Pricing & Booking Card */}
           <div
@@ -345,10 +433,52 @@ export default function PropertyDetails() {
               </span>
             </div>
 
-            <div className="space-y-3">
-              <button className="w-full py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2">
-                <Calendar className="w-4 h-4 text-[#C5924E]" />
-                <span>Book a Visit</span>
+            {/* Interactive Schedule Visit Form */}
+            <form onSubmit={handleBookVisit} className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#8A7568]">
+                Schedule a Visit
+              </h4>
+
+              <div>
+                <label className="block text-[10px] font-bold text-[#6E5D53] mb-1">
+                  Select Visit Date
+                </label>
+                <input
+                  type="date"
+                  value={visitDate}
+                  onChange={(e) => setVisitDate(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-[#EADBCE] bg-[#FAF7F2] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-[#6E5D53] mb-1">
+                  Select Time Slot
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 10:00 AM - 11:00 AM"
+                  value={visitTime}
+                  onChange={(e) => setVisitTime(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-[#EADBCE] bg-[#FAF7F2] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={bookingLoading}
+                className="w-full py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2"
+              >
+                {bookingLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  <Calendar className="w-4 h-4 text-[#C5924E]" />
+                )}
+                <span>
+                  {bookingLoading ? "Submitting Request..." : "Request Visit"}
+                </span>
               </button>
 
               <a
@@ -358,7 +488,7 @@ export default function PropertyDetails() {
                 <MessageSquare className="w-4 h-4 text-[#C5924E]" />
                 <span>Chat with Owner</span>
               </a>
-            </div>
+            </form>
           </div>
 
           {/* Property Specifications */}

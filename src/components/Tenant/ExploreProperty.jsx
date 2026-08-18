@@ -72,6 +72,13 @@ export default function ExploreProperty() {
   const fetchProperties = async () => {
     try {
       setLoading(true);
+
+      // Get current logged-in user session
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const tenantId = session?.user?.id;
+
       const { data, error } = await supabase
         .from("properties")
         .select("*")
@@ -79,10 +86,24 @@ export default function ExploreProperty() {
 
       if (error) throw error;
 
+      // If user is logged in, also fetch their saved properties wishlist
+      let savedPropertyIds = new Set();
+      if (tenantId) {
+        const { data: savedData, error: savedError } = await supabase
+          .from("saved_properties")
+          .select("property_id")
+          .eq("tenant_id", tenantId);
+
+        if (!savedError && savedData) {
+          savedData.forEach((item) => savedPropertyIds.add(item.property_id));
+        }
+      }
+
       const formattedData = (data || []).map((p) => ({
         ...p,
         lat: Number(p.latitude || p.lat || 28.6139),
         lng: Number(p.longitude || p.lng || 77.209),
+        isSaved: savedPropertyIds.has(p.id),
       }));
 
       setProperties(formattedData);
@@ -93,10 +114,49 @@ export default function ExploreProperty() {
     }
   };
 
-  const toggleSave = (id) => {
-    setProperties(
-      properties.map((p) => (p.id === id ? { ...p, isSaved: !p.isSaved } : p)),
-    );
+  const toggleSave = async (propertyId) => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        alert("Please log in as a tenant to save properties to your wishlist.");
+        return;
+      }
+
+      const tenantId = session.user.id;
+      const targetProperty = properties.find((p) => p.id === propertyId);
+      if (!targetProperty) return;
+
+      const currentlySaved = targetProperty.isSaved;
+
+      if (currentlySaved) {
+        // Remove from saved_properties table
+        const { error } = await supabase
+          .from("saved_properties")
+          .delete()
+          .eq("tenant_id", tenantId)
+          .eq("property_id", propertyId);
+
+        if (error) throw error;
+      } else {
+        // Insert into saved_properties table
+        const { error } = await supabase
+          .from("saved_properties")
+          .insert([{ tenant_id: tenantId, property_id: propertyId }]);
+
+        if (error) throw error;
+      }
+
+      // Update local state if successful
+      setProperties(
+        properties.map((p) =>
+          p.id === propertyId ? { ...p, isSaved: !currentlySaved } : p,
+        ),
+      );
+    } catch (err) {
+      console.error("Error toggling saved property:", err.message || err);
+    }
   };
 
   const categories = [
