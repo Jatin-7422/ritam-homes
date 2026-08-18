@@ -43,37 +43,20 @@ import Messages from "./components/Messages";
 import OwnerReviews from "./components/Owner/OwnerReviews";
 import OwnerDocuments from "./components/Owner/OwnerDocuments";
 
-// Tenant Components (Using your actual file structure)
+// Tenant Components
 import TenantOverview from "./components/Tenant/TenantOverview";
 import ExploreProperty from "./components/Tenant/ExploreProperty";
 import TenantMessageSimulator from "./components/Tenant/TenantMessageSimulator";
 import TenantPropertyDetails from "./components/Tenant/TenantPropertyDetails";
+import SavedProperties from "./components/Tenant/TenantSaved"; // <-- Imported correctly from your components folder
+import TenantDocuments from "./components/Tenant/TenantDocument"; 
+import VisitHistory from "./components/Tenant/VisitHistory";
+import TenantBookings from "./components/Tenant/TenantBookings";// <-- Imported correctly from your components folder
 
-// Temporary Placeholders for remaining links until their files are added
-function TenantBookings() {
-  return (
-    <div className="p-8 text-xl font-bold text-[#2D1F1A]">Tenant Bookings</div>
-  );
-}
-function SavedProperties() {
-  return (
-    <div className="p-8 text-xl font-bold text-[#2D1F1A]">Saved Properties</div>
-  );
-}
-function VisitHistory() {
-  return (
-    <div className="p-8 text-xl font-bold text-[#2D1F1A]">Visit History</div>
-  );
-}
-function TenantDocuments() {
-  return (
-    <div className="p-8 text-xl font-bold text-[#2D1F1A]">Tenant Documents</div>
-  );
-}
+// Tenant Components (Defined locally if files don't exist yet)
+
 function TenantSettings() {
-  return (
-    <div className="p-8 text-xl font-bold text-[#2D1F1A]">Tenant Settings</div>
-  );
+  return <div className="p-8 text-xl font-bold">Tenant Settings</div>;
 }
 
 // Analytics
@@ -438,7 +421,7 @@ function AppLayout() {
             <Route path="/messages" element={<Messages />} />
           </Route>
 
-          {/* Tenant Dashboard Routes (Mapped properly using relative child routing) */}
+          {/* Tenant Dashboard Routes */}
           <Route
             path="/tenant-dashboard"
             element={
@@ -451,7 +434,9 @@ function AppLayout() {
             <Route path="explore" element={<ExploreProperty />} />
             <Route path="messages" element={<TenantMessageSimulator />} />
             <Route path="bookings" element={<TenantBookings />} />
-            <Route path="saved" element={<SavedProperties />} />
+            <Route path="saved-properties" element={<SavedProperties />} />
+            <Route path="saved" element={<SavedProperties />} />{" "}
+            {/* Added alias for /saved */}
             <Route path="visits" element={<VisitHistory />} />
             <Route path="documents" element={<TenantDocuments />} />
             <Route path="settings" element={<TenantSettings />} />
