@@ -76,7 +76,6 @@ export default function NewProperty() {
   const [visitorsPerSlot, setVisitorsPerSlot] = useState("1 (private visit)");
   const [notifyEveryRequest, setNotifyEveryRequest] = useState(true);
   const [allowOtherDay, setAllowOtherDay] = useState(true);
-
   const hoursList = [
     "9 AM",
     "10 AM",
@@ -89,7 +88,6 @@ export default function NewProperty() {
     "5 PM",
   ];
   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
   const [slotGrid, setSlotGrid] = useState(() => {
     return hoursList.map((_, rowIdx) =>
       Array(7)
@@ -105,6 +103,8 @@ export default function NewProperty() {
   const [locationAddress, setLocationAddress] = useState(
     "Bengaluru, Karnataka",
   );
+  const [latitude, setLatitude] = useState(12.9716); // Default Bengaluru lat
+  const [longitude, setLongitude] = useState(77.5946); // Default Bengaluru lon
   const [mapCenter, setMapCenter] = useState([12.9716, 77.5946]); // Default Bengaluru coords
 
   // Photo handlers
@@ -160,6 +160,7 @@ export default function NewProperty() {
   // DATABASE SUBMISSION LOGIC
   const handlePublishProperty = async () => {
     setIsSubmitting(true);
+
     try {
       const {
         data: { session },
@@ -173,10 +174,11 @@ export default function NewProperty() {
       }
 
       const ownerId = session.user.id;
-
       const uploadedImageUrls = [];
+
       for (let i = 0; i < photos.length; i++) {
         const photo = photos[i];
+
         if (photo.startsWith("data:")) {
           const res = await fetch(photo);
           const blob = await res.blob();
@@ -198,15 +200,45 @@ export default function NewProperty() {
         }
       }
 
+      // Payload storing each property attribute in its dedicated database column
       const propertyPayload = {
         owner_id: ownerId,
         title:
           propertyDetails.title ||
           `${propertyDetails.configuration} ${propertyDetails.propertyType}`,
-        description: `${propertyDetails.furnishing}, ${propertyDetails.facing}, Preferred: ${propertyDetails.preferredTenant}. Water Supply: ${propertyDetails.waterSupply}.`,
-        price: parseFloat(propertyDetails.monthlyRent) || 0,
         location: locationAddress,
+        latitude: latitude, // Added precise coordinate column
+        longitude: longitude, // Added precise coordinate column
+        price: parseFloat(propertyDetails.monthlyRent) || 0,
+        type: propertyDetails.propertyType,
+        status: "Active",
+        views: 0,
         images: uploadedImageUrls,
+        image_url: uploadedImageUrls[0] || "",
+
+        // Direct database column fields
+        configuration: propertyDetails.configuration,
+        built_up_area: parseFloat(propertyDetails.builtUpArea) || 0,
+        floor: propertyDetails.floorDetails,
+        furnishing: propertyDetails.furnishing,
+        preferred_tenants: propertyDetails.preferredTenant,
+        parking: propertyDetails.parking,
+        bathrooms: propertyDetails.bathrooms,
+        water_supply: propertyDetails.waterSupply,
+        facing: propertyDetails.facing,
+        food_preference: propertyDetails.foodPreference,
+        security_deposit: parseFloat(propertyDetails.securityDeposit) || 0,
+
+        // Storing complex structural options (amenities/slots)
+        amenities: propertyDetails.amenities,
+        custom_amenities: propertyDetails.customAmenities,
+        visit_availability: {
+          mode: bookingMode,
+          visitorsPerSlot,
+          notifyEveryRequest,
+          allowOtherDay,
+          slotGrid,
+        },
       };
 
       const { error: insertError } = await supabase
@@ -293,12 +325,16 @@ export default function NewProperty() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <strong
-                    className={`block text-xs font-bold truncate ${isSelected ? "text-white" : "text-[#2D1F1A]"}`}
+                    className={`block text-xs font-bold truncate ${
+                      isSelected ? "text-white" : "text-[#2D1F1A]"
+                    }`}
                   >
                     {item.label}
                   </strong>
                   <span
-                    className={`block text-[10px] truncate ${isSelected ? "text-[#C6B6A8]" : "text-[#6E5D53]"}`}
+                    className={`block text-[10px] truncate ${
+                      isSelected ? "text-[#C6B6A8]" : "text-[#6E5D53]"
+                    }`}
                   >
                     {item.sub}
                   </span>
@@ -776,7 +812,6 @@ export default function NewProperty() {
                       </label>
                     ))}
                   </div>
-
                   <div className="flex gap-2 pt-2">
                     <input
                       type="text"
@@ -808,7 +843,6 @@ export default function NewProperty() {
                       Add option
                     </button>
                   </div>
-
                   {propertyDetails.customAmenities.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-1">
                       {propertyDetails.customAmenities.map((custom, cIdx) => (
@@ -857,6 +891,7 @@ export default function NewProperty() {
                         You approve or decline every visit request yourself.
                       </span>
                     </div>
+
                     <div
                       onClick={() => setBookingMode("auto")}
                       className={`p-4 rounded-2xl border cursor-pointer transition-all ${
@@ -1000,7 +1035,6 @@ export default function NewProperty() {
                       Availability updates live as you edit the grid
                     </p>
                   </div>
-
                   <div className="grid grid-cols-7 gap-1 bg-white p-2 rounded-2xl border border-[#E3D9CC]">
                     {dayNames.map((dName, dIdx) => {
                       const hasOpenSlot = slotGrid.some((row) => row[dIdx]);
@@ -1016,59 +1050,23 @@ export default function NewProperty() {
                         >
                           <span>{dName}</span>
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${hasOpenSlot ? "bg-[#C5924E]" : "bg-transparent"}`}
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              hasOpenSlot ? "bg-[#C5924E]" : "bg-transparent"
+                            }`}
                           />
                         </button>
                       );
                     })}
                   </div>
-
                   <div className="text-center py-2 bg-white rounded-xl border border-[#E3D9CC] text-xs text-[#6E5D53]">
                     Tap a day to see open times
-                  </div>
-
-                  <div className="border-2 border-dashed border-[#C5924E]/60 bg-white p-4 rounded-2xl space-y-3">
-                    <div>
-                      <strong className="block text-xs font-bold text-[#2D1F1A]">
-                        Other day requested
-                      </strong>
-                      <p className="text-[10px] text-[#6E5D53]">
-                        A tenant asked to visit on a day you haven't opened — it
-                        waits here until you decide.
-                      </p>
-                    </div>
-
-                    <div className="bg-[#F8F5EE] p-3 rounded-xl border border-[#E3D9CC] flex items-center justify-between gap-2 text-xs">
-                      <div>
-                        <strong className="block text-[#2D1F1A] font-bold">
-                          Priya wants Wed, 8:00 PM
-                        </strong>
-                        <span className="text-[10px] text-[#6E5D53]">
-                          Outside your current slots
-                        </span>
-                      </div>
-                      <div className="flex gap-1.5">
-                        <button
-                          type="button"
-                          className="px-2.5 py-1 bg-white border border-[#E3D9CC] rounded-lg text-[10px] font-bold text-[#2D1F1A] hover:bg-gray-50 cursor-pointer"
-                        >
-                          Decline
-                        </button>
-                        <button
-                          type="button"
-                          className="px-2.5 py-1 bg-[#C5924E] text-[#2D1F1A] rounded-lg text-[10px] font-bold hover:bg-[#b07f3e] cursor-pointer"
-                        >
-                          Accept
-                        </button>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* STEP 4: LOCATION (FIXED DROPDOWN OVERLAP & PRECISE MAP CENTERING) */}
+          {/* STEP 4: LOCATION */}
           {currentStep === 4 && (
             <div className="space-y-6">
               <div>
@@ -1082,7 +1080,6 @@ export default function NewProperty() {
               </div>
 
               <div className="space-y-4">
-                {/* Explicit z-40 ensures dropdown list floats cleanly over the map */}
                 <div className="relative space-y-2 z-40">
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Property Address <span className="text-red-500">*</span>
@@ -1090,16 +1087,17 @@ export default function NewProperty() {
                   <AddressAutocomplete
                     value={locationAddress}
                     onChange={(val) => setLocationAddress(val)}
-                    onSelect={(selectedAddress, lat, lon) => {
-                      setLocationAddress(selectedAddress);
+                    onSelect={(formattedAddress, lat, lon) => {
+                      setLocationAddress(formattedAddress);
                       if (lat && lon) {
+                        setLatitude(lat);
+                        setLongitude(lon);
                         setMapCenter([lat, lon]);
                       }
                     }}
                   />
                 </div>
 
-                {/* Leaflet map container isolated at z-10 */}
                 <div className="relative z-10 w-full h-64 rounded-2xl overflow-hidden border border-[#E3D9CC] shadow-xs">
                   <MapContainer
                     center={mapCenter}
@@ -1107,48 +1105,41 @@ export default function NewProperty() {
                     scrollWheelZoom={false}
                     style={{ width: "100%", height: "100%" }}
                   >
+                    <RecenterMap center={mapCenter} />
                     <TileLayer
                       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     />
                     <Marker position={mapCenter} />
-                    <RecenterMap center={mapCenter} />
                   </MapContainer>
-                </div>
-              </div>
-
-              <div className="text-xs flex items-center justify-between bg-[#F8F5EE] p-4 rounded-xl border border-[#E3D9CC]">
-                <div>
-                  <span className="font-bold text-[#2D1F1A]">
-                    Saved Address in Database:{" "}
-                  </span>
-                  <span className="text-[#6E5D53]">
-                    {locationAddress || "No address entered yet"}
-                  </span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* STEP FOOTER NAVIGATION */}
+          {/* NAVIGATION FOOTER BUTTONS */}
           <div className="flex items-center justify-between pt-8 border-t border-[#E3D9CC] mt-8">
             <button
-              onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
-              style={{ visibility: currentStep === 1 ? "hidden" : "visible" }}
               type="button"
-              className="px-6 py-2.5 bg-white border border-[#E3D9CC] text-[#2D1F1A] rounded-xl text-xs font-bold hover:bg-[#F8F5EE] transition-all cursor-pointer"
+              onClick={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
+              disabled={currentStep === 1 || isSubmitting}
+              className={`px-6 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                currentStep === 1
+                  ? "opacity-40 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400"
+                  : "bg-white border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#F8F5EE] cursor-pointer"
+              }`}
             >
               Back
             </button>
 
             <button
+              type="button"
               onClick={() => {
-                if (currentStep === 1) {
-                  if (photos.length < 3) {
-                    alert("Please add at least 3 photos to continue.");
-                    return;
-                  }
-                } else if (currentStep === 2) {
+                if (currentStep === 1 && photos.length < 3) {
+                  alert("Please add at least 3 photos before continuing.");
+                  return;
+                }
+                if (currentStep === 2) {
                   if (!propertyDetails.title.trim()) {
                     alert("Please enter a property title.");
                     return;
@@ -1183,7 +1174,6 @@ export default function NewProperty() {
                 }
               }}
               disabled={isSubmitting}
-              type="button"
               className="px-6 py-2.5 bg-[#C5924E] text-[#2D1F1A] hover:bg-[#b07f3e] rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
             >
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
