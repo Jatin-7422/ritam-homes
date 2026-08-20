@@ -5,7 +5,6 @@ import { AppContext } from "../../App"; // Adjust path if needed
 import {
   Building2,
   Eye,
-  CalendarCheck,
   Calendar,
   IndianRupee,
   Plus,
@@ -21,17 +20,15 @@ export default function OwnerOverview() {
   const { userInfo, setUserInfo, preferences } = useContext(AppContext);
   const isDarkTheme = preferences.theme === "Dark Mode";
 
-  // Dashboard Metrics State
+  // Dashboard Metrics State (removed pendingRequests)
   const [stats, setStats] = useState({
     totalProperties: 0,
     totalViews: 0,
-    pendingRequests: 0,
     confirmedBookings: 0,
     totalEarnings: 0,
   });
 
   const [properties, setProperties] = useState([]);
-  const [pendingVisits, setPendingVisits] = useState([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -81,37 +78,35 @@ export default function OwnerOverview() {
       const propertyCount = propertyList.length;
       const propertyIds = propertyList.map((p) => p.id);
 
-      // 2. Fetch Visit Requests (if table exists)
-      let pendingRequestsCount = 0;
-      if (propertyIds.length > 0) {
-        const { count, error: visitError } = await supabase
-          .from("visit_requests")
-          .select("*", { count: "exact", head: true })
-          .in("property_id", propertyIds)
-          .eq("status", "pending");
-
-        if (!visitError && count !== null) {
-          pendingRequestsCount = count;
-        }
-      }
-
-      // 3. Fetch Bookings / Earnings (if table exists)
+      // 2. Fetch Bookings from 'property_visit_slots'
       let confirmedBookingsCount = 0;
       let totalEarningsAmount = 0;
-      if (propertyIds.length > 0) {
-        const { data: bookingData, error: bookingError } = await supabase
-          .from("bookings")
-          .select("*")
-          .in("property_id", propertyIds)
-          .eq("status", "confirmed");
 
-        if (!bookingError && bookingData) {
-          confirmedBookingsCount = bookingData.length;
-          totalEarningsAmount = bookingData.reduce(
-            (acc, curr) =>
-              acc + (Number(curr.total_price) || Number(curr.amount) || 0),
-            0,
+      if (propertyIds.length > 0) {
+        const { data: slotsData, error: slotsError } = await supabase
+          .from("property_visit_slots")
+          .select("*")
+          .in("property_id", propertyIds);
+
+        if (!slotsError && slotsData) {
+          const confirmedSlots = slotsData.filter(
+            (slot) => slot.status === "confirmed" || slot.status === "approved",
           );
+
+          confirmedBookingsCount = confirmedSlots.length;
+
+          totalEarningsAmount = confirmedSlots.reduce((acc, curr) => {
+            const propMatch = propertyList.find(
+              (p) => p.id === curr.property_id,
+            );
+            return (
+              acc +
+              (Number(curr.total_price) ||
+                Number(curr.amount) ||
+                Number(propMatch?.price) ||
+                0)
+            );
+          }, 0);
         }
       }
 
@@ -124,7 +119,6 @@ export default function OwnerOverview() {
       setStats({
         totalProperties: propertyCount,
         totalViews: totalViewsCount,
-        pendingRequests: pendingRequestsCount,
         confirmedBookings: confirmedBookingsCount,
         totalEarnings: totalEarningsAmount,
       });
@@ -177,8 +171,8 @@ export default function OwnerOverview() {
         </button>
       </div>
 
-      {/* METRICS CARDS GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* METRICS CARDS GRID (Updated to 4 columns) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Properties */}
         <div
           className={`p-5 rounded-3xl border shadow-xs flex flex-col justify-between space-y-4 transition-colors ${
@@ -271,55 +265,7 @@ export default function OwnerOverview() {
           </div>
         </div>
 
-        {/* Card 3: Visit Requests */}
-        <div
-          className={`p-5 rounded-3xl border shadow-xs flex flex-col justify-between space-y-4 transition-colors ${
-            isDarkTheme
-              ? "bg-[#251B14] border-neutral-800"
-              : "bg-white border-[#E3D9CC]"
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span
-              className={`text-xs font-bold ${
-                isDarkTheme ? "text-[#B3A499]" : "text-[#6E5D53]"
-              }`}
-            >
-              Visit Requests
-            </span>
-            <div
-              className={`w-8 h-8 rounded-full border flex items-center justify-center text-[#C5924E] ${
-                isDarkTheme
-                  ? "bg-[#1E150F] border-neutral-800"
-                  : "bg-[#F8F5EE] border-[#E3D9CC]"
-              }`}
-            >
-              <CalendarCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div
-              className={`text-2xl font-serif font-bold ${
-                isDarkTheme ? "text-white" : "text-[#2D1F1A]"
-              }`}
-            >
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin text-[#C5924E]" />
-              ) : (
-                stats.pendingRequests
-              )}
-            </div>
-            <span
-              className={`text-[10px] mt-0.5 block ${
-                isDarkTheme ? "text-[#B3A499]" : "text-[#6E5D53]"
-              }`}
-            >
-              Pending
-            </span>
-          </div>
-        </div>
-
-        {/* Card 4: Confirmed Bookings */}
+        {/* Card 3: Confirmed Bookings */}
         <div
           className={`p-5 rounded-3xl border shadow-xs flex flex-col justify-between space-y-4 transition-colors ${
             isDarkTheme
@@ -362,14 +308,14 @@ export default function OwnerOverview() {
                 isDarkTheme ? "text-[#B3A499]" : "text-[#6E5D53]"
               }`}
             >
-              This Month
+              Total Confirmed
             </span>
           </div>
         </div>
 
-        {/* Card 5: Total Earnings */}
+        {/* Card 4: Total Earnings */}
         <div
-          className={`p-5 rounded-3xl border shadow-xs flex flex-col justify-between space-y-4 sm:col-span-2 lg:col-span-1 transition-colors ${
+          className={`p-5 rounded-3xl border shadow-xs flex flex-col justify-between space-y-4 transition-colors ${
             isDarkTheme
               ? "bg-[#251B14] border-neutral-800"
               : "bg-white border-[#E3D9CC]"
@@ -406,13 +352,13 @@ export default function OwnerOverview() {
               )}
             </div>
             <span className="text-[10px] text-emerald-500 font-bold mt-0.5 block">
-              This Month
+              Revenue
             </span>
           </div>
         </div>
       </div>
 
-      {/* LOWER SECTION: PROPERTIES & VISIT REQUESTS GRID */}
+      {/* LOWER SECTION: PROPERTIES & EARNINGS OVERVIEW */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: My Properties Section */}
         <div
@@ -537,9 +483,9 @@ export default function OwnerOverview() {
           </button>
         </div>
 
-        {/* Right Column: Visit Requests & Earnings Overview */}
+        {/* Right Column: Earnings & Quick Stats Overview */}
         <div className="lg:col-span-5 space-y-6 flex flex-col">
-          {/* Visit Requests Box */}
+          {/* Earnings Overview Box */}
           <div
             className={`p-6 sm:p-8 rounded-3xl border shadow-xs space-y-4 transition-colors ${
               isDarkTheme
@@ -553,14 +499,14 @@ export default function OwnerOverview() {
                   isDarkTheme ? "text-white" : "text-[#2D1F1A]"
                 }`}
               >
-                Visit Requests
+                Earnings Overview
               </h2>
-              <Link
-                to="/owner-visits"
-                className="text-xs font-bold text-[#C5924E] hover:underline flex items-center gap-1"
+              <span
+                onClick={() => navigate("/owner-earnings")}
+                className="text-xs font-bold text-[#C5924E] cursor-pointer hover:underline flex items-center gap-1"
               >
-                View All <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
+                View Details <ArrowRight className="w-3.5 h-3.5" />
+              </span>
             </div>
 
             <div
@@ -577,60 +523,23 @@ export default function OwnerOverview() {
                     : "bg-white border-[#E3D9CC]"
                 }`}
               >
-                <CalendarCheck className="w-5 h-5" />
+                <IndianRupee className="w-5 h-5" />
               </div>
               <strong
-                className={`text-xs font-bold ${
+                className={`text-base font-serif font-bold ${
                   isDarkTheme ? "text-white" : "text-[#2D1F1A]"
                 }`}
               >
-                {stats.pendingRequests > 0
-                  ? `${stats.pendingRequests} Pending Request(s)`
-                  : "No visit requests"}
+                ₹{stats.totalEarnings}
               </strong>
               <span
                 className={`text-[10px] mt-0.5 ${
                   isDarkTheme ? "text-[#B3A499]" : "text-[#6E5D53]"
                 }`}
               >
-                Incoming requests from database will appear here.
+                Total revenue generated from confirmed bookings.
               </span>
             </div>
-          </div>
-
-          {/* Earnings Overview Box */}
-          <div
-            className={`p-6 sm:p-8 rounded-3xl border shadow-xs space-y-3 transition-colors ${
-              isDarkTheme
-                ? "bg-[#251B14] border-neutral-800"
-                : "bg-white border-[#E3D9CC]"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <h2
-                className={`text-base sm:text-lg font-serif font-bold ${
-                  isDarkTheme ? "text-white" : "text-[#2D1F1A]"
-                }`}
-              >
-                Earnings Overview
-              </h2>
-              <span
-                onClick={() => navigate("/owner-earnings")}
-                className="text-xs font-bold text-[#C5924E] cursor-pointer hover:underline"
-              >
-                View Details →
-              </span>
-            </div>
-            <p
-              className={`text-xs ${
-                isDarkTheme ? "text-[#B3A499]" : "text-[#6E5D53]"
-              }`}
-            >
-              Total earnings (This Month):{" "}
-              <strong className={isDarkTheme ? "text-white" : "text-[#2D1F1A]"}>
-                ₹{stats.totalEarnings}
-              </strong>
-            </p>
           </div>
         </div>
       </div>
