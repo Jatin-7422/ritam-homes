@@ -1,401 +1,327 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
 import {
-  Users,
-  Loader2,
-  MapPin,
-  IndianRupee,
   Calendar,
-  CheckCircle2,
   Clock,
-  Phone,
-  Mail,
-  ChevronDown,
+  MapPin,
+  Loader2,
   Search,
+  Users,
+  CheckCircle,
+  Clock3,
   Check,
   X,
+  XCircle,
 } from "lucide-react";
 
 export default function OwnerBookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("All");
-  const [search, setSearch] = useState("");
-  const [expandedId, setExpandedId] = useState(null);
-  const [actionLoading, setActionLoading] = useState(null);
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    pending: 0,
-    revenue: 0,
-  });
+  const [filter, setFilter] = useState("All"); // All, Pending, Confirmed, Rejected
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetchBookings();
+    fetchOwnerBookings();
   }, []);
 
-  const fetchBookings = async () => {
+  const fetchOwnerBookings = async () => {
     try {
       setLoading(true);
+
+      // 1. Get current logged-in owner session
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession();
-      if (!session) return;
 
-      const { data: props, error: propError } = await supabase
-        .from("properties")
-        .select("id, title, location, price")
-        .eq("owner_id", session.user.id);
-
-      if (propError) throw propError;
-      if (!props || props.length === 0) {
-        setBookings([]);
+      if (sessionError || !session) {
+        console.error("No active session found:", sessionError);
         return;
       }
 
-      const propMap = Object.fromEntries(props.map((p) => [p.id, p]));
-      const propIds = props.map((p) => p.id);
-
-      const { data: bookingData, error } = await supabase
-        .from("visit_requests")
-        .select("*")
-        .in("property_id", propIds)
-        .order("created_at", { ascending: false });
+      // 2. Fetch all slots that have been requested or booked (status is not 'available')
+      const { data, error } = await supabase
+        .from("property_visit_slots")
+        .select(
+          `
+          id,
+          date,
+          time_slot,
+          status,
+          tenant_id,
+          is_booked,
+          properties (
+            id,
+            title,
+            location,
+            price,
+            owner_id
+          )
+        `,
+        )
+        .not("status", "eq", "available");
 
       if (error) throw error;
 
-      const enriched = (bookingData || []).map((b) => ({
-        ...b,
-        property: propMap[b.property_id] || {},
-      }));
+      // 3. Filter manually in JS to ensure we match the owner's properties safely
+      const ownerBookings = (data || []).filter(
+        (slot) =>
+          slot.properties && slot.properties.owner_id === session.user.id,
+      );
 
-      setBookings(enriched);
-      setStats({
-        total: enriched.length,
-        active: enriched.filter((b) => b.status?.toLowerCase() === "accepted")
-          .length,
-        pending: enriched.filter((b) => b.status?.toLowerCase() === "pending")
-          .length,
-        revenue: enriched
-          .filter((b) => b.status?.toLowerCase() === "accepted")
-          .reduce((sum, b) => sum + (propMap[b.property_id]?.price || 0), 0),
-      });
+      setBookings(ownerBookings);
     } catch (err) {
-      console.error("Error fetching bookings:", err.message);
+      console.error("Error fetching owner bookings:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdateStatus = async (id, newStatus) => {
+  // Handle Owner Confirm (Accept) or Reject action
+  const handleUpdateStatus = async (slotId, newStatus) => {
     try {
-      setActionLoading(id);
-      const { error, data } = await supabase
-        .from("visit_requests")
-        .update({ status: newStatus })
-        .eq("id", id)
-        .select();
+      const isConfirmed = newStatus === "confirmed";
+
+      const { error } = await supabase
+        .from("property_visit_slots")
+        .update({
+          status: newStatus,
+          is_booked: isConfirmed,
+        })
+        .eq("id", slotId);
 
       if (error) throw error;
 
-      // Update local state smoothly
-      setBookings((prev) =>
-        prev.map((b) => (b.id === id ? { ...b, status: newStatus } : b)),
-      );
-
-      fetchBookings();
+      // Refresh bookings list instantly
+      fetchOwnerBookings();
     } catch (err) {
-      console.error("Error updating status:", err.message);
-      alert("Failed to update status. Check console & RLS policies.");
-    } finally {
-      setActionLoading(null);
+      console.error("Error updating slot status:", err);
     }
   };
 
-  const filters = ["All", "Pending", "Accepted", "Rejected"];
+  // Calculate metrics for top cards dynamically
+  const totalBookings = bookings.length;
+  const activeBookings = bookings.filter(
+    (b) => b.status === "confirmed",
+  ).length;
+  const pendingBookings = bookings.filter(
+    (b) => b.status === "pending" || !b.status,
+  ).length;
 
-  const filtered = bookings.filter((b) => {
-    const bookingStatus = b.status?.toLowerCase() || "pending";
-    const matchFilter =
-      filter === "All" || bookingStatus === filter.toLowerCase();
+  const estRevenue = bookings
+    .filter((b) => b.status === "confirmed")
+    .reduce((acc, curr) => acc + Number(curr.properties?.price || 0), 0);
 
-    const q = search.toLowerCase();
-    const matchSearch =
-      !q ||
-      b.tenant_name?.toLowerCase().includes(q) ||
-      b.tenant_email?.toLowerCase().includes(q) ||
-      b.property?.title?.toLowerCase().includes(q);
+  // Filter bookings based on selected tab and search query
+  const filteredBookings = bookings.filter((item) => {
+    const title = item.properties?.title?.toLowerCase() || "";
+    const location = item.properties?.location?.toLowerCase() || "";
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = title.includes(query) || location.includes(query);
 
-    return matchFilter && matchSearch;
+    const slotStatus = item.status || "pending";
+    if (filter === "All") return matchesSearch;
+    if (filter === "Pending") return matchesSearch && slotStatus === "pending";
+    if (filter === "Confirmed")
+      return matchesSearch && slotStatus === "confirmed";
+    if (filter === "Rejected")
+      return matchesSearch && slotStatus === "rejected";
+
+    return matchesSearch;
   });
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="min-h-[70vh] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-[#C5924E]" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="p-8 max-w-7xl mx-auto space-y-8 text-[#2D1F1A]">
+      {/* Header & Search Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-[#2D1F1A]">
+          <h1 className="text-3xl font-serif font-bold text-[#2D1F1A] flex items-center gap-2">
             Tenant Bookings 📝
           </h1>
-          <p className="text-sm text-[#6E5D53] mt-1">
+          <p className="text-xs text-[#6E5D53] mt-1">
             Track confirmed visit requests and lease agreements.
           </p>
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-[#6E5D53]" />
+
+        <div className="relative w-full md:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A7568]" />
           <input
             type="text"
             placeholder="Search tenant or property..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white border border-[#E3D9CC] rounded-xl pl-9 pr-4 py-2 text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#EADBCE] rounded-2xl text-xs focus:outline-none focus:border-[#C5924E] shadow-sm"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          {
-            label: "Total Bookings",
-            val: stats.total,
-            icon: <Users className="w-4 h-4" />,
-          },
-          {
-            label: "Active",
-            val: stats.active,
-            icon: <CheckCircle2 className="w-4 h-4" />,
-          },
-          {
-            label: "Pending",
-            val: stats.pending,
-            icon: <Clock className="w-4 h-4" />,
-          },
-          {
-            label: "Est. Revenue",
-            val: `₹${stats.revenue.toLocaleString("en-IN")}`,
-            icon: <IndianRupee className="w-4 h-4" />,
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white p-5 rounded-3xl border border-[#E3D9CC] shadow-xs space-y-2"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[#6E5D53]">
-                {s.label}
-              </span>
-              <div className="w-8 h-8 rounded-full bg-[#F8F5EE] border border-[#E3D9CC] flex items-center justify-center text-[#C5924E]">
-                {s.icon}
-              </div>
-            </div>
-            <p className="text-2xl font-serif font-bold text-[#2D1F1A]">
-              {s.val}
-            </p>
+      {/* Top Metric Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-3xl border border-[#EADBCE] shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-xs text-[#6E5D53]">
+            <span>Total Bookings</span>
+            <Users className="w-4 h-4 text-[#C5924E]" />
           </div>
-        ))}
+          <div className="text-2xl font-bold text-[#2D1F1A]">
+            {totalBookings}
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-3xl border border-[#EADBCE] shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-xs text-[#6E5D53]">
+            <span>Active / Confirmed</span>
+            <CheckCircle className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl font-bold text-[#2D1F1A]">
+            {activeBookings}
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-3xl border border-[#EADBCE] shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-xs text-[#6E5D53]">
+            <span>Pending</span>
+            <Clock3 className="w-4 h-4 text-amber-600" />
+          </div>
+          <div className="text-2xl font-bold text-[#2D1F1A]">
+            {pendingBookings}
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-3xl border border-[#EADBCE] shadow-sm space-y-2">
+          <div className="flex items-center justify-between text-xs text-[#6E5D53]">
+            <span>Est. Revenue</span>
+            <span className="text-[#C5924E] font-bold">₹</span>
+          </div>
+          <div className="text-2xl font-bold text-[#2D1F1A]">
+            ₹{estRevenue.toLocaleString()}
+          </div>
+        </div>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        {filters.map((f) => (
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-2">
+        {["All", "Pending", "Confirmed", "Rejected"].map((tab) => (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              filter === f
-                ? "bg-[#2D1F1A] text-white shadow-sm"
-                : "bg-white border border-[#E3D9CC] text-[#6E5D53] hover:bg-[#F8F5EE]"
+            key={tab}
+            onClick={() => setFilter(tab)}
+            className={`px-5 py-2 rounded-full text-xs font-bold transition-all shadow-sm ${
+              filter === tab
+                ? "bg-[#2D1F1A] text-white"
+                : "bg-white text-[#6E5D53] border border-[#EADBCE] hover:bg-[#FAF7F2]"
             }`}
           >
-            {f}
+            {tab}
           </button>
         ))}
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-[#EADBCE] p-16 text-center shadow-sm space-y-4">
-          <div className="w-16 h-16 bg-[#FAF7F2] border border-[#EADBCE] text-[#C5924E] rounded-2xl flex items-center justify-center mx-auto">
-            <Users className="w-8 h-8" />
+      {/* Bookings List Cards */}
+      <div className="space-y-4">
+        {filteredBookings.length === 0 ? (
+          <div className="bg-white border border-[#EADBCE] rounded-3xl p-12 text-center space-y-3">
+            <Calendar className="w-10 h-10 text-[#C5924E] mx-auto" />
+            <h3 className="text-sm font-bold text-[#2D1F1A]">
+              No Bookings Found
+            </h3>
+            <p className="text-xs text-[#6E5D53]">
+              When tenants request booking slots, they will appear here for your
+              review.
+            </p>
           </div>
-          <h3 className="text-xl font-serif font-bold text-[#2D1F1A]">
-            {search || filter !== "All"
-              ? "No matching bookings"
-              : "No Bookings Yet"}
-          </h3>
-          <p className="text-sm text-[#6E5D53] max-w-md mx-auto">
-            {search || filter !== "All"
-              ? "Try adjusting your search or filter."
-              : "When you receive visit requests, they will appear here."}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filtered.map((booking) => {
-            const isExpanded = expandedId === booking.id;
-            const statusStr = booking.status?.toLowerCase() || "pending";
-            const accepted = statusStr === "accepted";
-            const pending = statusStr === "pending";
-
-            const statusBadgeColor = accepted
-              ? "bg-green-100 text-green-800"
-              : pending
-                ? "bg-amber-100 text-amber-800"
-                : "bg-red-100 text-red-700";
+        ) : (
+          filteredBookings.map((slot) => {
+            const property = slot.properties;
+            const status = slot.status || "pending";
 
             return (
               <div
-                key={booking.id}
-                className="bg-white rounded-3xl border border-[#EADBCE] shadow-sm overflow-hidden"
+                key={slot.id}
+                className="bg-white border border-[#EADBCE] rounded-3xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-[#C5924E]"
               >
-                <div
-                  className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 cursor-pointer"
-                  onClick={() => setExpandedId(isExpanded ? null : booking.id)}
-                >
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="w-12 h-12 rounded-2xl bg-[#F8F5EE] border border-[#E3D9CC] flex items-center justify-center text-[#2D1F1A] font-bold text-sm flex-shrink-0">
-                      {(booking.tenant_name || "T").charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-sm font-bold text-[#2D1F1A]">
-                          {booking.tenant_name || "Tenant"}
-                        </h4>
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${statusBadgeColor}`}
-                        >
-                          {booking.status || "Pending"}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[#6E5D53] flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3 text-[#C5924E]" />
-                        {booking.property?.title} — {booking.property?.location}
-                      </p>
-                      <p className="text-xs text-[#6E5D53] flex items-center gap-1 mt-0.5">
-                        <Calendar className="w-3 h-3" />
-                        Visit:{" "}
-                        {booking.visit_date
-                          ? new Date(booking.visit_date).toLocaleDateString(
-                              "en-IN",
-                              {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              },
-                            )
-                          : "TBD"}
-                        {booking.visit_time ? ` at ${booking.visit_time}` : ""}
-                      </p>
-                    </div>
+                <div className="flex items-center gap-4">
+                  {/* Avatar / R Initials box */}
+                  <div className="w-12 h-12 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center font-serif font-bold text-base text-[#2D1F1A] shrink-0 shadow-inner">
+                    R
                   </div>
 
-                  <div className="flex items-center gap-4 ml-auto">
-                    {booking.property?.price && (
-                      <div className="text-right hidden sm:block">
-                        <p className="text-xs text-[#6E5D53]">Rent</p>
-                        <p className="text-sm font-bold text-[#C5924E]">
-                          ₹{booking.property.price.toLocaleString("en-IN")}/mo
-                        </p>
-                      </div>
-                    )}
-                    <ChevronDown
-                      className={`w-4 h-4 text-[#6E5D53] transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`}
-                    />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-[#2D1F1A]">
+                        {property?.title || "Property Visit"}
+                      </span>
+
+                      {/* Status Badge */}
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase ${
+                          status === "confirmed"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : status === "rejected"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : "bg-amber-50 text-amber-700 border-amber-200"
+                        }`}
+                      >
+                        {status}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-[#6E5D53] flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
+                      <span>
+                        {property?.location || "Location not specified"}
+                      </span>
+                    </p>
+
+                    <p className="text-[11px] text-[#8A7568] flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
+                      <span>
+                        Visit: {slot.date} at {slot.time_slot}
+                      </span>
+                    </p>
                   </div>
                 </div>
 
-                {isExpanded && (
-                  <div className="px-5 pb-5 border-t border-[#F2ECE4] pt-4 space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <p className="text-[11px] font-bold text-[#6E5D53] uppercase tracking-wide">
-                          Contact
-                        </p>
-                        {booking.tenant_email && (
-                          <p className="text-xs text-[#2D1F1A] flex items-center gap-2">
-                            <Mail className="w-3.5 h-3.5 text-[#C5924E]" />
-                            {booking.tenant_email}
-                          </p>
-                        )}
-                        {booking.tenant_phone && (
-                          <p className="text-xs text-[#2D1F1A] flex items-center gap-2">
-                            <Phone className="w-3.5 h-3.5 text-[#C5924E]" />
-                            {booking.tenant_phone}
-                          </p>
-                        )}
-                      </div>
-                      {booking.property?.price && (
-                        <div className="space-y-2">
-                          <p className="text-[11px] font-bold text-[#6E5D53] uppercase tracking-wide">
-                            Property Details
-                          </p>
-                          <p className="text-xs text-[#2D1F1A]">
-                            {booking.property.title}
-                          </p>
-                          <p className="text-xs font-bold text-[#C5924E]">
-                            ₹{booking.property.price.toLocaleString("en-IN")}
-                            /month
-                          </p>
-                        </div>
-                      )}
-                      {booking.message && (
-                        <div className="space-y-2">
-                          <p className="text-[11px] font-bold text-[#6E5D53] uppercase tracking-wide">
-                            Tenant Note
-                          </p>
-                          <p className="text-xs text-[#2D1F1A] bg-[#F8F5EE] p-3 rounded-xl border border-[#E3D9CC] leading-relaxed">
-                            {booking.message}
-                          </p>
-                        </div>
-                      )}
+                {/* Actions & Rent */}
+                <div className="flex items-center justify-between md:justify-end gap-6 pt-3 md:pt-0 border-t md:border-t-0 border-[#F0E6D8]">
+                  {/* Action Buttons for Pending Requests */}
+                  {status === "pending" && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleUpdateStatus(slot.id, "confirmed")}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm transition-all"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Accept
+                      </button>
+                      <button
+                        onClick={() => handleUpdateStatus(slot.id, "rejected")}
+                        className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm transition-all"
+                      >
+                        <X className="w-3.5 h-3.5" /> Reject
+                      </button>
                     </div>
+                  )}
 
-                    {/* Action Buttons - Always available to switch status */}
-                    <div className="flex items-center gap-3 pt-2">
-                      <button
-                        disabled={actionLoading === booking.id || accepted}
-                        onClick={() =>
-                          handleUpdateStatus(booking.id, "Accepted")
-                        }
-                        className="flex items-center gap-1.5 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-xl text-xs font-bold transition-all disabled:opacity-40"
-                      >
-                        {actionLoading === booking.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Check className="w-3.5 h-3.5" />
-                        )}
-                        {accepted ? "Accepted" : "Accept Request"}
-                      </button>
-                      <button
-                        disabled={
-                          actionLoading === booking.id ||
-                          statusStr === "rejected"
-                        }
-                        onClick={() =>
-                          handleUpdateStatus(booking.id, "Rejected")
-                        }
-                        className="flex items-center gap-1.5 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl text-xs font-bold transition-all disabled:opacity-40"
-                      >
-                        {actionLoading === booking.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <X className="w-3.5 h-3.5" />
-                        )}
-                        {statusStr === "rejected" ? "Rejected" : "Reject"}
-                      </button>
-                    </div>
+                  <div className="text-right pl-2">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-[#8A7568]">
+                      Rent
+                    </span>
+                    <span className="text-xs font-bold text-[#2D1F1A]">
+                      ₹{Number(property?.price || 0).toLocaleString()}/mo
+                    </span>
                   </div>
-                )}
+                </div>
               </div>
             );
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
     </div>
   );
 }

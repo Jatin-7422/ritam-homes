@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
-import { MapPin, Loader2 } from "lucide-react";
+import {
+  MapPin,
+  Loader2,
+  Plus,
+  Trash2,
+  Calendar as CalendarIcon,
+  Clock,
+  Check,
+} from "lucide-react";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -71,41 +79,69 @@ export default function NewProperty() {
     newAmenityInput: "",
   });
 
-  // Step 3: Slot Booking state
+  // Step 3: Slot Booking state (Interactive Calendar State)
   const [bookingMode, setBookingMode] = useState("manual");
   const [visitorsPerSlot, setVisitorsPerSlot] = useState("1 (private visit)");
   const [notifyEveryRequest, setNotifyEveryRequest] = useState(true);
   const [allowOtherDay, setAllowOtherDay] = useState(true);
-  const hoursList = [
-    "9 AM",
-    "10 AM",
-    "11 AM",
-    "12 PM",
-    "1 PM",
-    "2 PM",
-    "3 PM",
-    "4 PM",
-    "5 PM",
+
+  // Calendar picker helper states
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
+  const [selectedTimeBlock, setSelectedTimeBlock] = useState(
+    "10:00 AM - 11:00 AM",
+  );
+
+  // Quick pre-set time slots that owners can tap to add instantly
+  const presetTimeSlots = [
+    "09:00 AM - 10:00 AM",
+    "10:00 AM - 11:00 AM",
+    "11:00 AM - 12:00 PM",
+    "02:00 PM - 03:00 PM",
+    "03:00 PM - 04:00 PM",
+    "04:00 PM - 05:00 PM",
+    "05:00 PM - 06:00 PM",
   ];
-  const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const [slotGrid, setSlotGrid] = useState(() => {
-    return hoursList.map((_, rowIdx) =>
-      Array(7)
-        .fill(false)
-        .map((_, colIdx) => rowIdx >= 6 || colIdx >= 5),
+
+  // Owner-defined explicit date & time slots array
+  const [ownerSlots, setOwnerSlots] = useState([
+    {
+      date: new Date().toISOString().split("T")[0],
+      time_slot: "10:00 AM - 11:00 AM",
+    },
+  ]);
+
+  const handleAddSlotFromCalendar = () => {
+    if (!selectedCalendarDate || !selectedTimeBlock) return;
+
+    // Avoid exact duplicate date + time slots
+    const exists = ownerSlots.some(
+      (s) =>
+        s.date === selectedCalendarDate && s.time_slot === selectedTimeBlock,
     );
-  });
-  const [isDraggingSlots, setIsDraggingSlots] = useState(false);
-  const [dragSlotValue, setDragSlotValue] = useState(true);
-  const [pickedDayIndex, setPickedDayIndex] = useState(0);
+    if (exists) {
+      alert("This exact date and time slot is already added.");
+      return;
+    }
+
+    setOwnerSlots([
+      ...ownerSlots,
+      { date: selectedCalendarDate, time_slot: selectedTimeBlock },
+    ]);
+  };
+
+  const handleRemoveSlot = (index) => {
+    setOwnerSlots(ownerSlots.filter((_, i) => i !== index));
+  };
 
   // Step 4: Location State
   const [locationAddress, setLocationAddress] = useState(
     "Bengaluru, Karnataka",
   );
-  const [latitude, setLatitude] = useState(12.9716); // Default Bengaluru lat
-  const [longitude, setLongitude] = useState(77.5946); // Default Bengaluru lon
-  const [mapCenter, setMapCenter] = useState([12.9716, 77.5946]); // Default Bengaluru coords
+  const [latitude, setLatitude] = useState(12.9716);
+  const [longitude, setLongitude] = useState(77.5946);
+  const [mapCenter, setMapCenter] = useState([12.9716, 77.5946]);
 
   // Photo handlers
   const handlePhotoUpload = (e) => {
@@ -127,42 +163,11 @@ export default function NewProperty() {
     setPhotos((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
-  // Slot grid interactions
-  const handleSlotMouseDown = (rowIdx, colIdx, e) => {
-    e.preventDefault();
-    setIsDraggingSlots(true);
-    const newState = !slotGrid[rowIdx][colIdx];
-    setDragSlotValue(newState);
-
-    const updated = slotGrid.map((row, r) =>
-      row.map((val, c) => (r === rowIdx && c === colIdx ? newState : val)),
-    );
-    setSlotGrid(updated);
-  };
-
-  const handleSlotMouseEnter = (rowIdx, colIdx) => {
-    if (isDraggingSlots) {
-      const updated = slotGrid.map((row, r) =>
-        row.map((val, c) =>
-          r === rowIdx && c === colIdx ? dragSlotValue : val,
-        ),
-      );
-      setSlotGrid(updated);
-    }
-  };
-
-  useEffect(() => {
-    const handleGlobalMouseUp = () => setIsDraggingSlots(false);
-    window.addEventListener("mouseup", handleGlobalMouseUp);
-    return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
-  }, []);
-
   // DATABASE SUBMISSION LOGIC
   const handlePublishProperty = async () => {
     setIsSubmitting(true);
 
     try {
-      // 1. Get current logged-in user securely from Auth session
       const {
         data: { user },
         error: userError,
@@ -176,7 +181,6 @@ export default function NewProperty() {
 
       const ownerId = user.id;
 
-      // Extract owner details directly from auth metadata or email fallback
       const ownerName =
         user.user_metadata?.full_name ||
         user.user_metadata?.name ||
@@ -210,7 +214,6 @@ export default function NewProperty() {
         }
       }
 
-      // Payload storing property attributes along with direct authentication owner info
       const propertyPayload = {
         owner_id: ownerId,
         owner_name: ownerName,
@@ -229,7 +232,6 @@ export default function NewProperty() {
         images: uploadedImageUrls,
         image_url: uploadedImageUrls[0] || "",
 
-        // Direct database column fields
         configuration: propertyDetails.configuration,
         built_up_area: parseFloat(propertyDetails.builtUpArea) || 0,
         floor: propertyDetails.floorDetails,
@@ -242,7 +244,6 @@ export default function NewProperty() {
         food_preference: propertyDetails.foodPreference,
         security_deposit: parseFloat(propertyDetails.securityDeposit) || 0,
 
-        // Storing complex structural options (amenities/slots)
         amenities: propertyDetails.amenities,
         custom_amenities: propertyDetails.customAmenities,
         visit_availability: {
@@ -250,17 +251,40 @@ export default function NewProperty() {
           visitorsPerSlot,
           notifyEveryRequest,
           allowOtherDay,
-          slotGrid,
         },
       };
 
-      const { error: insertError } = await supabase
+      // 1. Insert Property into Properties Table
+      const { data: insertedProperty, error: insertError } = await supabase
         .from("properties")
-        .insert([propertyPayload]);
+        .insert([propertyPayload])
+        .select()
+        .single();
 
       if (insertError) throw insertError;
 
-      alert("Property published and saved successfully with owner info!");
+      // 2. Insert Explicit Owner Visit Slots into property_visit_slots Table
+      const propertyId = insertedProperty.id;
+      const validSlots = ownerSlots
+        .filter((slot) => slot.date && slot.time_slot)
+        .map((slot) => ({
+          property_id: propertyId,
+          date: slot.date,
+          time_slot: slot.time_slot,
+          is_booked: false,
+        }));
+
+      if (validSlots.length > 0) {
+        const { error: slotError } = await supabase
+          .from("property_visit_slots")
+          .insert(validSlots);
+
+        if (slotError) {
+          console.error("Error saving slots:", slotError.message);
+        }
+      }
+
+      alert("Property and visit slots published successfully!");
       navigate("/owner-properties");
     } catch (err) {
       console.error("Error publishing property:", err.message);
@@ -274,12 +298,12 @@ export default function NewProperty() {
     <div
       className={`flex flex-col w-full relative transition-opacity duration-500 ${isSubmitting ? "opacity-90" : "opacity-100"}`}
     >
-      {/* LOADING OVERLAY FOR SUBMISSION */}
+      {/* LOADING OVERLAY */}
       {isSubmitting && (
         <div className="fixed inset-0 bg-[#2D1F1A]/80 backdrop-blur-xs z-50 flex flex-col items-center justify-center text-white">
           <Loader2 className="w-12 h-12 animate-spin text-[#C5924E] mb-4" />
           <p className="font-serif font-bold text-xl">
-            Publishing your property to database...
+            Publishing your property & slots...
           </p>
           <p className="text-xs text-[#9E8B7F] mt-1">
             Please wait while we save your listing
@@ -307,7 +331,11 @@ export default function NewProperty() {
               label: "Property details",
               sub: "Furnishing, rent, amenities",
             },
-            { step: 3, label: "Visit availability", sub: "Set your slots" },
+            {
+              step: 3,
+              label: "Visit availability",
+              sub: "Pick calendar slots",
+            },
             { step: 4, label: "Location", sub: "Enter your address" },
           ].map((item) => {
             const isSelected = currentStep === item.step;
@@ -416,6 +444,7 @@ export default function NewProperty() {
                         </span>
                       )}
                       <button
+                        type="button"
                         onClick={() => removePhoto(idx)}
                         className="absolute top-2 right-2 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                       >
@@ -873,207 +902,185 @@ export default function NewProperty() {
             </div>
           )}
 
-          {/* STEP 3: VISIT AVAILABILITY */}
+          {/* STEP 3: VISIT AVAILABILITY (Interactive Calendar & Quick Select Slots) */}
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-serif font-bold text-[#2D1F1A]">
-                  Set your visit availability
+                  Select visit dates & time slots
                 </h3>
                 <p className="text-xs text-[#6E5D53] mt-0.5">
-                  Tenants can only request a visit inside the slots you open
-                  below. Nothing is booked until you confirm it.
+                  Pick a date from the calendar and tap convenient time blocks
+                  to add them to your available showing schedule.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                <div className="lg:col-span-7 space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div
-                      onClick={() => setBookingMode("manual")}
-                      className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                        bookingMode === "manual"
-                          ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
-                          : "border-[#E3D9CC] bg-[#F8F5EE]/50"
-                      }`}
-                    >
-                      <strong className="block text-xs font-bold text-[#2D1F1A]">
-                        I'll confirm each one
-                      </strong>
-                      <span className="text-[11px] text-[#6E5D53]">
-                        You approve or decline every visit request yourself.
-                      </span>
-                    </div>
-
-                    <div
-                      onClick={() => setBookingMode("auto")}
-                      className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                        bookingMode === "auto"
-                          ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
-                          : "border-[#E3D9CC] bg-[#F8F5EE]/50"
-                      }`}
-                    >
-                      <strong className="block text-xs font-bold text-[#2D1F1A]">
-                        Auto-accept requests
-                      </strong>
-                      <span className="text-[11px] text-[#6E5D53]">
-                        Any request inside your open slots is confirmed
-                        instantly.
-                      </span>
-                    </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
+                  <div
+                    onClick={() => setBookingMode("manual")}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                      bookingMode === "manual"
+                        ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
+                        : "border-[#E3D9CC] bg-[#F8F5EE]/50"
+                    }`}
+                  >
+                    <strong className="block text-xs font-bold text-[#2D1F1A]">
+                      I'll confirm each one
+                    </strong>
+                    <span className="text-[11px] text-[#6E5D53]">
+                      You approve or decline every visit request yourself.
+                    </span>
                   </div>
 
-                  <p className="text-xs text-[#6E5D53]">
-                    Click or drag across the grid to open time blocks for
-                    visits.
-                  </p>
-
-                  <div className="overflow-x-auto border border-[#E3D9CC] rounded-2xl p-4 bg-[#F8F5EE]/30">
-                    <div className="min-w-[450px]">
-                      <div className="grid grid-cols-8 gap-1 mb-2 text-[11px] font-bold text-center text-[#6E5D53]">
-                        <div></div>
-                        {dayNames.map((d) => (
-                          <div key={d}>{d}</div>
-                        ))}
-                      </div>
-                      {hoursList.map((hourLabel, rowIdx) => (
-                        <div
-                          key={hourLabel}
-                          className="grid grid-cols-8 gap-1 mb-1 items-center"
-                        >
-                          <div className="text-[10px] text-[#6E5D53] font-medium text-right pr-2">
-                            {hourLabel}
-                          </div>
-                          {dayNames.map((_, colIdx) => {
-                            const isOn = slotGrid[rowIdx][colIdx];
-                            return (
-                              <div
-                                key={colIdx}
-                                onMouseDown={(e) =>
-                                  handleSlotMouseDown(rowIdx, colIdx, e)
-                                }
-                                onMouseEnter={() =>
-                                  handleSlotMouseEnter(rowIdx, colIdx)
-                                }
-                                className={`h-8 rounded-lg cursor-pointer transition-colors border ${
-                                  isOn
-                                    ? "bg-[#C5924E] border-[#b07f3e]"
-                                    : "bg-white border-[#E3D9CC] hover:bg-[#E3D9CC]/40"
-                                }`}
-                              />
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-[#2D1F1A]">
-                      Visitors per slot
-                    </label>
-                    <select
-                      value={visitorsPerSlot}
-                      onChange={(e) => setVisitorsPerSlot(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
-                    >
-                      <option>1 (private visit)</option>
-                      <option>Up to 3 (group showing)</option>
-                      <option>Up to 5 (open house)</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-[#F8F5EE] border border-[#E3D9CC]">
-                      <div>
-                        <strong className="block text-xs font-bold text-[#2D1F1A]">
-                          Notify me for every request
-                        </strong>
-                        <span className="text-[10px] text-[#6E5D53]">
-                          Get a message the moment a tenant requests a visit
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setNotifyEveryRequest(!notifyEveryRequest)
-                        }
-                        className={`w-10 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
-                          notifyEveryRequest ? "bg-[#C5924E]" : "bg-[#D1C4B9]"
-                        }`}
-                      >
-                        <div
-                          className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                            notifyEveryRequest
-                              ? "translate-x-4"
-                              : "translate-x-0"
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-[#F8F5EE] border border-[#E3D9CC]">
-                      <div>
-                        <strong className="block text-xs font-bold text-[#2D1F1A]">
-                          Allow tenants to request another day
-                        </strong>
-                        <span className="text-[10px] text-[#6E5D53]">
-                          Tenant can ask for a time outside your open slots — it
-                          stays pending until you accept it
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setAllowOtherDay(!allowOtherDay)}
-                        className={`w-10 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
-                          allowOtherDay ? "bg-[#C5924E]" : "bg-[#D1C4B9]"
-                        }`}
-                      >
-                        <div
-                          className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                            allowOtherDay ? "translate-x-4" : "translate-x-0"
-                          }`}
-                        />
-                      </button>
-                    </div>
+                  <div
+                    onClick={() => setBookingMode("auto")}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                      bookingMode === "auto"
+                        ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
+                        : "border-[#E3D9CC] bg-[#F8F5EE]/50"
+                    }`}
+                  >
+                    <strong className="block text-xs font-bold text-[#2D1F1A]">
+                      Auto-accept requests
+                    </strong>
+                    <span className="text-[11px] text-[#6E5D53]">
+                      Any request inside your open slots is confirmed instantly.
+                    </span>
                   </div>
                 </div>
 
-                <div className="lg:col-span-5 bg-[#F8F5EE] border border-[#E3D9CC] p-6 rounded-3xl space-y-4 shadow-xs">
-                  <div>
-                    <h4 className="font-serif font-bold text-sm text-[#2D1F1A]">
-                      How tenants will see this
-                    </h4>
-                    <p className="text-[10px] text-[#6E5D53]">
-                      Availability updates live as you edit the grid
+                {/* VISUAL CALENDAR BUILDER CARD */}
+                <div className="bg-[#F8F5EE] border border-[#E3D9CC] p-6 rounded-3xl space-y-5">
+                  <h4 className="font-serif font-bold text-sm text-[#2D1F1A] flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-[#C5924E]" />{" "}
+                    Interactive Calendar Slot Builder
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Date Picker Input / Calendar block */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-[#2D1F1A]">
+                        1. Select Date
+                      </label>
+                      <input
+                        type="date"
+                        value={selectedCalendarDate}
+                        min={new Date().toISOString().split("T")[0]}
+                        onChange={(e) =>
+                          setSelectedCalendarDate(e.target.value)
+                        }
+                        className="w-full px-4 py-3 bg-white border border-[#E3D9CC] rounded-2xl text-sm font-bold text-[#2D1F1A] shadow-2xs focus:outline-none focus:border-[#C5924E]"
+                      />
+                      <p className="text-[11px] text-[#6E5D53]">
+                        Chosen Date:{" "}
+                        <span className="font-bold text-[#2D1F1A]">
+                          {selectedCalendarDate}
+                        </span>
+                      </p>
+                    </div>
+
+                    {/* Quick Select Time Slots */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-[#2D1F1A]">
+                        2. Pick Time Block
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                        {presetTimeSlots.map((slotTime) => {
+                          const isSelected = selectedTimeBlock === slotTime;
+                          return (
+                            <button
+                              key={slotTime}
+                              type="button"
+                              onClick={() => setSelectedTimeBlock(slotTime)}
+                              className={`px-3 py-2 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer flex items-center justify-between ${
+                                isSelected
+                                  ? "bg-[#2D1F1A] text-white border-[#2D1F1A] font-bold shadow-xs"
+                                  : "bg-white text-[#6E5D53] border-[#E3D9CC] hover:bg-[#F2ECE1]"
+                              }`}
+                            >
+                              <span>{slotTime}</span>
+                              {isSelected && (
+                                <Check className="w-3 h-3 text-[#C5924E]" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-between border-t border-[#E3D9CC]">
+                    <span className="text-xs text-[#6E5D53]">
+                      Ready to add this date & time to your listing?
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleAddSlotFromCalendar}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#C5924E] text-[#2D1F1A] hover:bg-[#b07f3e] rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" /> Add Slot to Schedule
+                    </button>
+                  </div>
+                </div>
+
+                {/* CURRENTLY ADDED SLOTS LIST */}
+                <div className="space-y-3 pt-2">
+                  <h5 className="text-xs font-bold text-[#2D1F1A] uppercase tracking-wider">
+                    Added Slots ({ownerSlots.length})
+                  </h5>
+
+                  {ownerSlots.length === 0 ? (
+                    <p className="text-xs text-amber-600 bg-amber-50 p-3 rounded-xl border border-amber-200">
+                      No slots added yet. Use the calendar builder above to add
+                      at least one visit window.
                     </p>
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 bg-white p-2 rounded-2xl border border-[#E3D9CC]">
-                    {dayNames.map((dName, dIdx) => {
-                      const hasOpenSlot = slotGrid.some((row) => row[dIdx]);
-                      return (
-                        <button
-                          key={dName}
-                          onClick={() => setPickedDayIndex(dIdx)}
-                          className={`py-2 rounded-xl text-center text-[10px] font-bold transition-all cursor-pointer flex flex-col items-center gap-1 ${
-                            pickedDayIndex === dIdx
-                              ? "bg-[#2D1F1A] text-white"
-                              : "text-[#6E5D53] hover:bg-[#F8F5EE]"
-                          }`}
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto">
+                      {ownerSlots.map((slot, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-white border border-[#E3D9CC] rounded-2xl shadow-2xs"
                         >
-                          <span>{dName}</span>
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              hasOpenSlot ? "bg-[#C5924E]" : "bg-transparent"
-                            }`}
-                          />
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <div className="text-center py-2 bg-white rounded-xl border border-[#E3D9CC] text-xs text-[#6E5D53]">
-                    Tap a day to see open times
-                  </div>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-[#C5924E]/10 flex items-center justify-center text-[#C5924E]">
+                              <Clock className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <strong className="block text-xs font-bold text-[#2D1F1A]">
+                                {slot.date}
+                              </strong>
+                              <span className="text-[11px] text-[#6E5D53]">
+                                {slot.time_slot}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSlot(index)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 pt-2">
+                  <label className="text-xs font-bold text-[#2D1F1A]">
+                    Visitors per slot
+                  </label>
+                  <select
+                    value={visitorsPerSlot}
+                    onChange={(e) => setVisitorsPerSlot(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                  >
+                    <option>1 (private visit)</option>
+                    <option>Up to 3 (group showing)</option>
+                    <option>Up to 5 (open house)</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -1171,6 +1178,11 @@ export default function NewProperty() {
                   }
                   if (!propertyDetails.floorDetails.trim()) {
                     alert("Please enter floor details.");
+                    return;
+                  }
+                } else if (currentStep === 3) {
+                  if (ownerSlots.length === 0) {
+                    alert("Please add at least one calendar visit slot.");
                     return;
                   }
                 } else if (currentStep === 4) {
