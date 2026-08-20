@@ -10,6 +10,11 @@ import {
   Clock3,
   XCircle,
   Building,
+  Navigation,
+  User,
+  Phone,
+  Mail,
+  X,
 } from "lucide-react";
 
 export default function TenantBookings() {
@@ -17,6 +22,11 @@ export default function TenantBookings() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("All"); // All, Pending, Confirmed, Rejected
   const [searchQuery, setSearchQuery] = useState("");
+
+  // State for Owner Details & Map Modal
+  const [selectedVisit, setSelectedVisit] = useState(null);
+  const [ownerDetails, setOwnerDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
     // 1. Automatically reset expired slots in the database first, then fetch
@@ -94,6 +104,33 @@ export default function TenantBookings() {
     }
   };
 
+  // Fetch owner details & property map info securely when confirmed visit is clicked
+  const handleOpenDetails = async (slot) => {
+    if (slot.status !== "confirmed") return;
+
+    setSelectedVisit(slot);
+    setLoadingDetails(true);
+
+    try {
+      const { data, error } = await supabase.rpc(
+        "get_confirmed_visit_owner_details",
+        { slot_id: slot.id },
+      );
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setOwnerDetails(data[0]);
+      } else {
+        setOwnerDetails(null);
+      }
+    } catch (err) {
+      console.error("Error fetching owner details:", err);
+      setOwnerDetails(null);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
   // Filter bookings based on the tab and search query
   const filteredBookings = bookings.filter((item) => {
     const title = item.properties?.title?.toLowerCase() || "";
@@ -129,7 +166,8 @@ export default function TenantBookings() {
             My Property Bookings 🏡
           </h1>
           <p className="text-xs text-[#6E5D53] mt-1">
-            Track your scheduled property visits and request statuses.
+            Track your scheduled property visits, check request statuses, and
+            view owner details upon confirmation.
           </p>
         </div>
 
@@ -178,8 +216,8 @@ export default function TenantBookings() {
           filteredBookings.map((slot) => {
             const property = slot.properties;
             const status = slot.status || "pending";
+            const isConfirmed = status === "confirmed";
 
-            // Grab first image if available, else fallback
             const propertyImage =
               property?.images && property.images.length > 0
                 ? property.images[0]
@@ -252,8 +290,8 @@ export default function TenantBookings() {
                   </div>
                 </div>
 
-                {/* Price */}
-                <div className="flex items-center justify-between md:justify-end gap-6 pt-3 md:pt-0 border-t md:border-t-0 border-[#F0E6D8]">
+                {/* Right Action / Price Section */}
+                <div className="flex flex-col md:flex-end items-end justify-between md:justify-center gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-[#F0E6D8]">
                   <div className="text-right">
                     <span className="block text-[10px] font-bold uppercase tracking-wider text-[#8A7568]">
                       Monthly Rent
@@ -262,12 +300,139 @@ export default function TenantBookings() {
                       ₹{Number(property?.price || 0).toLocaleString()}/mo
                     </span>
                   </div>
+
+                  {isConfirmed && (
+                    <button
+                      onClick={() => handleOpenDetails(slot)}
+                      className="px-4 py-2 bg-[#C5924E] hover:bg-[#b07d3e] text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Navigation className="w-3.5 h-3.5" /> View Owner & Map
+                    </button>
+                  )}
                 </div>
               </div>
             );
           })
         )}
       </div>
+
+      {/* CONFIRMED VISIT DETAILS MODAL (Owner Info & Map) */}
+      {selectedVisit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-3xl border border-[#EADBCE] shadow-xl max-w-lg w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between border-b border-[#FAF7F2] pb-4">
+              <div>
+                <h3 className="text-lg font-serif font-bold text-[#2D1F1A]">
+                  Confirmed Visit & Owner Details
+                </h3>
+                <p className="text-xs text-[#6E5D53]">
+                  Property owner contact info and property map location.
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedVisit(null)}
+                className="w-8 h-8 rounded-full bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center text-[#6E5D53] hover:text-[#2D1F1A] cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {loadingDetails ? (
+              <div className="py-12 text-center text-xs text-[#6E5D53]">
+                Loading owner and location information...
+              </div>
+            ) : ownerDetails ? (
+              <div className="space-y-4">
+                {/* Owner Info Box */}
+                <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#C5924E]">
+                    Property Owner Contact
+                  </h4>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-white border border-[#EADBCE] flex items-center justify-center text-[#C5924E]">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#8A7568] block">
+                        Name
+                      </span>
+                      <strong className="text-xs text-[#2D1F1A]">
+                        {ownerDetails.owner_name}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-white border border-[#EADBCE] flex items-center justify-center text-[#C5924E]">
+                      <Phone className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#8A7568] block">
+                        Phone Number
+                      </span>
+                      <a
+                        href={`tel:${ownerDetails.owner_phone}`}
+                        className="text-xs font-bold text-blue-600 underline"
+                      >
+                        {ownerDetails.owner_phone}
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-white border border-[#EADBCE] flex items-center justify-center text-[#C5924E]">
+                      <Mail className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-[#8A7568] block">
+                        Email Address
+                      </span>
+                      <span className="text-xs text-[#2D1F1A]">
+                        {ownerDetails.owner_email}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Map Integration */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#C5924E]">
+                    Property Location Map
+                  </h4>
+                  <div className="w-full h-48 rounded-2xl overflow-hidden border border-[#EADBCE]">
+                    <iframe
+                      title="Property Location Map"
+                      width="100%"
+                      height="100%"
+                      frameBorder="0"
+                      style={{ border: 0 }}
+                      src={`https://maps.google.com/maps?q=${encodeURIComponent(
+                        ownerDetails.property_location,
+                      )}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+                      allowFullScreen
+                    ></iframe>
+                  </div>
+                  <p className="text-[11px] text-[#6E5D53] flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
+                    <span>{ownerDetails.property_location}</span>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-rose-500 text-center py-6">
+                Could not load details for this booking slot.
+              </p>
+            )}
+
+            <button
+              onClick={() => setSelectedVisit(null)}
+              className="w-full py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white text-xs font-bold rounded-2xl transition-all shadow-sm cursor-pointer"
+            >
+              Close Details
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
