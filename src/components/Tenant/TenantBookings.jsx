@@ -1,27 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
 import {
-  Users,
-  Loader2,
-  MapPin,
-  IndianRupee,
   Calendar,
   Clock,
-  Phone,
-  Mail,
-  ChevronDown,
+  MapPin,
+  Loader2,
   Search,
-  Building2,
   CheckCircle2,
+  Clock3,
+  XCircle,
+  Building,
 } from "lucide-react";
 
 export default function TenantBookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("All");
-  const [search, setSearch] = useState("");
-  const [expandedId, setExpandedId] = useState(null);
-  const [stats, setStats] = useState({ total: 0, active: 0, pending: 0 });
+  const [filter, setFilter] = useState("All"); // All, Pending, Confirmed, Rejected
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchTenantBookings();
@@ -30,337 +25,224 @@ export default function TenantBookings() {
   const fetchTenantBookings = async () => {
     try {
       setLoading(true);
+
+      // 1. Get current logged-in tenant session
       const {
         data: { session },
+        error: sessionError,
       } = await supabase.auth.getSession();
-      if (!session) return;
 
-      // Fetch visit requests made by the logged-in tenant (e.g., matching tenant_email or tenant_id if stored)
-      const { data: bookingData, error } = await supabase
-        .from("visit_requests")
-        .select("*")
-        .eq("tenant_email", session.user.email) // Adjust to .eq("tenant_id", session.user.id) if you store user id
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      if (!bookingData || bookingData.length === 0) {
-        setBookings([]);
+      if (sessionError || !session) {
+        console.error("No active session found:", sessionError);
         return;
       }
 
-      // Get unique property IDs
-      const propIds = [...new Set(bookingData.map((b) => b.property_id))];
+      // 2. Fetch all slots booked or requested by this tenant
+      const { data, error } = await supabase
+        .from("property_visit_slots")
+        .select(
+          `
+          id,
+          date,
+          time_slot,
+          status,
+          tenant_id,
+          is_booked,
+          properties (
+            id,
+            title,
+            location,
+            price,
+            images
+          )
+        `,
+        )
+        .eq("tenant_id", session.user.id);
 
-      // Fetch corresponding properties including images and owner details
-      const { data: props, error: propError } = await supabase
-        .from("properties")
-        .select("id, title, location, price, image, owner_id") // Change 'image' to 'image_url' if needed
-        .in("id", propIds);
+      if (error) throw error;
 
-      if (propError) throw propError;
-
-      const propMap = Object.fromEntries((props || []).map((p) => [p.id, p]));
-
-      // Fetch owner contact details for accepted bookings
-      const ownerIds = [
-        ...new Set((props || []).map((p) => p.owner_id).filter(Boolean)),
-      ];
-      let ownerMap = {};
-      if (ownerIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles") // Adjust table name if your user profiles are stored elsewhere (e.g. 'users')
-          .select("id, full_name, email, phone")
-          .in("id", ownerIds);
-
-        if (profiles) {
-          ownerMap = Object.fromEntries(profiles.map((o) => [o.id, o]));
-        }
-      }
-
-      const enriched = bookingData.map((b) => {
-        const property = propMap[b.property_id] || {};
-        return {
-          ...b,
-          property,
-          owner: ownerMap[property.owner_id] || {},
-        };
-      });
-
-      setBookings(enriched);
-      setStats({
-        total: enriched.length,
-        active: enriched.filter((b) => b.status?.toLowerCase() === "accepted")
-          .length,
-        pending: enriched.filter((b) => b.status?.toLowerCase() === "pending")
-          .length,
-      });
+      setBookings(data || []);
     } catch (err) {
-      console.error("Error fetching tenant bookings:", err.message);
+      console.error("Error fetching tenant bookings:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const filters = ["All", "Pending", "Accepted", "Rejected"];
+  // Filter bookings based on the tab and search query
+  const filteredBookings = bookings.filter((item) => {
+    const title = item.properties?.title?.toLowerCase() || "";
+    const location = item.properties?.location?.toLowerCase() || "";
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = title.includes(query) || location.includes(query);
 
-  const filtered = bookings.filter((b) => {
-    const bookingStatus = b.status?.toLowerCase() || "pending";
-    const matchFilter =
-      filter === "All" || bookingStatus === filter.toLowerCase();
+    const slotStatus = item.status || "pending";
+    if (filter === "All") return matchesSearch;
+    if (filter === "Pending") return matchesSearch && slotStatus === "pending";
+    if (filter === "Confirmed")
+      return matchesSearch && slotStatus === "confirmed";
+    if (filter === "Rejected")
+      return matchesSearch && slotStatus === "rejected";
 
-    const q = search.toLowerCase();
-    const matchSearch =
-      !q ||
-      b.property?.title?.toLowerCase().includes(q) ||
-      b.property?.location?.toLowerCase().includes(q);
-
-    return matchFilter && matchSearch;
+    return matchesSearch;
   });
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="min-h-[70vh] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-[#C5924E]" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="p-8 max-w-7xl mx-auto space-y-8 text-[#2D1F1A]">
+      {/* Header & Search Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-serif font-bold text-[#2D1F1A]">
-            My Visit Bookings 🗓️
+            My Property Bookings 🏡
           </h1>
-          <p className="text-sm text-[#6E5D53] mt-1">
-            Track your property visit requests, confirmed time slots, and owner
-            contact details.
+          <p className="text-xs text-[#6E5D53] mt-1">
+            Track your scheduled property visits and request statuses.
           </p>
         </div>
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-[#6E5D53]" />
+
+        <div className="relative w-full md:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A7568]" />
           <input
             type="text"
             placeholder="Search property or location..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-white border border-[#E3D9CC] rounded-xl pl-9 pr-4 py-2 text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#EADBCE] rounded-2xl text-xs focus:outline-none focus:border-[#C5924E] shadow-sm"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          {
-            label: "Total Requests",
-            val: stats.total,
-            icon: <Users className="w-4 h-4" />,
-          },
-          {
-            label: "Confirmed",
-            val: stats.active,
-            icon: <CheckCircle2 className="w-4 h-4" />,
-          },
-          {
-            label: "Pending",
-            val: stats.pending,
-            icon: <Clock className="w-4 h-4" />,
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white p-5 rounded-3xl border border-[#E3D9CC] shadow-xs space-y-2"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-[#6E5D53]">
-                {s.label}
-              </span>
-              <div className="w-8 h-8 rounded-full bg-[#F8F5EE] border border-[#E3D9CC] flex items-center justify-center text-[#C5924E]">
-                {s.icon}
-              </div>
-            </div>
-            <p className="text-2xl font-serif font-bold text-[#2D1F1A]">
-              {s.val}
-            </p>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex gap-2 flex-wrap">
-        {filters.map((f) => (
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-2">
+        {["All", "Pending", "Confirmed", "Rejected"].map((tab) => (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              filter === f
-                ? "bg-[#2D1F1A] text-white shadow-sm"
-                : "bg-white border border-[#E3D9CC] text-[#6E5D53] hover:bg-[#F8F5EE]"
+            key={tab}
+            onClick={() => setFilter(tab)}
+            className={`px-5 py-2 rounded-full text-xs font-bold transition-all shadow-sm ${
+              filter === tab
+                ? "bg-[#2D1F1A] text-white"
+                : "bg-white text-[#6E5D53] border border-[#EADBCE] hover:bg-[#FAF7F2]"
             }`}
           >
-            {f}
+            {tab}
           </button>
         ))}
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-[#EADBCE] p-16 text-center shadow-sm space-y-4">
-          <div className="w-16 h-16 bg-[#FAF7F2] border border-[#EADBCE] text-[#C5924E] rounded-2xl flex items-center justify-center mx-auto">
-            <Building2 className="w-8 h-8" />
+      {/* Bookings List Cards */}
+      <div className="space-y-4">
+        {filteredBookings.length === 0 ? (
+          <div className="bg-white border border-[#EADBCE] rounded-3xl p-12 text-center space-y-3">
+            <Calendar className="w-10 h-10 text-[#C5924E] mx-auto opacity-60" />
+            <h3 className="text-sm font-bold text-[#2D1F1A]">
+              No Bookings Found
+            </h3>
+            <p className="text-xs text-[#6E5D53]">
+              You haven't requested any property visit slots yet.
+            </p>
           </div>
-          <h3 className="text-xl font-serif font-bold text-[#2D1F1A]">
-            {search || filter !== "All"
-              ? "No matching bookings"
-              : "No Visit Bookings Yet"}
-          </h3>
-          <p className="text-sm text-[#6E5D53] max-w-md mx-auto">
-            {search || filter !== "All"
-              ? "Try adjusting your search or filter."
-              : "Explore properties and schedule visits to see them tracked here."}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {filtered.map((booking) => {
-            const isExpanded = expandedId === booking.id;
-            const statusStr = booking.status?.toLowerCase() || "pending";
-            const accepted = statusStr === "accepted";
-            const pending = statusStr === "pending";
+        ) : (
+          filteredBookings.map((slot) => {
+            const property = slot.properties;
+            const status = slot.status || "pending";
 
-            const statusBadgeColor = accepted
-              ? "bg-green-100 text-green-800"
-              : pending
-                ? "bg-amber-100 text-amber-800"
-                : "bg-red-100 text-red-700";
-
-            // Extract image (handles array or string formats)
-            const propertyImage = Array.isArray(booking.property?.image)
-              ? booking.property?.image[0]
-              : booking.property?.image || booking.property?.image_url;
+            // Grab first image if available, else fallback
+            const propertyImage =
+              property?.images && property.images.length > 0
+                ? property.images[0]
+                : null;
 
             return (
               <div
-                key={booking.id}
-                className="bg-white rounded-3xl border border-[#EADBCE] shadow-sm overflow-hidden"
+                key={slot.id}
+                className="bg-white border border-[#EADBCE] rounded-3xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-[#C5924E]"
               >
-                <div
-                  className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 cursor-pointer"
-                  onClick={() => setExpandedId(isExpanded ? null : booking.id)}
-                >
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    {/* Property Image Thumbnail */}
+                <div className="flex items-center gap-4">
+                  {/* Property Image or Placeholder */}
+                  <div className="w-16 h-16 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
                     {propertyImage ? (
                       <img
                         src={propertyImage}
-                        alt={booking.property?.title || "Property"}
-                        className="w-16 h-16 rounded-2xl object-cover border border-[#E3D9CC] flex-shrink-0"
+                        alt={property?.title}
+                        className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-16 h-16 rounded-2xl bg-[#F8F5EE] border border-[#E3D9CC] flex items-center justify-center text-[#C5924E] flex-shrink-0">
-                        <Building2 className="w-6 h-6" />
-                      </div>
+                      <Building className="w-6 h-6 text-[#C5924E]" />
                     )}
-
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-sm font-bold text-[#2D1F1A]">
-                          {booking.property?.title || "Property Title"}
-                        </h4>
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${statusBadgeColor}`}
-                        >
-                          {booking.status || "Pending"}
-                        </span>
-                      </div>
-                      <p className="text-xs text-[#6E5D53] flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3 text-[#C5924E]" />
-                        {booking.property?.location || "Location not specified"}
-                      </p>
-                      <p className="text-xs text-[#6E5D53] flex items-center gap-1 mt-0.5">
-                        <Calendar className="w-3 h-3" />
-                        Visit Slot:{" "}
-                        {booking.visit_date
-                          ? new Date(booking.visit_date).toLocaleDateString(
-                              "en-IN",
-                              {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              },
-                            )
-                          : "TBD"}
-                        {booking.visit_time ? ` at ${booking.visit_time}` : ""}
-                      </p>
-                    </div>
                   </div>
 
-                  <div className="flex items-center gap-4 ml-auto">
-                    {booking.property?.price && (
-                      <div className="text-right hidden sm:block">
-                        <p className="text-xs text-[#6E5D53]">Rent</p>
-                        <p className="text-sm font-bold text-[#C5924E]">
-                          ₹{booking.property.price.toLocaleString("en-IN")}/mo
-                        </p>
-                      </div>
-                    )}
-                    <ChevronDown
-                      className={`w-4 h-4 text-[#6E5D53] transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`}
-                    />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-[#2D1F1A]">
+                        {property?.title || "Property Visit"}
+                      </span>
+
+                      {/* Status Badge */}
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase flex items-center gap-1 ${
+                          status === "confirmed"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : status === "rejected"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : "bg-amber-50 text-amber-700 border-amber-200"
+                        }`}
+                      >
+                        {status === "confirmed" && (
+                          <CheckCircle2 className="w-3 h-3" />
+                        )}
+                        {status === "pending" && <Clock3 className="w-3 h-3" />}
+                        {status === "rejected" && (
+                          <XCircle className="w-3 h-3" />
+                        )}
+                        {status}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-[#6E5D53] flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
+                      <span>
+                        {property?.location || "Location not specified"}
+                      </span>
+                    </p>
+
+                    <p className="text-[11px] text-[#8A7568] flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
+                      <span>
+                        Visit Scheduled:{" "}
+                        <strong className="text-[#2D1F1A]">{slot.date}</strong>{" "}
+                        at{" "}
+                        <strong className="text-[#2D1F1A]">
+                          {slot.time_slot}
+                        </strong>
+                      </span>
+                    </p>
                   </div>
                 </div>
 
-                {isExpanded && (
-                  <div className="px-5 pb-5 border-t border-[#F2ECE4] pt-4 space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Owner Contact Info Box */}
-                      <div className="bg-[#F8F5EE] p-4 rounded-2xl border border-[#E3D9CC] space-y-2">
-                        <p className="text-[11px] font-bold text-[#6E5D53] uppercase tracking-wide flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-green-700" />{" "}
-                          Owner Contact Info{" "}
-                          {accepted
-                            ? "(Confirmed)"
-                            : "(Available upon acceptance)"}
-                        </p>
-                        {accepted ? (
-                          <div className="space-y-1 pt-1">
-                            <p className="text-xs font-bold text-[#2D1F1A]">
-                              {booking.owner?.full_name || "Property Owner"}
-                            </p>
-                            <p className="text-xs text-[#2D1F1A] flex items-center gap-2">
-                              <Mail className="w-3.5 h-3.5 text-[#C5924E]" />{" "}
-                              {booking.owner?.email || "Not provided"}
-                            </p>
-                            <p className="text-xs text-[#2D1F1A] flex items-center gap-2">
-                              <Phone className="w-3.5 h-3.5 text-[#C5924E]" />{" "}
-                              {booking.owner?.phone || "Not provided"}
-                            </p>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-[#6E5D53] italic">
-                            Owner contact details will unlock once the visit
-                            request is accepted.
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Tenant Note / Details */}
-                      {booking.message && (
-                        <div className="space-y-2">
-                          <p className="text-[11px] font-bold text-[#6E5D53] uppercase tracking-wide">
-                            Your Note to Owner
-                          </p>
-                          <p className="text-xs text-[#2D1F1A] bg-[#FAF7F2] p-3 rounded-xl border border-[#E3D9CC] leading-relaxed">
-                            {booking.message}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                {/* Price */}
+                <div className="flex items-center justify-between md:justify-end gap-6 pt-3 md:pt-0 border-t md:border-t-0 border-[#F0E6D8]">
+                  <div className="text-right">
+                    <span className="block text-[10px] font-bold uppercase tracking-wider text-[#8A7568]">
+                      Monthly Rent
+                    </span>
+                    <span className="text-xs font-bold text-[#2D1F1A]">
+                      ₹{Number(property?.price || 0).toLocaleString()}/mo
+                    </span>
                   </div>
-                )}
+                </div>
               </div>
             );
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
     </div>
   );
 }
