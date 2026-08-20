@@ -24,18 +24,23 @@ import {
   Compass,
   Droplet,
   Users,
+  Clock,
+  Check,
 } from "lucide-react";
 
 export default function PropertyDetails() {
   const { id } = useParams();
   const [property, setProperty] = useState(null);
+  const [availableSlots, setAvailableSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isSaved, setIsSaved] = useState(false);
 
-  // Visit booking state variables
-  const [visitDate, setVisitDate] = useState("");
-  const [visitTime, setVisitTime] = useState("");
+  // Selected visit slot state variables
+  const [selectedSlotId, setSelectedSlotId] = useState(null);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
+
   const [bookingLoading, setBookingLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
@@ -47,33 +52,49 @@ export default function PropertyDetails() {
 
   useEffect(() => {
     if (id) {
-      fetchPropertyDetails();
+      fetchPropertyAndSlots();
     }
   }, [id]);
 
-  const fetchPropertyDetails = async () => {
+  const fetchPropertyAndSlots = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      // 1. Fetch Property Details
+      const { data: propData, error: propError } = await supabase
         .from("properties")
         .select("*")
         .eq("id", id)
         .single();
 
-      if (error) throw error;
-      setProperty(data);
+      if (propError) throw propError;
+      setProperty(propData);
+
+      // 2. Fetch Available Visit Slots configured by the Owner
+      const { data: slotData, error: slotError } = await supabase
+        .from("property_visit_slots")
+        .select("*")
+        .eq("property_id", id)
+        .eq("is_booked", false)
+        .order("date", { ascending: true });
+
+      if (slotError) {
+        console.error("Error fetching visit slots:", slotError);
+      } else {
+        setAvailableSlots(slotData || []);
+      }
     } catch (err) {
-      console.error("Error fetching property details:", err);
+      console.error("Error loading property data:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle Tenant Booking Submission
+  // Handle Tenant Direct Slot Booking
   const handleBookVisit = async (e) => {
     e.preventDefault();
-    if (!visitDate || !visitTime) {
-      showToast("Please select both a date and a time slot.");
+    if (!selectedSlotId) {
+      showToast("Please select an available visit slot from the list.");
       return;
     }
 
@@ -84,57 +105,29 @@ export default function PropertyDetails() {
         data: { session },
         error: sessionError,
       } = await supabase.auth.getSession();
-
       if (sessionError || !session || !session.user) {
         showToast("Please log in as a tenant to book a visit.");
         return;
       }
 
-      const user = session.user;
-      const metadata = user.user_metadata || {};
+      // Update slot to pending state and assign tenant_id
+      const { error: updateError } = await supabase
+        .from("property_visit_slots")
+        .update({
+          status: "pending",
+          tenant_id: session.user.id,
+          is_booked: false, // Not fully booked yet until owner confirms
+        })
+        .eq("id", selectedSlotId);
 
-      const tenantName =
-        metadata.full_name ||
-        metadata.name ||
-        user.email?.split("@")[0] ||
-        "Tenant";
-      const tenantEmail = user.email || "";
-      const tenantPhone = metadata.phone || "";
+      if (updateError) throw updateError;
 
-      const ownerId = property?.owner_id || property?.user_id;
-
-      if (!ownerId) {
-        showToast("Error: Property owner information is missing.");
-        return;
-      }
-
-      const { error: insertError } = await supabase
-        .from("visit_requests")
-        .insert([
-          {
-            property_id: property.id,
-            tenant_id: user.id,
-            owner_id: ownerId,
-            tenant_name: tenantName,
-            tenant_email: tenantEmail,
-            tenant_phone: tenantPhone,
-            visit_date: visitDate,
-            visit_time: visitTime,
-            status: "Pending",
-          },
-        ]);
-
-      if (insertError) {
-        console.error("Error inserting visit request:", insertError);
-        showToast("Failed to submit visit request. Try again.");
-      } else {
-        showToast("Visit request successfully sent to the owner!");
-        setVisitDate("");
-        setVisitTime("");
-      }
+      showToast("Visit request sent to the owner for approval!");
+      setSelectedSlotId(null);
+      fetchPropertyAndSlots();
     } catch (err) {
-      console.error("Unexpected error:", err);
-      showToast("An unexpected error occurred.");
+      console.error("Error requesting visit:", err);
+      showToast("Failed to send booking request.");
     } finally {
       setBookingLoading(false);
     }
@@ -434,42 +427,73 @@ export default function PropertyDetails() {
             </div>
 
             {/* Interactive Schedule Visit Form */}
-            <form onSubmit={handleBookVisit} className="space-y-3">
+            <form onSubmit={handleBookVisit} className="space-y-4">
               <h4 className="text-xs font-bold uppercase tracking-wider text-[#8A7568]">
-                Schedule a Visit
+                Select Owner's Available Slot
               </h4>
 
-              <div>
-                <label className="block text-[10px] font-bold text-[#6E5D53] mb-1">
-                  Select Visit Date
-                </label>
-                <input
-                  type="date"
-                  value={visitDate}
-                  onChange={(e) => setVisitDate(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#EADBCE] bg-[#FAF7F2] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-[#6E5D53] mb-1">
-                  Select Time Slot
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. 10:00 AM - 11:00 AM"
-                  value={visitTime}
-                  onChange={(e) => setVisitTime(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#EADBCE] bg-[#FAF7F2] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
-                  required
-                />
-              </div>
+              {availableSlots.length === 0 ? (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-700 space-y-1">
+                  <p className="font-bold">No open slots available</p>
+                  <p>
+                    The owner hasn't listed specific open slots yet. You can
+                    still reach out via chat.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {availableSlots.map((slot) => {
+                    const isSelected = selectedSlotId === slot.id;
+                    return (
+                      <div
+                        key={slot.id}
+                        onClick={() => {
+                          setSelectedSlotId(slot.id);
+                          setSelectedDate(slot.date);
+                          setSelectedTimeSlot(slot.time_slot);
+                        }}
+                        className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
+                          isSelected
+                            ? "bg-[#2D1F1A] text-white border-[#2D1F1A] shadow-md"
+                            : "bg-[#FAF7F2] text-[#2D1F1A] border-[#EADBCE] hover:bg-[#F2ECE1]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center ${isSelected ? "bg-[#C5924E] text-[#2D1F1A]" : "bg-[#C5924E]/10 text-[#C5924E]"}`}
+                          >
+                            <Clock className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <strong
+                              className={`block text-xs font-bold ${isSelected ? "text-white" : "text-[#2D1F1A]"}`}
+                            >
+                              {slot.date}
+                            </strong>
+                            <span
+                              className={`text-[11px] ${isSelected ? "text-[#C6B6A8]" : "text-[#6E5D53]"}`}
+                            >
+                              {slot.time_slot}
+                            </span>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <Check className="w-4 h-4 text-[#C5924E]" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <button
                 type="submit"
-                disabled={bookingLoading}
-                className="w-full py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2"
+                disabled={bookingLoading || availableSlots.length === 0}
+                className={`w-full py-3 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 ${
+                  availableSlots.length === 0
+                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    : "bg-[#2D1F1A] hover:bg-[#3E2E27] text-white cursor-pointer"
+                }`}
               >
                 {bookingLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin text-white" />
