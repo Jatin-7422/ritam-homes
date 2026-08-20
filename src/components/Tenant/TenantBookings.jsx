@@ -19,8 +19,29 @@ export default function TenantBookings() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetchTenantBookings();
+    // 1. Automatically reset expired slots in the database first, then fetch
+    resetExpiredSlots().then(() => {
+      fetchTenantBookings();
+    });
   }, []);
+
+  // Helper to free up expired slots in Supabase
+  const resetExpiredSlots = async () => {
+    const today = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+    try {
+      await supabase
+        .from("property_visit_slots")
+        .update({
+          status: "available",
+          is_booked: false,
+          tenant_id: null,
+        })
+        .lt("date", today) // If date is in the past
+        .neq("status", "available"); // Only update if not already available
+    } catch (err) {
+      console.error("Error clearing expired slots:", err);
+    }
+  };
 
   const fetchTenantBookings = async () => {
     try {
@@ -61,7 +82,11 @@ export default function TenantBookings() {
 
       if (error) throw error;
 
-      setBookings(data || []);
+      // 3. Frontend double-check: filter out any past dates instantly
+      const today = new Date().toISOString().split("T")[0];
+      const activeBookings = (data || []).filter((slot) => slot.date >= today);
+
+      setBookings(activeBookings);
     } catch (err) {
       console.error("Error fetching tenant bookings:", err);
     } finally {

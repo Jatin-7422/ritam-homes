@@ -12,6 +12,7 @@ import {
   Check,
   X,
   XCircle,
+  Building,
 } from "lucide-react";
 
 export default function OwnerBookings() {
@@ -21,8 +22,29 @@ export default function OwnerBookings() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetchOwnerBookings();
+    // 1. Automatically reset expired slots in the database first, then fetch
+    resetExpiredSlots().then(() => {
+      fetchOwnerBookings();
+    });
   }, []);
+
+  // Helper to free up expired slots in Supabase
+  const resetExpiredSlots = async () => {
+    const today = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+    try {
+      await supabase
+        .from("property_visit_slots")
+        .update({
+          status: "available",
+          is_booked: false,
+          tenant_id: null,
+        })
+        .lt("date", today) // If date is in the past
+        .neq("status", "available"); // Only update if not already available
+    } catch (err) {
+      console.error("Error clearing expired slots:", err);
+    }
+  };
 
   const fetchOwnerBookings = async () => {
     try {
@@ -55,6 +77,7 @@ export default function OwnerBookings() {
             title,
             location,
             price,
+            images,
             owner_id
           )
         `,
@@ -63,13 +86,17 @@ export default function OwnerBookings() {
 
       if (error) throw error;
 
-      // 3. Filter manually in JS to ensure we match the owner's properties safely
+      // 3. Filter manually in JS to match owner's properties safely
       const ownerBookings = (data || []).filter(
         (slot) =>
           slot.properties && slot.properties.owner_id === session.user.id,
       );
 
-      setBookings(ownerBookings);
+      // 4. Frontend double-check: filter out any past dates instantly
+      const today = new Date().toISOString().split("T")[0];
+      const activeBookings = ownerBookings.filter((slot) => slot.date >= today);
+
+      setBookings(activeBookings);
     } catch (err) {
       console.error("Error fetching owner bookings:", err);
     } finally {
@@ -155,7 +182,7 @@ export default function OwnerBookings() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A7568]" />
           <input
             type="text"
-            placeholder="Search tenant or property..."
+            placeholder="Search property or location..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#EADBCE] rounded-2xl text-xs focus:outline-none focus:border-[#C5924E] shadow-sm"
@@ -227,7 +254,7 @@ export default function OwnerBookings() {
       <div className="space-y-4">
         {filteredBookings.length === 0 ? (
           <div className="bg-white border border-[#EADBCE] rounded-3xl p-12 text-center space-y-3">
-            <Calendar className="w-10 h-10 text-[#C5924E] mx-auto" />
+            <Calendar className="w-10 h-10 text-[#C5924E] mx-auto opacity-60" />
             <h3 className="text-sm font-bold text-[#2D1F1A]">
               No Bookings Found
             </h3>
@@ -241,15 +268,29 @@ export default function OwnerBookings() {
             const property = slot.properties;
             const status = slot.status || "pending";
 
+            // Grab first image if available, else fallback
+            const propertyImage =
+              property?.images && property.images.length > 0
+                ? property.images[0]
+                : null;
+
             return (
               <div
                 key={slot.id}
                 className="bg-white border border-[#EADBCE] rounded-3xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-[#C5924E]"
               >
                 <div className="flex items-center gap-4">
-                  {/* Avatar / R Initials box */}
-                  <div className="w-12 h-12 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center font-serif font-bold text-base text-[#2D1F1A] shrink-0 shadow-inner">
-                    R
+                  {/* Property Image or Placeholder */}
+                  <div className="w-16 h-16 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
+                    {propertyImage ? (
+                      <img
+                        src={propertyImage}
+                        alt={property?.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Building className="w-6 h-6 text-[#C5924E]" />
+                    )}
                   </div>
 
                   <div className="space-y-1">
@@ -260,7 +301,7 @@ export default function OwnerBookings() {
 
                       {/* Status Badge */}
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase ${
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase flex items-center gap-1 ${
                           status === "confirmed"
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                             : status === "rejected"
@@ -268,6 +309,13 @@ export default function OwnerBookings() {
                               : "bg-amber-50 text-amber-700 border-amber-200"
                         }`}
                       >
+                        {status === "confirmed" && (
+                          <CheckCircle className="w-3 h-3" />
+                        )}
+                        {status === "pending" && <Clock3 className="w-3 h-3" />}
+                        {status === "rejected" && (
+                          <XCircle className="w-3 h-3" />
+                        )}
                         {status}
                       </span>
                     </div>
@@ -282,7 +330,12 @@ export default function OwnerBookings() {
                     <p className="text-[11px] text-[#8A7568] flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
                       <span>
-                        Visit: {slot.date} at {slot.time_slot}
+                        Visit Scheduled:{" "}
+                        <strong className="text-[#2D1F1A]">{slot.date}</strong>{" "}
+                        at{" "}
+                        <strong className="text-[#2D1F1A]">
+                          {slot.time_slot}
+                        </strong>
                       </span>
                     </p>
                   </div>
