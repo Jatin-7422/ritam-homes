@@ -4,7 +4,6 @@ import { supabase } from "../../supabaseClient";
 import {
   Calendar,
   Heart,
-  Clock,
   MessageSquare,
   Compass,
   ArrowRight,
@@ -18,7 +17,6 @@ export default function TenantOverview() {
   const [stats, setStats] = useState({
     activeBookings: 0,
     savedProperties: 0,
-    visitRequests: 0,
     unreadMessages: 0,
   });
   const [recentBookings, setRecentBookings] = useState([]);
@@ -43,49 +41,53 @@ export default function TenantOverview() {
 
           const userId = session.user.id;
 
-          // 2. Fetch Real Counts & Data from Supabase Tables
-          // (Adjust table names if your schema uses different table/column names)
-
-          // Fetch Active/Confirmed Bookings
-          const {
-            count: bookingsCount,
-            data: bookingsData,
-            error: bookingsErr,
-          } = await supabase
-            .from("bookings")
-            .select("*", { count: "exact" })
+          // 2. Fetch Real Counts & Data from 'property_visit_slots' & other tables
+          const { data: slotsData, error: slotsErr } = await supabase
+            .from("property_visit_slots")
+            .select(
+              `
+              id,
+              date,
+              time_slot,
+              status,
+              created_at,
+              properties (
+                title,
+                location
+              )
+            `,
+            )
             .eq("tenant_id", userId);
 
-          if (!bookingsErr && bookingsData) {
-            setRecentBookings(bookingsData.slice(0, 3)); // Get top 3 recent
+          if (!slotsErr && slotsData) {
+            // Visit requests are treated as part of bookings
+            setStats((prev) => ({
+              ...prev,
+              activeBookings: slotsData.length,
+            }));
+
+            // Set top 3 recent bookings/requests
+            setRecentBookings(slotsData.slice(0, 3));
           }
 
           // Fetch Saved Properties / Wishlist
-          const { count: savedCount, error: savedErr } = await supabase
+          const { count: savedCount } = await supabase
             .from("saved_properties")
             .select("*", { count: "exact", head: true })
             .eq("tenant_id", userId);
 
-          // Fetch Visit Requests / Scheduled Visits
-          const { count: visitsCount, error: visitsErr } = await supabase
-            .from("visits")
-            .select("*", { count: "exact", head: true })
-            .eq("tenant_id", userId)
-            .in("status", ["scheduled", "pending"]);
-
-          // Fetch Messages count (or unread chats)
-          const { count: messagesCount, error: msgErr } = await supabase
+          // Fetch Messages count (Unread chats)
+          const { count: messagesCount } = await supabase
             .from("messages")
             .select("*", { count: "exact", head: true })
             .eq("receiver_id", userId)
             .eq("is_read", false);
 
-          setStats({
-            activeBookings: bookingsCount || 0,
+          setStats((prev) => ({
+            ...prev,
             savedProperties: savedCount || 0,
-            visitRequests: visitsCount || 0,
             unreadMessages: messagesCount || 0,
-          });
+          }));
         }
       } catch (err) {
         console.error("Error fetching tenant overview data:", err);
@@ -130,13 +132,13 @@ export default function TenantOverview() {
         </Link>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Active Bookings */}
+      {/* Metrics Row (Updated to 3 columns) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        {/* Total Bookings */}
         <div className="bg-white p-6 rounded-3xl border border-[#EADBCE] shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-[#6E5D53]">
-              Active Bookings
+              Total Bookings
             </span>
             <div className="w-10 h-10 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center text-[#C5924E]">
               <Calendar className="w-5 h-5" />
@@ -146,7 +148,9 @@ export default function TenantOverview() {
             <h3 className="text-3xl font-bold font-serif text-[#2D1F1A]">
               {stats.activeBookings}
             </h3>
-            <p className="text-[11px] text-[#8C7A6B] mt-1">Confirmed rentals</p>
+            <p className="text-[11px] text-[#8C7A6B] mt-1">
+              Scheduled visits & bookings
+            </p>
           </div>
         </div>
 
@@ -165,24 +169,6 @@ export default function TenantOverview() {
               {stats.savedProperties}
             </h3>
             <p className="text-[11px] text-[#8C7A6B] mt-1">In your wishlist</p>
-          </div>
-        </div>
-
-        {/* Visit Requests */}
-        <div className="bg-white p-6 rounded-3xl border border-[#EADBCE] shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-[#6E5D53]">
-              Visit Requests
-            </span>
-            <div className="w-10 h-10 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center text-sky-600">
-              <Clock className="w-5 h-5" />
-            </div>
-          </div>
-          <div>
-            <h3 className="text-3xl font-bold font-serif text-[#2D1F1A]">
-              {stats.visitRequests}
-            </h3>
-            <p className="text-[11px] text-[#8C7A6B] mt-1">Scheduled visits</p>
           </div>
         </div>
 
@@ -225,30 +211,50 @@ export default function TenantOverview() {
 
           {recentBookings.length > 0 ? (
             <div className="space-y-4">
-              {recentBookings.map((booking) => (
-                <div
-                  key={booking.id}
-                  className="p-4 rounded-2xl border border-[#EADBCE] bg-[#FAF7F2]/50 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-white border border-[#EADBCE] flex items-center justify-center text-[#2D1F1A]">
-                      <Home className="w-5 h-5" />
+              {recentBookings.map((booking) => {
+                const propertyTitle =
+                  booking.properties?.title || "Rental Property";
+                const slotStatus = booking.status || "pending";
+
+                return (
+                  <div
+                    key={booking.id}
+                    className="p-4 rounded-2xl border border-[#EADBCE] bg-[#FAF7F2]/50 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-white border border-[#EADBCE] flex items-center justify-center text-[#2D1F1A]">
+                        <Home className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-xs text-[#2D1F1A]">
+                          {propertyTitle}
+                        </h4>
+                        <p className="text-[11px] text-[#6E5D53]">
+                          Visit Date:{" "}
+                          <strong className="text-[#2D1F1A]">
+                            {booking.date}
+                          </strong>{" "}
+                          at{" "}
+                          <strong className="text-[#2D1F1A]">
+                            {booking.time_slot}
+                          </strong>
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-bold text-xs text-[#2D1F1A]">
-                        {booking.property_title || "Rental Property"}
-                      </h4>
-                      <p className="text-[11px] text-[#6E5D53]">
-                        Booked on:{" "}
-                        {new Date(booking.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
+                    <span
+                      className={`px-3 py-1 text-[10px] font-bold rounded-full border uppercase ${
+                        slotStatus === "confirmed"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : slotStatus === "rejected"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-amber-50 text-amber-700 border-amber-200"
+                      }`}
+                    >
+                      {slotStatus}
+                    </span>
                   </div>
-                  <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold rounded-full">
-                    {booking.status || "Confirmed"}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-4 border-2 border-dashed border-[#EADBCE] rounded-2xl">
@@ -260,7 +266,7 @@ export default function TenantOverview() {
                   No active bookings found
                 </p>
                 <p className="text-[11px] text-[#6E5D53]">
-                  Explore properties and start your rental journey!
+                  Explore properties and book a visit slot to get started!
                 </p>
               </div>
               <Link
