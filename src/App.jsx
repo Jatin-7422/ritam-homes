@@ -33,7 +33,6 @@ import Signup from "./components/Login/Signup";
 import NewProperty from "./components/Owner/NewProperty";
 import OwnerProperties from "./components/Owner/owner_properties";
 import OwnerPropertyDetails from "./components/Owner/OwnerPropertyDetails";
-import OwnerVisits from "./components/Owner/OwnerVisits";
 import OwnerBookings from "./components/Owner/OwnerBookings";
 import OwnerEarnings from "./components/Owner/OwnerEarnings";
 import OwnerSettings from "./components/Owner/OwnerSettings";
@@ -48,10 +47,9 @@ import TenantOverview from "./components/Tenant/TenantOverview";
 import ExploreProperty from "./components/Tenant/ExploreProperty";
 import TenantMessageSimulator from "./components/Tenant/TenantMessageSimulator";
 import TenantPropertyDetails from "./components/Tenant/TenantPropertyDetails";
-import SavedProperties from "./components/Tenant/TenantSaved"; // <-- Imported correctly from your components folder
+import SavedProperties from "./components/Tenant/TenantSaved"; 
 import TenantDocuments from "./components/Tenant/TenantDocument"; 
-import VisitHistory from "./components/Tenant/VisitHistory";
-import TenantBookings from "./components/Tenant/TenantBookings";// <-- Imported correctly from your components folder
+import TenantBookings from "./components/Tenant/TenantBookings";
 
 // Tenant Components (Defined locally if files don't exist yet)
 
@@ -333,7 +331,6 @@ function AppLayout() {
     location.pathname === "/owner-dashboard" ||
     location.pathname.startsWith("/owner-dashboard/") ||
     location.pathname === "/owner-properties" ||
-    location.pathname === "/owner-visits" ||
     location.pathname === "/owner-bookings" ||
     location.pathname === "/owner-earnings" ||
     location.pathname === "/owner-settings" ||
@@ -414,7 +411,6 @@ function AppLayout() {
               element={<OwnerDocuments />}
             />
             <Route path="/add-property" element={<NewProperty />} />
-            <Route path="/owner-visits" element={<OwnerVisits />} />
             <Route path="/owner-bookings" element={<OwnerBookings />} />
             <Route path="/owner-earnings" element={<OwnerEarnings />} />
             <Route path="/owner-settings" element={<OwnerSettings />} />
@@ -435,9 +431,7 @@ function AppLayout() {
             <Route path="messages" element={<TenantMessageSimulator />} />
             <Route path="bookings" element={<TenantBookings />} />
             <Route path="saved-properties" element={<SavedProperties />} />
-            <Route path="saved" element={<SavedProperties />} />{" "}
-            {/* Added alias for /saved */}
-            <Route path="visits" element={<VisitHistory />} />
+            <Route path="saved" element={<SavedProperties />} />
             <Route path="documents" element={<TenantDocuments />} />
             <Route path="settings" element={<TenantSettings />} />
             <Route path="property/:id" element={<TenantPropertyDetails />} />
