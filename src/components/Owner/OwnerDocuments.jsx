@@ -16,13 +16,13 @@ import {
   Trash2,
 } from "lucide-react";
 
-export default function TenantDocument() {
+export default function OwnerDocument() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [tenantInfo, setTenantInfo] = useState({ id: "", name: "" });
   const [ownerInfo, setOwnerInfo] = useState({ id: "", name: "" });
-  const [selectedType, setSelectedType] = useState("Identity Proof");
+  const [tenantInfo, setTenantInfo] = useState({ id: "", name: "" });
+  const [selectedType, setSelectedType] = useState("Property Ownership Proof");
   const [statusFilter, setStatusFilter] = useState("All Documents");
   const fileInputRef = useRef(null);
 
@@ -40,25 +40,25 @@ export default function TenantDocument() {
 
       if (!user) return;
 
-      const currentTenantId = user.id;
-      const currentTenantName =
+      const currentOwnerId = user.id;
+      const currentOwnerName =
         user.user_metadata?.full_name ||
         user.email?.split("@")[0] ||
-        "Tenant User";
+        "Owner User";
 
-      setTenantInfo({ id: currentTenantId, name: currentTenantName });
+      setOwnerInfo({ id: currentOwnerId, name: currentOwnerName });
 
-      // Fetch linked property owner info if available from user metadata
-      const assignedOwnerId = user.user_metadata?.owner_id || null;
-      const assignedOwnerName =
-        user.user_metadata?.owner_name || "Property Owner";
-      setOwnerInfo({ id: assignedOwnerId, name: assignedOwnerName });
+      // Fetch linked tenant info if available from metadata
+      const assignedTenantId = user.user_metadata?.tenant_id || null;
+      const assignedTenantName =
+        user.user_metadata?.tenant_name || "Assigned Tenant";
+      setTenantInfo({ id: assignedTenantId, name: assignedTenantName });
 
-      // Fetch existing documents for this tenant
+      // Fetch existing documents from owner_documents table
       const { data: docs, error } = await supabase
-        .from("tenant_documents")
+        .from("owner_documents")
         .select("*")
-        .eq("tenant_id", currentTenantId)
+        .eq("owner_id", currentOwnerId)
         .order("uploaded_at", { ascending: false });
 
       if (error) throw error;
@@ -70,7 +70,7 @@ export default function TenantDocument() {
     }
   };
 
-  // Upload handler to Supabase bucket "tenant-documents"
+  // Upload handler to Supabase bucket "owner-documents"
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -83,28 +83,27 @@ export default function TenantDocument() {
     try {
       setUploading(true);
 
-      // Clean file path structure inside 'tenant-documents' bucket
       const fileName = `${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
-      const filePath = `${tenantInfo.id}/${fileName}`;
+      const filePath = `${ownerInfo.id}/${fileName}`;
 
-      // 1. Upload file to dedicated Supabase Storage Bucket
+      // 1. Upload file to owner-documents bucket
       const { error: storageError } = await supabase.storage
-        .from("tenant-documents")
+        .from("owner-documents")
         .upload(filePath, file, { cacheControl: "3600", upsert: false });
 
       if (storageError) throw storageError;
 
-      // Get public URL
+      // Get public URL from owner-documents bucket
       const { data: urlData } = supabase.storage
-        .from("tenant-documents")
+        .from("owner-documents")
         .getPublicUrl(filePath);
 
-      // 2. Insert metadata into tenant_documents table
+      // 2. Insert metadata into owner_documents table
       const newDocRecord = {
-        tenant_id: tenantInfo.id,
-        tenant_name: tenantInfo.name,
-        owner_id: ownerInfo.id || null,
+        owner_id: ownerInfo.id,
         owner_name: ownerInfo.name,
+        tenant_id: tenantInfo.id || null,
+        tenant_name: tenantInfo.name,
         document_name: file.name,
         document_type: selectedType,
         status: "Pending",
@@ -114,7 +113,7 @@ export default function TenantDocument() {
       };
 
       const { data: insertedDoc, error: dbError } = await supabase
-        .from("tenant_documents")
+        .from("owner_documents")
         .insert([newDocRecord])
         .select()
         .single();
@@ -131,36 +130,35 @@ export default function TenantDocument() {
     }
   };
 
-  // Delete Document from both Supabase Storage Bucket and Database
+  // Delete Document from owner-documents bucket and owner_documents table
   const handleDelete = async (doc) => {
     if (!window.confirm(`Delete ${doc.document_name}?`)) return;
 
     try {
-      // 1. Sanitize file path (extract relative storage path if full URL/bucket prefix exists)
       let cleanFilePath = doc.file_path;
-      if (cleanFilePath.includes("tenant-documents/")) {
-        cleanFilePath = cleanFilePath.split("tenant-documents/")[1];
+      if (cleanFilePath.includes("owner-documents/")) {
+        cleanFilePath = cleanFilePath.split("owner-documents/")[1];
       }
-      cleanFilePath = cleanFilePath.replace(/^\/+/, ""); // Remove leading slashes
+      cleanFilePath = cleanFilePath.replace(/^\/+/, "");
 
-      // 2. Delete file from Storage Bucket
+      // 1. Delete file from Storage Bucket
       const { error: storageError } = await supabase.storage
-        .from("tenant-documents")
+        .from("owner-documents")
         .remove([cleanFilePath]);
 
       if (storageError) {
         console.error("Storage removal issue:", storageError.message);
       }
 
-      // 3. Delete metadata row from Database
+      // 2. Delete metadata row from Database
       const { error: dbError } = await supabase
-        .from("tenant_documents")
+        .from("owner_documents")
         .delete()
         .eq("id", doc.id);
 
       if (dbError) throw dbError;
 
-      // 4. Update UI State
+      // 3. Update UI State
       setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
     } catch (err) {
       alert("Error deleting file: " + err.message);
@@ -212,10 +210,10 @@ export default function TenantDocument() {
       <div className="flex justify-between items-start mb-8">
         <div>
           <h1 className="text-3xl font-serif font-bold text-[#2D1F1A]">
-            Documents
+            Owner Documents
           </h1>
           <p className="text-sm text-[#6E5D53] mt-1">
-            Store and manage your important documents securely.
+            Store and manage property records and legal documents securely.
           </p>
         </div>
         <button className="p-2.5 bg-white border border-[#EADBCE] rounded-xl hover:bg-[#FAF7F2] transition shadow-sm">
@@ -287,7 +285,7 @@ export default function TenantDocument() {
           </div>
 
           <h2 className="text-lg font-serif font-bold text-[#2D1F1A]">
-            Upload New Document
+            Upload Owner Document
           </h2>
           <p className="text-xs text-[#6E5D53] mt-1 mb-4">
             Drag & drop your file here or click the button below
@@ -302,10 +300,10 @@ export default function TenantDocument() {
               onChange={(e) => setSelectedType(e.target.value)}
               className="px-3 py-1.5 text-xs bg-[#FAF7F2] border border-[#EADBCE] rounded-lg text-[#2D1F1A] focus:outline-none"
             >
-              <option value="Identity Proof">Identity Proof</option>
-              <option value="Income Proof">Income Proof</option>
-              <option value="Address Proof">Address Proof</option>
-              <option value="Financial Proof">Financial Proof</option>
+              <option value="Property Ownership Proof">Property Ownership Proof</option>
+              <option value="Tax Receipt">Tax Receipt</option>
+              <option value="Lease Agreement">Lease Agreement</option>
+              <option value="Insurance Document">Insurance Document</option>
               <option value="Other">Other</option>
             </select>
           </div>
@@ -392,7 +390,7 @@ export default function TenantDocument() {
         <div className="lg:col-span-2 bg-white rounded-3xl border border-[#EADBCE] p-6 shadow-sm overflow-x-auto">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-serif font-bold text-[#2D1F1A]">
-              Your Documents
+              Owner Documents
             </h2>
             <select
               value={statusFilter}
@@ -430,7 +428,7 @@ export default function TenantDocument() {
                 {filteredDocuments.map((doc) => (
                   <tr key={doc.id} className="hover:bg-[#FAF7F2] transition">
                     <td className="py-3.5 font-medium text-[#2D1F1A] flex items-center gap-2.5">
-                      <div className="w-7 h-7 bg-red-50 text-red-500 rounded-lg flex items-center justify-center text-[10px] font-bold">
+                      <div className="w-7 h-7 bg-amber-50 text-[#C5924E] rounded-lg flex items-center justify-center text-[10px] font-bold">
                         {doc.document_name.split(".").pop().toUpperCase()}
                       </div>
                       <span className="truncate max-w-[150px]">
@@ -498,7 +496,7 @@ export default function TenantDocument() {
         <div className="bg-white rounded-3xl border border-[#EADBCE] p-6 shadow-sm flex flex-col justify-between">
           <div>
             <h3 className="text-base font-serif font-bold text-[#2D1F1A] mb-6">
-              Document Tips
+              Owner Document Tips
             </h3>
 
             <div className="space-y-5 text-xs text-[#6E5D53]">
@@ -507,7 +505,7 @@ export default function TenantDocument() {
                   <ShieldCheck className="w-4 h-4" />
                 </div>
                 <p className="leading-relaxed">
-                  Only upload genuine documents. Fake documents will be rejected.
+                  Upload official ownership titles, tax deeds, and lease copies.
                 </p>
               </div>
 
@@ -516,7 +514,7 @@ export default function TenantDocument() {
                   <Lock className="w-4 h-4" />
                 </div>
                 <p className="leading-relaxed">
-                  Your documents are encrypted and stored securely.
+                  Documents are safely stored in the dedicated owner bucket.
                 </p>
               </div>
 
