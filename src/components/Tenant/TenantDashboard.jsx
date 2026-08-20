@@ -106,7 +106,6 @@ export default function TenantDashboard() {
       icon: Heart,
       path: "/tenant-dashboard/saved",
     },
-    { name: "Visit History", icon: Clock, path: "/tenant-dashboard/visits" },
     { name: "Documents", icon: FileText, path: "/tenant-dashboard/documents" },
     {
       name: "Account Settings",
