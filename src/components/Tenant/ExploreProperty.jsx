@@ -17,7 +17,6 @@ import {
   ArrowRight,
   CheckCircle2,
   Loader2,
-  MessageSquare,
   Home,
   Compass,
   X,
@@ -650,21 +649,14 @@ export default function ExploreProperty() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div className="pt-1">
                       <Link
                         to={`/tenant-dashboard/property/${property.id}`}
-                        className="py-2.5 bg-[#FAF7F2] hover:bg-[#F0E6D8] border border-[#EADBCE] text-[#2D1F1A] font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 text-center"
+                        className="w-full py-2.5 bg-[#FAF7F2] hover:bg-[#F0E6D8] border border-[#EADBCE] text-[#2D1F1A] font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 text-center shadow-sm"
                       >
-                        <span>Details</span>
+                        <span>View Details</span>
                         <ArrowRight className="w-3.5 h-3.5 text-[#C5924E]" />
                       </Link>
-                      <a
-                        href={`/tenant-dashboard/messages?owner=${property.owner_id || ""}`}
-                        className="py-2.5 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 text-[#C5924E]" />
-                        <span>Contact</span>
-                      </a>
                     </div>
                   </div>
                 </div>
