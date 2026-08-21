@@ -89,9 +89,8 @@ export default function NewProperty() {
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(
     new Date().toISOString().split("T")[0],
   );
-  const [selectedTimeBlock, setSelectedTimeBlock] = useState(
-    "10:00 AM - 11:00 AM",
-  );
+  // Changed from a single string to an array for multi-select
+  const [selectedTimeBlocks, setSelectedTimeBlocks] = useState([]);
 
   // Quick pre-set time slots that owners can tap to add instantly
   const presetTimeSlots = [
@@ -112,23 +111,45 @@ export default function NewProperty() {
     },
   ]);
 
-  const handleAddSlotFromCalendar = () => {
-    if (!selectedCalendarDate || !selectedTimeBlock) return;
+  // Toggle multiple time blocks selection
+  const handleToggleTimeBlock = (slotTime) => {
+    if (selectedTimeBlocks.includes(slotTime)) {
+      setSelectedTimeBlocks(
+        selectedTimeBlocks.filter((item) => item !== slotTime),
+      );
+    } else {
+      setSelectedTimeBlocks([...selectedTimeBlocks, slotTime]);
+    }
+  };
 
-    // Avoid exact duplicate date + time slots
-    const exists = ownerSlots.some(
-      (s) =>
-        s.date === selectedCalendarDate && s.time_slot === selectedTimeBlock,
-    );
-    if (exists) {
-      alert("This exact date and time slot is already added.");
+  const handleAddSlotFromCalendar = () => {
+    if (!selectedCalendarDate || selectedTimeBlocks.length === 0) {
+      alert("Please select a date and at least one time block.");
       return;
     }
 
-    setOwnerSlots([
-      ...ownerSlots,
-      { date: selectedCalendarDate, time_slot: selectedTimeBlock },
-    ]);
+    const newEntries = selectedTimeBlocks.map((time) => ({
+      date: selectedCalendarDate,
+      time_slot: time,
+    }));
+
+    // Filter out duplicates that already exist in ownerSlots
+    const filteredNewEntries = newEntries.filter(
+      (newEntry) =>
+        !ownerSlots.some(
+          (existing) =>
+            existing.date === newEntry.date &&
+            existing.time_slot === newEntry.time_slot,
+        ),
+    );
+
+    if (filteredNewEntries.length === 0) {
+      alert("The selected slot(s) for this date have already been added.");
+      return;
+    }
+
+    setOwnerSlots([...ownerSlots, ...filteredNewEntries]);
+    setSelectedTimeBlocks([]); // Reset selection after adding
   };
 
   const handleRemoveSlot = (index) => {
@@ -902,7 +923,7 @@ export default function NewProperty() {
             </div>
           )}
 
-          {/* STEP 3: VISIT AVAILABILITY (Interactive Calendar & Quick Select Slots) */}
+          {/* STEP 3: VISIT AVAILABILITY (Interactive Calendar & Multi-select Slots) */}
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
@@ -910,8 +931,8 @@ export default function NewProperty() {
                   Select visit dates & time slots
                 </h3>
                 <p className="text-xs text-[#6E5D53] mt-0.5">
-                  Pick a date from the calendar and tap convenient time blocks
-                  to add them to your available showing schedule.
+                  Pick a date from the calendar and tap multiple time blocks to
+                  add them all at once to your available showing schedule.
                 </p>
               </div>
 
@@ -980,19 +1001,20 @@ export default function NewProperty() {
                       </p>
                     </div>
 
-                    {/* Quick Select Time Slots */}
+                    {/* Quick Select Time Slots (Multi-select) */}
                     <div className="space-y-2">
                       <label className="block text-xs font-bold text-[#2D1F1A]">
-                        2. Pick Time Block
+                        2. Pick Time Blocks (Select multiple)
                       </label>
                       <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
                         {presetTimeSlots.map((slotTime) => {
-                          const isSelected = selectedTimeBlock === slotTime;
+                          const isSelected =
+                            selectedTimeBlocks.includes(slotTime);
                           return (
                             <button
                               key={slotTime}
                               type="button"
-                              onClick={() => setSelectedTimeBlock(slotTime)}
+                              onClick={() => handleToggleTimeBlock(slotTime)}
                               className={`px-3 py-2 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer flex items-center justify-between ${
                                 isSelected
                                   ? "bg-[#2D1F1A] text-white border-[#2D1F1A] font-bold shadow-xs"
@@ -1012,7 +1034,7 @@ export default function NewProperty() {
 
                   <div className="pt-2 flex items-center justify-between border-t border-[#E3D9CC]">
                     <span className="text-xs text-[#6E5D53]">
-                      Ready to add this date & time to your listing?
+                      Ready to add these time blocks to your listing?
                     </span>
                     <button
                       type="button"
