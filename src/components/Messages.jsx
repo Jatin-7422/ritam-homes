@@ -1,19 +1,32 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabaseClient";
-import { Send, User, Loader2, MessageSquare } from "lucide-react";
+import { Send, User, Loader2, MessageSquare, Trash2 } from "lucide-react";
 
 export default function Messages() {
   const [conversations, setConversations] = useState([]);
-  const [activeChat, setActiveChat] = useState(null); // { property_id, partner_id, partner_name, property_title }
+  const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const messagesEndRef = useRef(null);
 
-  const currentUserId = supabase.auth.getUser()?.data?.user?.id; // Or fetch via getSession
+  const [currentUserId, setCurrentUserId] = useState(null);
 
-  // Fetch unique conversations for the current user
+  // Fetch current user ID on mount
+  useEffect(() => {
+    async function getUser() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user) {
+        setCurrentUserId(session.user.id);
+      }
+    }
+    getUser();
+  }, []);
+
+  // Fetch unique conversations for the current user & listen to updates
   useEffect(() => {
     async function fetchConversations() {
       setLoadingConversations(true);
@@ -22,37 +35,20 @@ export default function Messages() {
         if (!sessionData?.session) return;
         const userId = sessionData.session.user.id;
 
-        // Fetch all messages involving the current user
         const { data, error } = await supabase
           .from("messages")
-          .select(`
+          .select(
+            `
             *,
             properties (title, images)
-          `)
+          `,
+          )
           .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
           .order("created_at", { ascending: false });
 
         if (error) throw error;
 
-        // Group messages into distinct conversations based on property_id and the other user
-        const convoMap = new Map();
-        data.forEach((msg) => {
-          const partnerId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
-          const key = `${msg.property_id}-${partnerId}`;
-
-          if (!convoMap.has(key)) {
-            convoMap.set(key, {
-              property_id: msg.property_id,
-              property_title: msg.properties?.title || "Property Listing",
-              property_image: msg.properties?.images?.[0] || "",
-              partner_id: partnerId,
-              last_message: msg.content,
-              created_at: msg.created_at,
-            });
-          }
-        });
-
-        setConversations(Array.from(convoMap.values()));
+        processConversations(data, userId);
       } catch (err) {
         console.error("Error fetching conversations:", err.message);
       } finally {
@@ -61,27 +57,102 @@ export default function Messages() {
     }
 
     fetchConversations();
-  }, []);
 
-  // Fetch messages for active chat & listen for real-time updates
+    const globalChannel = supabase
+      .channel("global_messages_permanent")
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Listen to inserts and deletes to keep sidebar in sync
+          schema: "public",
+          table: "messages",
+        },
+        () => {
+          fetchConversations();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(globalChannel);
+    };
+  }, [currentUserId]);
+
+  // Helper to group messages into distinct conversations
+  const processConversations = (data, userId) => {
+    const convoMap = new Map();
+    const sortedData = [...(data || [])].sort(
+      (a, b) => new Date(a.created_at) - new Date(b.created_at),
+    );
+
+    sortedData.forEach((msg) => {
+      const partnerId =
+        msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
+      const key = `${msg.property_id}-${partnerId}`;
+
+      const isUnread = msg.receiver_id === userId && !msg.is_read;
+
+      if (!convoMap.has(key)) {
+        convoMap.set(key, {
+          property_id: msg.property_id,
+          property_title: msg.properties?.title || "Property Listing",
+          property_image: msg.properties?.images?.[0] || "",
+          partner_id: partnerId,
+          last_message: msg.content,
+          created_at: msg.created_at,
+          hasUnread: isUnread,
+        });
+      } else {
+        const existing = convoMap.get(key);
+        existing.last_message = msg.content;
+        existing.created_at = msg.created_at;
+        if (isUnread) existing.hasUnread = true;
+      }
+    });
+
+    const convoArray = Array.from(convoMap.values()).sort(
+      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+    );
+
+    setConversations(convoArray);
+  };
+
+  // Fetch messages for active chat and mark them as read
   useEffect(() => {
-    if (!activeChat) return;
+    if (!activeChat || !currentUserId) return;
 
-    async function fetchMessages() {
+    async function fetchMessagesAndMarkRead() {
       setLoadingMessages(true);
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData.session.user.id;
-
         const { data, error } = await supabase
           .from("messages")
           .select("*")
           .eq("property_id", activeChat.property_id)
-          .or(`and(sender_id.eq.${userId},receiver_id.eq.${activeChat.partner_id}),and(sender_id.eq.${activeChat.partner_id},receiver_id.eq.${userId})`)
+          .or(
+            `and(sender_id.eq.${currentUserId},receiver_id.eq.${activeChat.partner_id}),and(sender_id.eq.${activeChat.partner_id},receiver_id.eq.${currentUserId})`,
+          )
           .order("created_at", { ascending: true });
 
         if (error) throw error;
         setMessages(data || []);
+
+        // Mark unread messages as read
+        await supabase
+          .from("messages")
+          .update({ is_read: true })
+          .eq("property_id", activeChat.property_id)
+          .eq("sender_id", activeChat.partner_id)
+          .eq("receiver_id", currentUserId)
+          .eq("is_read", false);
+
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.property_id === activeChat.property_id &&
+            c.partner_id === activeChat.partner_id
+              ? { ...c, hasUnread: false }
+              : c,
+          ),
+        );
       } catch (err) {
         console.error("Error fetching chat messages:", err.message);
       } finally {
@@ -89,11 +160,10 @@ export default function Messages() {
       }
     }
 
-    fetchMessages();
+    fetchMessagesAndMarkRead();
 
-    // Setup Supabase Realtime subscription
     const channel = supabase
-      .channel(`chat_${activeChat.property_id}_${activeChat.partner_id}`)
+      .channel(`chat_perm_${activeChat.property_id}_${activeChat.partner_id}`)
       .on(
         "postgres_changes",
         {
@@ -102,50 +172,106 @@ export default function Messages() {
           table: "messages",
           filter: `property_id=eq.${activeChat.property_id}`,
         },
-        (payload) => {
+        async (payload) => {
           const newMsg = payload.new;
-          // Check if message belongs to this active conversation thread
           if (
-            (newMsg.sender_id === activeChat.partner_id || newMsg.receiver_id === activeChat.partner_id)
+            (newMsg.sender_id === activeChat.partner_id &&
+              newMsg.receiver_id === currentUserId) ||
+            (newMsg.sender_id === currentUserId &&
+              newMsg.receiver_id === activeChat.partner_id)
           ) {
-            setMessages((prev) => [...prev, newMsg]);
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+            });
+
+            if (newMsg.sender_id === activeChat.partner_id) {
+              await supabase
+                .from("messages")
+                .update({ is_read: true })
+                .eq("id", newMsg.id);
+            }
           }
-        }
+        },
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeChat]);
+  }, [activeChat, currentUserId]);
 
-  // Auto scroll to bottom on new message
+  // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !activeChat) return;
+    if (!newMessage.trim() || !activeChat || !currentUserId) return;
+
+    const contentToSend = newMessage.trim();
+    setNewMessage("");
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session.user.id;
-
-      const { error } = await supabase.from("messages").insert([
-        {
-          property_id: activeChat.property_id,
-          sender_id: userId,
-          receiver_id: activeChat.partner_id,
-          content: newMessage.trim(),
-        },
-      ]);
+      const { data, error } = await supabase
+        .from("messages")
+        .insert([
+          {
+            property_id: activeChat.property_id,
+            sender_id: currentUserId,
+            receiver_id: activeChat.partner_id,
+            content: contentToSend,
+            is_read: false,
+          },
+        ])
+        .select()
+        .single();
 
       if (error) throw error;
-      setNewMessage("");
+
+      if (data) {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === data.id)) return prev;
+          return [...prev, data];
+        });
+      }
     } catch (err) {
       console.error("Error sending message:", err.message);
       alert("Failed to send message.");
+    }
+  };
+
+  // Function to manually delete the active conversation thread
+  const handleDeleteConversation = async () => {
+    if (!window.confirm("Are you sure you want to delete this conversation?"))
+      return;
+
+    try {
+      const { error } = await supabase
+        .from("messages")
+        .delete()
+        .eq("property_id", activeChat.property_id)
+        .or(
+          `and(sender_id.eq.${currentUserId},receiver_id.eq.${activeChat.partner_id}),and(sender_id.eq.${activeChat.partner_id},receiver_id.eq.${currentUserId})`,
+        );
+
+      if (error) throw error;
+
+      setMessages([]);
+      setActiveChat(null);
+      setConversations((prev) =>
+        prev.filter(
+          (c) =>
+            !(
+              c.property_id === activeChat.property_id &&
+              c.partner_id === activeChat.partner_id
+            ),
+        ),
+      );
+    } catch (err) {
+      console.error("Error deleting conversation:", err.message);
+      alert("Failed to delete chat.");
     }
   };
 
@@ -160,14 +286,14 @@ export default function Messages() {
         </p>
       </div>
 
-      <div className="bg-white border border-[#E3D9CC] rounded-3xl shadow-xs flex-1 grid grid-cols-1 md:grid-cols-12 overflow-hidden">
+      <div className="bg-white border border-[#E3D9CC] rounded-3xl shadow-xs flex-1 grid grid-cols-1 md:grid-cols-12 overflow-hidden min-h-0">
         {/* CONVERSATIONS SIDEBAR */}
-        <div className="md:col-span-4 border-r border-[#E3D9CC] flex flex-col bg-[#F8F5EE]/40">
-          <div className="p-4 border-b border-[#E3D9CC] bg-white font-serif font-bold text-xs text-[#2D1F1A]">
+        <div className="md:col-span-4 border-r border-[#E3D9CC] flex flex-col bg-[#F8F5EE]/40 min-h-0 overflow-hidden">
+          <div className="p-4 border-b border-[#E3D9CC] bg-white font-serif font-bold text-xs text-[#2D1F1A] flex-shrink-0">
             Active Chats
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-[#E3D9CC]">
+          <div className="flex-1 overflow-y-auto divide-y divide-[#E3D9CC] min-h-0">
             {loadingConversations ? (
               <div className="flex items-center justify-center h-40">
                 <Loader2 className="w-6 h-6 animate-spin text-[#C5924E]" />
@@ -175,31 +301,47 @@ export default function Messages() {
             ) : conversations.length === 0 ? (
               <div className="p-8 text-center text-xs text-[#6E5D53]">
                 <MessageSquare className="w-8 h-8 mx-auto text-[#C5924E] mb-2 opacity-60" />
-                No messages yet. Start a conversation from a property listing or visit request!
+                No messages yet. Start a conversation from a property listing or
+                visit request!
               </div>
             ) : (
               conversations.map((convo, idx) => {
-                const isActive = activeChat?.property_id === convo.property_id && activeChat?.partner_id === convo.partner_id;
+                const isActive =
+                  activeChat?.property_id === convo.property_id &&
+                  activeChat?.partner_id === convo.partner_id;
                 return (
                   <div
                     key={idx}
                     onClick={() => setActiveChat(convo)}
-                    className={`p-4 cursor-pointer transition-colors flex items-gap gap-3 items-center ${
-                      isActive ? "bg-[#C5924E]/10 border-l-4 border-[#C5924E]" : "hover:bg-white"
+                    className={`p-4 cursor-pointer transition-colors flex gap-3 items-center relative ${
+                      isActive
+                        ? "bg-[#C5924E]/10 border-l-4 border-[#C5924E]"
+                        : "hover:bg-white"
                     }`}
                   >
                     <div className="w-10 h-10 rounded-full bg-[#E3D9CC] overflow-hidden flex-shrink-0 flex items-center justify-center">
                       {convo.property_image ? (
-                        <img src={convo.property_image} alt="" className="w-full h-full object-cover" />
+                        <img
+                          src={convo.property_image}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <User className="w-5 h-5 text-[#6E5D53]" />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <strong className="block text-xs font-bold text-[#2D1F1A] truncate">
-                        {convo.property_title}
-                      </strong>
-                      <p className="text-[11px] text-[#6E5D53] truncate mt-0.5">
+                      <div className="flex items-center justify-between">
+                        <strong className="block text-xs font-bold text-[#2D1F1A] truncate">
+                          {convo.property_title}
+                        </strong>
+                        {convo.hasUnread && (
+                          <span className="w-2 h-2 rounded-full bg-[#C5924E] flex-shrink-0 ml-2 animate-pulse" />
+                        )}
+                      </div>
+                      <p
+                        className={`text-[11px] truncate mt-0.5 ${convo.hasUnread ? "font-bold text-[#2D1F1A]" : "text-[#6E5D53]"}`}
+                      >
                         {convo.last_message}
                       </p>
                     </div>
@@ -211,11 +353,11 @@ export default function Messages() {
         </div>
 
         {/* CHAT WINDOW AREA */}
-        <div className="md:col-span-8 flex flex-col bg-white">
+        <div className="md:col-span-8 flex flex-col bg-white min-h-0 overflow-hidden">
           {activeChat ? (
             <>
               {/* CHAT HEADER */}
-              <div className="p-4 border-b border-[#E3D9CC] flex items-center justify-between bg-[#F8F5EE]/30">
+              <div className="p-4 border-b border-[#E3D9CC] flex items-center justify-between bg-[#F8F5EE]/30 flex-shrink-0">
                 <div>
                   <h3 className="font-serif font-bold text-xs sm:text-sm text-[#2D1F1A]">
                     {activeChat.property_title}
@@ -224,10 +366,18 @@ export default function Messages() {
                     Secure direct chat
                   </span>
                 </div>
+                <button
+                  onClick={handleDeleteConversation}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                  title="Delete Chat"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Chat</span>
+                </button>
               </div>
 
               {/* MESSAGES LIST */}
-              <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#FBF9F4]">
+              <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#FBF9F4] min-h-0">
                 {loadingMessages ? (
                   <div className="flex items-center justify-center h-full">
                     <Loader2 className="w-6 h-6 animate-spin text-[#C5924E]" />
@@ -238,7 +388,7 @@ export default function Messages() {
                   </div>
                 ) : (
                   messages.map((msg, mIdx) => {
-                    const isMe = msg.sender_id !== activeChat.partner_id;
+                    const isMe = msg.sender_id === currentUserId;
                     return (
                       <div
                         key={mIdx}
@@ -269,7 +419,7 @@ export default function Messages() {
               {/* MESSAGE INPUT */}
               <form
                 onSubmit={handleSendMessage}
-                className="p-3 border-t border-[#E3D9CC] flex gap-2 bg-white"
+                className="p-3 border-t border-[#E3D9CC] flex gap-2 bg-white flex-shrink-0"
               >
                 <input
                   type="text"
@@ -287,9 +437,11 @@ export default function Messages() {
               </form>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-[#6E5D53]">
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-[#6E5D53] min-h-0">
               <MessageSquare className="w-12 h-12 text-[#C5924E] mb-3 opacity-50" />
-              <strong className="text-sm font-serif text-[#2D1F1A]">Select a conversation</strong>
+              <strong className="text-sm font-serif text-[#2D1F1A]">
+                Select a conversation
+              </strong>
               <p className="text-xs text-[#6E5D53] mt-1">
                 Choose a chat from the left sidebar to start messaging.
               </p>
