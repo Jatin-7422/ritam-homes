@@ -14,6 +14,7 @@ import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import AddressAutocomplete from "./AddressAutocomplete";
+import NotificationDropdown from "../NotificationDropdown";
 
 // Fix default Leaflet marker icon issue in React
 delete L.Icon.Default.prototype._getIconUrl;
@@ -42,6 +43,13 @@ function RecenterMap({ center }) {
 export default function NewProperty() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+
+  // Request browser notification permission on component mount
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   // Multi-step form state
   const [currentStep, setCurrentStep] = useState(1);
@@ -275,7 +283,7 @@ export default function NewProperty() {
         },
       };
 
-      // 1. Insert Property into Properties Table
+      // 1. Insert Property into Properties Table[cite: 3]
       const { data: insertedProperty, error: insertError } = await supabase
         .from("properties")
         .insert([propertyPayload])
@@ -284,7 +292,7 @@ export default function NewProperty() {
 
       if (insertError) throw insertError;
 
-      // 2. Insert Explicit Owner Visit Slots into property_visit_slots Table
+      // 2. Insert Explicit Owner Visit Slots into property_visit_slots Table[cite: 3]
       const propertyId = insertedProperty.id;
       const validSlots = ownerSlots
         .filter((slot) => slot.date && slot.time_slot)
@@ -303,6 +311,31 @@ export default function NewProperty() {
         if (slotError) {
           console.error("Error saving slots:", slotError.message);
         }
+      }
+
+      // 3. Insert System Notification Record[cite: 3]
+      const { error: notificationError } = await supabase
+        .from("notifications")
+        .insert([
+          {
+            user_id: ownerId,
+            title: "Property Published!",
+            message: `Your listing "${insertedProperty.title}" is now live for tenants to see.`,
+            type: "system",
+            reference_id: propertyId,
+          },
+        ]);
+
+      if (notificationError) {
+        console.error("Error saving notification:", notificationError.message);
+      }
+
+      // 4. Trigger Native Desktop Push Notification[cite: 3]
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Property Published!", {
+          body: `Your listing "${insertedProperty.title}" is now live for tenants to see.`,
+          icon: "/favicon.ico",
+        });
       }
 
       alert("Property and visit slots published successfully!");
