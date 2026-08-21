@@ -324,6 +324,13 @@ export default function NewProperty() {
             type: "system",
             reference_id: propertyId,
           },
+          {
+            title: "New Property Published!",
+            message: `A new property "${insertedProperty.title}" has just been listed in ${locationAddress}. Check it out!`,
+            type: "new_property",
+            reference_id: propertyId,
+            user_id: null,
+          },
         ]);
 
       if (notificationError) {

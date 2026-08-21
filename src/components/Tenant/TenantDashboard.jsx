@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import logoWhite from "../../assets/whitelogo.png";
 import { AppContext } from "../../App"; // Adjust path if needed
+import TenantNotifications from "./TenantNotifications"; // Ensure this matches your file path
 import {
   LayoutDashboard,
   Search,
@@ -22,6 +23,8 @@ import {
 export default function TenantDashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const notificationRef = useRef(null);
 
   // Consume global context data with safe fallbacks
   const context = useContext(AppContext);
@@ -35,6 +38,20 @@ export default function TenantDashboard() {
 
   const useNavigateInstance = useNavigate();
   const location = useLocation();
+
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
+        setIsNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Sync basic auth data from Supabase session on mount
   useEffect(() => {
@@ -258,8 +275,10 @@ export default function TenantDashboard() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="ml-auto">
+
+          <div className="ml-auto relative" ref={notificationRef}>
             <button
+              onClick={() => setIsNotificationsOpen((prev) => !prev)}
               className={`relative p-2.5 border rounded-full transition-colors cursor-pointer ${
                 isDarkTheme
                   ? "bg-[#251B14] border-neutral-800 text-white hover:bg-neutral-800"
@@ -268,6 +287,13 @@ export default function TenantDashboard() {
             >
               <Bell className="w-4 h-4" />
             </button>
+
+            {/* Notification Dropdown Popover */}
+            {isNotificationsOpen && (
+              <div className="absolute right-0 mt-2 z-50 shadow-xl">
+                <TenantNotifications />
+              </div>
+            )}
           </div>
         </header>
 
