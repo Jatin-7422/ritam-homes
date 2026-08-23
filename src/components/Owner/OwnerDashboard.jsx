@@ -27,6 +27,10 @@ export default function OwnerDashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Notification state indicators
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  const [hasPendingBookings, setHasPendingBookings] = useState(false);
+
   // Consume global context data
   const { userInfo, setUserInfo, preferences } = useContext(AppContext);
   const isDarkTheme =
@@ -34,6 +38,53 @@ export default function OwnerDashboard() {
 
   const useNavigateInstance = useNavigate();
   const location = useLocation();
+
+  // Fetch unread messages & pending bookings on load
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session || !session.user) return;
+        const userId = session.user.id;
+
+        // 1. Initial check for unread messages
+        const { count: msgCount } = await supabase
+          .from("messages")
+          .select("*", { count: "exact", head: true })
+          .eq("receiver_id", userId)
+          .eq("is_read", false);
+
+        if (msgCount && msgCount > 0) {
+          setHasUnreadMessages(true);
+        }
+
+        // 2. Initial check for pending bookings on owner's properties
+        const { data: props } = await supabase
+          .from("properties")
+          .select("id")
+          .eq("owner_id", userId);
+
+        if (props && props.length > 0) {
+          const propertyIds = props.map((p) => p.id);
+          const { count: slotCount } = await supabase
+            .from("property_visit_slots")
+            .select("*", { count: "exact", head: true })
+            .in("property_id", propertyIds)
+            .eq("status", "pending");
+
+          if (slotCount && slotCount > 0) {
+            setHasPendingBookings(true);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching notifications:", err);
+      }
+    };
+
+    fetchNotifications();
+  }, []);
 
   // Sync basic auth data without overriding user-updated context states
   useEffect(() => {
@@ -95,11 +146,21 @@ export default function OwnerDashboard() {
     { name: "Dashboard", icon: LayoutDashboard, path: "/owner-dashboard" },
     { name: "My Properties", icon: Building2, path: "/owner-properties" },
     { name: "Add New Property", icon: PlusCircle, path: "/add-property" },
-    { name: "Bookings", icon: Calendar, path: "/owner-bookings" },
+    {
+      name: "Bookings",
+      icon: Calendar,
+      path: "/owner-bookings",
+      hasNotification: hasPendingBookings,
+    },
     { name: "Tenants", icon: Users, path: "/owner-tenants" },
     { name: "Earnings", icon: IndianRupee, path: "/owner-earnings" },
     { name: "Documents", icon: FileText, path: "/owner-dashboard/documents" },
-    { name: "Messages", icon: MessageSquare, path: "/messages " },
+    {
+      name: "Messages",
+      icon: MessageSquare,
+      path: "/messages",
+      hasNotification: hasUnreadMessages,
+    },
     { name: "Reviews", icon: Star, path: "/owner-dashboard/reviews" },
     { name: "Account Settings", icon: Settings, path: "/owner-settings" },
   ];
@@ -208,6 +269,9 @@ export default function OwnerDashboard() {
                     />
                     <span>{item.name}</span>
                   </div>
+                  {item.hasNotification && (
+                    <span className="w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse shadow-sm"></span>
+                  )}
                 </Link>
               );
             })}

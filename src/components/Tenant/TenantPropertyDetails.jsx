@@ -42,6 +42,7 @@ export default function PropertyDetails() {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
 
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
   // Simple toast trigger helper
@@ -53,8 +54,38 @@ export default function PropertyDetails() {
   useEffect(() => {
     if (id) {
       fetchPropertyAndSlots();
+      trackUniquePropertyView(id);
     }
   }, [id]);
+
+  // Track unique view per tenant per property using upsert to avoid 409 conflicts
+  // Track property view by incrementing the `views` column directly on the properties table
+  const trackUniquePropertyView = async (propertyId) => {
+    try {
+      // 1. Fetch current views count
+      const { data: prop, error: fetchError } = await supabase
+        .from("properties")
+        .select("views")
+        .eq("id", propertyId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const currentViews = prop?.views || 0;
+
+      // 2. Increment views by 1
+      const { error: updateError } = await supabase
+        .from("properties")
+        .update({ views: currentViews + 1 })
+        .eq("id", propertyId);
+
+      if (updateError) {
+        console.error("Error updating property views:", updateError);
+      }
+    } catch (err) {
+      console.error("Error in view tracker:", err);
+    }
+  };
 
   const fetchPropertyAndSlots = async () => {
     try {
@@ -70,12 +101,16 @@ export default function PropertyDetails() {
       if (propError) throw propError;
       setProperty(propData);
 
-      // 2. Fetch Available Visit Slots configured by the Owner
+      // 2. Get today's date in YYYY-MM-DD format to filter out past slots
+      const today = new Date().toISOString().split("T")[0];
+
+      // 3. Fetch Available Visit Slots configured by the Owner (excluding past dates)
       const { data: slotData, error: slotError } = await supabase
         .from("property_visit_slots")
         .select("*")
         .eq("property_id", id)
         .eq("is_booked", false)
+        .gte("date", today) // <--- Filters out past dates automatically
         .order("date", { ascending: true });
 
       if (slotError) {
@@ -130,6 +165,61 @@ export default function PropertyDetails() {
       showToast("Failed to send booking request.");
     } finally {
       setBookingLoading(false);
+    }
+  };
+
+  // Handle Live Chat Initialization with Owner
+  const handleChatWithOwner = async () => {
+    try {
+      setChatLoading(true);
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError || !user) {
+        showToast("Please log in to chat with the owner.");
+        return;
+      }
+
+      if (!property?.owner_id) {
+        showToast("Owner details are not available for this property.");
+        return;
+      }
+
+      // 1. Check if a conversation thread already exists for this property and user pair
+      const { data: existingChat, error: chatError } = await supabase
+        .from("messages")
+        .select("id")
+        .eq("sender_id", user.id)
+        .eq("receiver_id", property.owner_id)
+        .eq("property_id", property.id)
+        .maybeSingle();
+
+      if (chatError) throw chatError;
+
+      // 2. If no chat thread exists, initialize it by inserting an introductory message
+      if (!existingChat) {
+        const { error: insertError } = await supabase.from("messages").insert([
+          {
+            sender_id: user.id,
+            receiver_id: property.owner_id,
+            property_id: property.id,
+            content: `Hi, I am interested in your property: ${property.title}`,
+            is_read: false,
+          },
+        ]);
+
+        if (insertError) throw insertError;
+      }
+
+      // 3. Redirect to the messages page with the owner query parameter
+      window.location.href = `/tenant-dashboard/messages?owner=${property.owner_id}`;
+    } catch (err) {
+      console.error("Error initiating chat:", err);
+      showToast("Could not start chat. Please try again.");
+    } finally {
+      setChatLoading(false);
     }
   };
 
@@ -505,13 +595,21 @@ export default function PropertyDetails() {
                 </span>
               </button>
 
-              <a
-                href={`/tenant-dashboard/messages?owner=${property.owner_id || ""}`}
-                className="w-full py-3 bg-white hover:bg-[#FAF7F2] border border-[#EADBCE] text-[#2D1F1A] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
+              <button
+                type="button"
+                onClick={handleChatWithOwner}
+                disabled={chatLoading}
+                className="w-full py-3 bg-white hover:bg-[#FAF7F2] border border-[#EADBCE] text-[#2D1F1A] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
               >
-                <MessageSquare className="w-4 h-4 text-[#C5924E]" />
-                <span>Chat with Owner</span>
-              </a>
+                {chatLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" />
+                ) : (
+                  <MessageSquare className="w-4 h-4 text-[#C5924E]" />
+                )}
+                <span>
+                  {chatLoading ? "Opening Chat..." : "Chat with Owner"}
+                </span>
+              </button>
             </form>
           </div>
 

@@ -1,15 +1,15 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import logoWhite from "../../assets/whitelogo.png";
 import { AppContext } from "../../App"; // Adjust path if needed
+import TenantNotifications from "./TenantNotifications"; // Ensure this matches your file path
 import {
   LayoutDashboard,
   Search,
   MessageSquare,
   Calendar,
   Heart,
-  Clock,
   FileText,
   Settings,
   LogOut,
@@ -23,16 +23,37 @@ import {
 export default function TenantDashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const notificationRef = useRef(null);
 
-  // Consume global context data
-  const { userInfo, setUserInfo, preferences } = useContext(AppContext);
+  // Consume global context data with safe fallbacks
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error("TenantDashboard must be used within an AppProvider");
+  }
+  const { userInfo, setUserInfo, preferences } = context;
+
   const isDarkTheme =
-    preferences.theme === "Dark Mode" || preferences.theme === "Dark";
+    preferences?.theme === "Dark Mode" || preferences?.theme === "Dark";
 
   const useNavigateInstance = useNavigate();
   const location = useLocation();
 
-  // Sync basic auth data without overriding user-updated context states
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
+        setIsNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Sync basic auth data from Supabase session on mount
   useEffect(() => {
     const fetchSession = async () => {
       try {
@@ -45,9 +66,7 @@ export default function TenantDashboard() {
             ...prev,
             email: prev.email || user.email,
             fullName:
-              prev.fullName !== "Master"
-                ? prev.fullName
-                : user.user_metadata?.full_name || prev.fullName,
+              user.user_metadata?.full_name || prev.fullName || "Tenant User",
             businessName:
               user.user_metadata?.business_name || prev.businessName,
             phone: user.user_metadata?.phone || prev.phone,
@@ -167,7 +186,7 @@ export default function TenantDashboard() {
 
           {/* User Profile Card */}
           <div className="mx-3 my-3 p-3 bg-[#221A17] border border-[#3A2E2A] rounded-xl flex items-center gap-3 shadow-inner flex-shrink-0">
-            {userInfo.avatar ? (
+            {userInfo?.avatar ? (
               <img
                 src={userInfo.avatar}
                 alt={userInfo.fullName}
@@ -175,17 +194,17 @@ export default function TenantDashboard() {
               />
             ) : (
               <div className="w-9 h-9 rounded-full bg-[#C5924E] flex items-center justify-center text-[#2D1F1A] font-bold text-sm shadow">
-                {userInfo.fullName
+                {userInfo?.fullName
                   ? userInfo.fullName.charAt(0).toUpperCase()
                   : "T"}
               </div>
             )}
             <div className="flex-1 min-w-0">
               <h4 className="text-white font-bold text-xs truncate">
-                {userInfo.fullName || "Tenant User"}
+                {userInfo?.fullName || "Tenant User"}
               </h4>
               <p className="text-[10px] text-[#9E8B7F] truncate">
-                Tenant Account
+                {userInfo?.businessName || "Tenant Account"}
               </p>
               <div className="flex items-center gap-1 mt-0.5 text-[10px] text-green-400 font-medium">
                 <ShieldCheck className="w-3 h-3" /> Verified Tenant
@@ -256,8 +275,10 @@ export default function TenantDashboard() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="ml-auto">
+
+          <div className="ml-auto relative" ref={notificationRef}>
             <button
+              onClick={() => setIsNotificationsOpen((prev) => !prev)}
               className={`relative p-2.5 border rounded-full transition-colors cursor-pointer ${
                 isDarkTheme
                   ? "bg-[#251B14] border-neutral-800 text-white hover:bg-neutral-800"
@@ -266,10 +287,17 @@ export default function TenantDashboard() {
             >
               <Bell className="w-4 h-4" />
             </button>
+
+            {/* Notification Dropdown Popover */}
+            {isNotificationsOpen && (
+              <div className="absolute right-0 mt-2 z-50 shadow-xl">
+                <TenantNotifications />
+              </div>
+            )}
           </div>
         </header>
 
-        {/* Dynamic Outlet Renders Individual Tenant Child Views Cleanly with independent vertical scrolling */}
+        {/* Dynamic Outlet Renders Individual Tenant Child Views Cleanly */}
         <div className="flex-1 overflow-y-auto">
           <Outlet />
         </div>

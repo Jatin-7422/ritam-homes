@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import {
@@ -10,38 +10,33 @@ import {
   Clock,
   Check,
 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
+import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 import AddressAutocomplete from "./AddressAutocomplete";
 
-// Fix default Leaflet marker icon issue in React
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-});
-
-// Helper component to recenter map and fix sizing when container visibility changes across steps
-function RecenterMap({ center }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, 15);
-    const timer = setTimeout(() => {
-      map.invalidateSize();
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [center, map]);
-  return null;
-}
+// Google Maps libraries configuration
+const libraries = ["places"];
+const mapContainerStyle = {
+  width: "100%",
+  height: "100%",
+};
 
 export default function NewProperty() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+
+  // Load Google Maps JavaScript API
+  const { isLoaded, loadError } = useJsApiLoader({
+    id: "google-map-script",
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
+    libraries,
+  });
+
+  // Request browser notification permission on component mount
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   // Multi-step form state
   const [currentStep, setCurrentStep] = useState(1);
@@ -89,9 +84,7 @@ export default function NewProperty() {
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(
     new Date().toISOString().split("T")[0],
   );
-  const [selectedTimeBlock, setSelectedTimeBlock] = useState(
-    "10:00 AM - 11:00 AM",
-  );
+  const [selectedTimeBlocks, setSelectedTimeBlocks] = useState([]);
 
   // Quick pre-set time slots that owners can tap to add instantly
   const presetTimeSlots = [
@@ -112,36 +105,79 @@ export default function NewProperty() {
     },
   ]);
 
-  const handleAddSlotFromCalendar = () => {
-    if (!selectedCalendarDate || !selectedTimeBlock) return;
+  // Toggle multiple time blocks selection
+  const handleToggleTimeBlock = (slotTime) => {
+    if (selectedTimeBlocks.includes(slotTime)) {
+      setSelectedTimeBlocks(
+        selectedTimeBlocks.filter((item) => item !== slotTime),
+      );
+    } else {
+      setSelectedTimeBlocks([...selectedTimeBlocks, slotTime]);
+    }
+  };
 
-    // Avoid exact duplicate date + time slots
-    const exists = ownerSlots.some(
-      (s) =>
-        s.date === selectedCalendarDate && s.time_slot === selectedTimeBlock,
-    );
-    if (exists) {
-      alert("This exact date and time slot is already added.");
+  const handleAddSlotFromCalendar = () => {
+    if (!selectedCalendarDate || selectedTimeBlocks.length === 0) {
+      alert("Please select a date and at least one time block.");
       return;
     }
 
-    setOwnerSlots([
-      ...ownerSlots,
-      { date: selectedCalendarDate, time_slot: selectedTimeBlock },
-    ]);
+    const newEntries = selectedTimeBlocks.map((time) => ({
+      date: selectedCalendarDate,
+      time_slot: time,
+    }));
+
+    const filteredNewEntries = newEntries.filter(
+      (newEntry) =>
+        !ownerSlots.some(
+          (existing) =>
+            existing.date === newEntry.date &&
+            existing.time_slot === newEntry.time_slot,
+        ),
+    );
+
+    if (filteredNewEntries.length === 0) {
+      alert("The selected slot(s) for this date have already been added.");
+      return;
+    }
+
+    setOwnerSlots([...ownerSlots, ...filteredNewEntries]);
+    setSelectedTimeBlocks([]);
   };
 
   const handleRemoveSlot = (index) => {
     setOwnerSlots(ownerSlots.filter((_, i) => i !== index));
   };
 
-  // Step 4: Location State
+  // Step 4: Location State & Google Maps Ref
   const [locationAddress, setLocationAddress] = useState(
     "Bengaluru, Karnataka",
   );
   const [latitude, setLatitude] = useState(12.9716);
   const [longitude, setLongitude] = useState(77.5946);
-  const [mapCenter, setMapCenter] = useState([12.9716, 77.5946]);
+  const mapRef = useRef(null);
+
+  const onMapLoad = useCallback((map) => {
+    mapRef.current = map;
+  }, []);
+
+  // Handle Marker drag to update coordinates and reverse geocode if needed
+  const handleMarkerDragEnd = (event) => {
+    const lat = event.latLng.lat();
+    const lng = event.latLng.lng();
+    setLatitude(lat);
+    setLongitude(lng);
+
+    // Optional: Reverse geocode to update address description using Google Geocoder
+    if (window.google && window.google.maps) {
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+        if (status === "OK" && results[0]) {
+          setLocationAddress(results[0].formatted_address);
+        }
+      });
+    }
+  };
 
   // Photo handlers
   const handlePhotoUpload = (e) => {
@@ -282,6 +318,38 @@ export default function NewProperty() {
         if (slotError) {
           console.error("Error saving slots:", slotError.message);
         }
+      }
+
+      // 3. Insert System Notification Record
+      const { error: notificationError } = await supabase
+        .from("notifications")
+        .insert([
+          {
+            user_id: ownerId,
+            title: "Property Published!",
+            message: `Your listing "${insertedProperty.title}" is now live for tenants to see.`,
+            type: "system",
+            reference_id: propertyId,
+          },
+          {
+            title: "New Property Published!",
+            message: `A new property "${insertedProperty.title}" has just been listed in ${locationAddress}. Check it out!`,
+            type: "new_property",
+            reference_id: propertyId,
+            user_id: null,
+          },
+        ]);
+
+      if (notificationError) {
+        console.error("Error saving notification:", notificationError.message);
+      }
+
+      // 4. Trigger Native Desktop Push Notification
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Property Published!", {
+          body: `Your listing "${insertedProperty.title}" is now live for tenants to see.`,
+          icon: "/favicon.ico",
+        });
       }
 
       alert("Property and visit slots published successfully!");
@@ -902,7 +970,7 @@ export default function NewProperty() {
             </div>
           )}
 
-          {/* STEP 3: VISIT AVAILABILITY (Interactive Calendar & Quick Select Slots) */}
+          {/* STEP 3: VISIT AVAILABILITY */}
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
@@ -910,8 +978,8 @@ export default function NewProperty() {
                   Select visit dates & time slots
                 </h3>
                 <p className="text-xs text-[#6E5D53] mt-0.5">
-                  Pick a date from the calendar and tap convenient time blocks
-                  to add them to your available showing schedule.
+                  Pick a date from the calendar and tap multiple time blocks to
+                  add them all at once to your available showing schedule.
                 </p>
               </div>
 
@@ -958,7 +1026,6 @@ export default function NewProperty() {
                   </h4>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Date Picker Input / Calendar block */}
                     <div className="space-y-2">
                       <label className="block text-xs font-bold text-[#2D1F1A]">
                         1. Select Date
@@ -980,19 +1047,19 @@ export default function NewProperty() {
                       </p>
                     </div>
 
-                    {/* Quick Select Time Slots */}
                     <div className="space-y-2">
                       <label className="block text-xs font-bold text-[#2D1F1A]">
-                        2. Pick Time Block
+                        2. Pick Time Blocks (Select multiple)
                       </label>
                       <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
                         {presetTimeSlots.map((slotTime) => {
-                          const isSelected = selectedTimeBlock === slotTime;
+                          const isSelected =
+                            selectedTimeBlocks.includes(slotTime);
                           return (
                             <button
                               key={slotTime}
                               type="button"
-                              onClick={() => setSelectedTimeBlock(slotTime)}
+                              onClick={() => handleToggleTimeBlock(slotTime)}
                               className={`px-3 py-2 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer flex items-center justify-between ${
                                 isSelected
                                   ? "bg-[#2D1F1A] text-white border-[#2D1F1A] font-bold shadow-xs"
@@ -1012,7 +1079,7 @@ export default function NewProperty() {
 
                   <div className="pt-2 flex items-center justify-between border-t border-[#E3D9CC]">
                     <span className="text-xs text-[#6E5D53]">
-                      Ready to add this date & time to your listing?
+                      Ready to add these time blocks to your listing?
                     </span>
                     <button
                       type="button"
@@ -1086,7 +1153,7 @@ export default function NewProperty() {
             </div>
           )}
 
-          {/* STEP 4: LOCATION */}
+          {/* STEP 4: LOCATION WITH GOOGLE MAPS */}
           {currentStep === 4 && (
             <div className="space-y-6">
               <div>
@@ -1095,7 +1162,7 @@ export default function NewProperty() {
                 </h3>
                 <p className="text-xs text-[#6E5D53] mt-0.5">
                   Type or search your property address. The map updates
-                  automatically, and the exact coordinates are pinned.
+                  automatically, and you can drag the marker to fine-tune.
                 </p>
               </div>
 
@@ -1112,26 +1179,42 @@ export default function NewProperty() {
                       if (lat && lon) {
                         setLatitude(lat);
                         setLongitude(lon);
-                        setMapCenter([lat, lon]);
+                        if (mapRef.current) {
+                          mapRef.current.panTo({ lat, lng: lon });
+                        }
                       }
                     }}
                   />
                 </div>
 
                 <div className="relative z-10 w-full h-64 rounded-2xl overflow-hidden border border-[#E3D9CC] shadow-xs">
-                  <MapContainer
-                    center={mapCenter}
-                    zoom={15}
-                    scrollWheelZoom={false}
-                    style={{ width: "100%", height: "100%" }}
-                  >
-                    <RecenterMap center={mapCenter} />
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    <Marker position={mapCenter} />
-                  </MapContainer>
+                  {!isLoaded ? (
+                    <div className="w-full h-full flex items-center justify-center bg-[#F8F5EE] text-xs text-[#6E5D53]">
+                      Loading Google Maps...
+                    </div>
+                  ) : loadError ? (
+                    <div className="w-full h-full flex items-center justify-center bg-red-50 text-xs text-red-500">
+                      Error loading Google Maps script.
+                    </div>
+                  ) : (
+                    <GoogleMap
+                      mapContainerStyle={mapContainerStyle}
+                      center={{ lat: latitude, lng: longitude }}
+                      zoom={15}
+                      onLoad={onMapLoad}
+                      options={{
+                        streetViewControl: false,
+                        mapTypeControl: false,
+                        fullscreenControl: false,
+                      }}
+                    >
+                      <Marker
+                        position={{ lat: latitude, lng: longitude }}
+                        draggable={true}
+                        onDragEnd={handleMarkerDragEnd}
+                      />
+                    </GoogleMap>
+                  )}
                 </div>
               </div>
             </div>

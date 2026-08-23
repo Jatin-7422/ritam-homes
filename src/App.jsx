@@ -47,15 +47,12 @@ import TenantOverview from "./components/Tenant/TenantOverview";
 import ExploreProperty from "./components/Tenant/ExploreProperty";
 import TenantMessageSimulator from "./components/Tenant/TenantMessageSimulator";
 import TenantPropertyDetails from "./components/Tenant/TenantPropertyDetails";
-import SavedProperties from "./components/Tenant/TenantSaved"; 
-import TenantDocuments from "./components/Tenant/TenantDocument"; 
+import SavedProperties from "./components/Tenant/TenantSaved";
+import TenantDocuments from "./components/Tenant/TenantDocument";
 import TenantBookings from "./components/Tenant/TenantBookings";
 
-// Tenant Components (Defined locally if files don't exist yet)
-
-function TenantSettings() {
-  return <div className="p-8 text-xl font-bold">Tenant Settings</div>;
-}
+// Tenant Account Settings Component (Fully Integrated with Supabase Auth)
+import TenantSettings from "./components/Tenant/TenantSettings";
 
 // Analytics
 import { Analytics } from "@vercel/analytics/react";
@@ -70,13 +67,13 @@ export const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const [userInfo, setUserInfo] = useState({
-    fullName: "Owner",
+    fullName: "User",
     email: "",
-    phone: "",
-    businessName: "Master Properties",
-    role: "owner",
-    memberSince: "",
-    location: "Bangalore, Karnataka, India",
+    phone: "Not provided",
+    businessName: "Ritam Homes",
+    role: "tenant",
+    memberSince: "N/A",
+    location: "India",
     isVerified: true,
   });
 
@@ -103,26 +100,47 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     const fetchSessionUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session?.user) {
-        const metadata = session.user.user_metadata || {};
-        const rawName =
-          metadata.full_name ||
-          metadata.name ||
-          session.user.email?.split("@")[0] ||
-          "Owner";
-        const formattedName =
-          rawName.charAt(0).toUpperCase() + rawName.slice(1);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session && session.user) {
+          const user = session.user;
+          const metadata = user.user_metadata || {};
 
-        setUserInfo((prev) => ({
-          ...prev,
-          fullName: formattedName,
-          email: session.user.email || "",
-          phone: metadata.phone || "",
-          role: metadata.role || "owner",
-        }));
+          const rawName =
+            metadata.full_name ||
+            metadata.name ||
+            user.email?.split("@")[0] ||
+            "User";
+          const formattedName =
+            rawName.charAt(0).toUpperCase() + rawName.slice(1);
+
+          const createdAt = user.created_at
+            ? new Date(user.created_at).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })
+            : "N/A";
+
+          setUserInfo((prev) => ({
+            ...prev,
+            fullName: formattedName,
+            email: user.email || "",
+            phone: metadata.phone || metadata.phone_number || prev.phone,
+            businessName:
+              metadata.business_name || metadata.company || prev.businessName,
+            role: metadata.role || prev.role,
+            location: metadata.location || prev.location,
+            memberSince: createdAt,
+          }));
+        }
+      } catch (err) {
+        console.error(
+          "Error loading session user in AppProvider:",
+          err.message,
+        );
       }
     };
     fetchSessionUser();

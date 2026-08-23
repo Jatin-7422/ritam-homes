@@ -17,11 +17,11 @@ import {
   ArrowRight,
   CheckCircle2,
   Loader2,
-  MessageSquare,
   Home,
   Compass,
   X,
   Armchair,
+  Navigation,
 } from "lucide-react";
 
 // Fix Leaflet default marker icon issue in React
@@ -101,8 +101,8 @@ export default function ExploreProperty() {
 
       const formattedData = (data || []).map((p) => ({
         ...p,
-        lat: Number(p.latitude || p.lat || 28.6139),
-        lng: Number(p.longitude || p.lng || 77.209),
+        lat: Number(p.latitude || p.lat || 12.9716),
+        lng: Number(p.longitude || p.lng || 77.5946),
         isSaved: savedPropertyIds.has(p.id),
       }));
 
@@ -263,7 +263,7 @@ export default function ExploreProperty() {
   const mapCenter =
     filteredProperties.length > 0
       ? [filteredProperties[0].lat, filteredProperties[0].lng]
-      : [28.6139, 77.209];
+      : [12.9716, 77.5946];
 
   if (loading) {
     return (
@@ -492,30 +492,44 @@ export default function ExploreProperty() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            {filteredProperties.map((prop) => (
-              <Marker key={prop.id} position={[prop.lat, prop.lng]}>
-                <Popup>
-                  <div className="p-1 space-y-2 max-w-[200px]">
-                    <p className="font-bold text-xs text-[#2D1F1A]">
-                      {prop.title}
-                    </p>
-                    <p className="text-[11px] text-[#C5924E] font-bold">
-                      ₹{Number(prop.price || prop.rent || 0).toLocaleString()}
-                      /mo
-                    </p>
-                    <p className="text-[10px] text-slate-500 truncate">
-                      {prop.location || prop.city || prop.address}
-                    </p>
-                    <Link
-                      to={`/tenant-dashboard/property/${prop.id}`}
-                      className="block text-center bg-[#2D1F1A] text-white text-[10px] py-1 rounded-lg font-bold"
-                    >
-                      View Details
-                    </Link>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
+            {filteredProperties.map((prop) => {
+              const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${prop.lat},${prop.lng}`;
+              return (
+                <Marker key={prop.id} position={[prop.lat, prop.lng]}>
+                  <Popup>
+                    <div className="p-1 space-y-2 max-w-[210px]">
+                      <p className="font-bold text-xs text-[#2D1F1A]">
+                        {prop.title}
+                      </p>
+                      <p className="text-[11px] text-[#C5924E] font-bold">
+                        ₹{Number(prop.price || prop.rent || 0).toLocaleString()}
+                        /mo
+                      </p>
+                      <p className="text-[10px] text-slate-500 truncate">
+                        {prop.location || prop.city || prop.address}
+                      </p>
+                      <div className="flex gap-1 pt-1">
+                        <Link
+                          to={`/tenant-dashboard/property/${prop.id}`}
+                          className="flex-1 text-center bg-[#2D1F1A] text-white text-[10px] py-1.5 rounded-lg font-bold"
+                        >
+                          View Details
+                        </Link>
+                        <a
+                          href={directionsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2 bg-[#C5924E] text-[#2D1F1A] text-[10px] py-1.5 rounded-lg font-bold flex items-center justify-center"
+                          title="Get Directions"
+                        >
+                          <Navigation className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
           </MapContainer>
         </div>
       ) : filteredProperties.length === 0 ? (
@@ -561,6 +575,8 @@ export default function ExploreProperty() {
                 }
               }
             }
+
+            const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${property.lat},${property.lng}`;
 
             return (
               <div
@@ -650,20 +666,22 @@ export default function ExploreProperty() {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div className="pt-1 flex gap-2">
                       <Link
                         to={`/tenant-dashboard/property/${property.id}`}
-                        className="py-2.5 bg-[#FAF7F2] hover:bg-[#F0E6D8] border border-[#EADBCE] text-[#2D1F1A] font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 text-center"
+                        className="flex-1 py-2.5 bg-[#FAF7F2] hover:bg-[#F0E6D8] border border-[#EADBCE] text-[#2D1F1A] font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 text-center shadow-sm"
                       >
-                        <span>Details</span>
+                        <span>View Details</span>
                         <ArrowRight className="w-3.5 h-3.5 text-[#C5924E]" />
                       </Link>
                       <a
-                        href={`/tenant-dashboard/messages?owner=${property.owner_id || ""}`}
-                        className="py-2.5 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        href={directionsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-2.5 px-3 bg-[#FAF7F2] hover:bg-[#F0E6D8] border border-[#EADBCE] text-[#C5924E] font-bold text-xs rounded-xl transition-all flex items-center justify-center shadow-sm"
+                        title="Get Directions"
                       >
-                        <MessageSquare className="w-3.5 h-3.5 text-[#C5924E]" />
-                        <span>Contact</span>
+                        <Navigation className="w-3.5 h-3.5" />
                       </a>
                     </div>
                   </div>
