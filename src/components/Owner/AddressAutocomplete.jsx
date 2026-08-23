@@ -20,12 +20,11 @@ export default function AddressAutocomplete({ value, onChange, onSelect }) {
         !searchWrapperRef.current.contains(event.target)
       ) {
         setShowSuggestions(false);
-        handleManualBlur();
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [addressSearch]);
+  }, []);
 
   useEffect(() => {
     if (!addressSearch || addressSearch.length < 3) {
@@ -71,35 +70,10 @@ export default function AddressAutocomplete({ value, onChange, onSelect }) {
     }
   };
 
-  const handleManualBlur = async () => {
-    if (!addressSearch || addressSearch.length < 3) return;
-    try {
-      setIsGeocoding(true);
-      const response = await fetch(
-        `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(
-          addressSearch,
-        )}&apiKey=${GEOAPIFY_API_KEY}&limit=1`,
-      );
-      const data = await response.json();
-      if (data.features && data.features.length > 0) {
-        const feature = data.features[0];
-        const formattedAddress = feature.properties.formatted || addressSearch;
-        const lat = feature.properties.lat;
-        const lon = feature.properties.lon;
-        if (onSelect) {
-          onSelect(formattedAddress, lat, lon);
-        }
-      }
-    } catch (error) {
-      console.error("Error geocoding manual input:", error);
-    } finally {
-      setIsGeocoding(false);
-    }
-  };
-
   const handleClear = () => {
     setAddressSearch("");
     setAddressSuggestions([]);
+    setShowSuggestions(false);
     if (onChange) onChange("");
     if (onSelect) onSelect("", null, null);
   };
@@ -112,7 +86,9 @@ export default function AddressAutocomplete({ value, onChange, onSelect }) {
           placeholder="Search your address or locality"
           value={addressSearch}
           onChange={handleChange}
-          onBlur={handleManualBlur}
+          onFocus={() => {
+            if (addressSuggestions.length > 0) setShowSuggestions(true);
+          }}
           className="w-full px-3 py-2.5 pr-8 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
         />
         {isGeocoding && (
@@ -134,6 +110,8 @@ export default function AddressAutocomplete({ value, onChange, onSelect }) {
           {addressSuggestions.map((item, idx) => (
             <li
               key={idx}
+              // onMouseDown prevents input blur so selection triggers correctly before list unmounts
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => handleSelect(item)}
               className="px-3 py-2 text-xs text-[#2D1F1A] hover:bg-[#F8F5EE] cursor-pointer border-b border-[#E3D9CC] last:border-b-0"
             >
