@@ -20,7 +20,7 @@ export default function OwnerOverview() {
   const { userInfo, setUserInfo, preferences } = useContext(AppContext);
   const isDarkTheme = preferences.theme === "Dark Mode";
 
-  // Dashboard Metrics State (removed pendingRequests)
+  // Dashboard Metrics State
   const [stats, setStats] = useState({
     totalProperties: 0,
     totalViews: 0,
@@ -110,7 +110,7 @@ export default function OwnerOverview() {
         }
       }
 
-      // Calculate total views if a views column exists across properties
+      // Calculate total views dynamically from each property record (falling back to 0 if null/undefined)
       const totalViewsCount = propertyList.reduce(
         (acc, curr) => acc + (Number(curr.views) || 0),
         0,
@@ -171,7 +171,7 @@ export default function OwnerOverview() {
         </button>
       </div>
 
-      {/* METRICS CARDS GRID (Updated to 4 columns) */}
+      {/* METRICS CARDS GRID (4 columns) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Properties */}
         <div
@@ -260,7 +260,7 @@ export default function OwnerOverview() {
               )}
             </div>
             <span className="text-[10px] text-emerald-500 font-bold mt-0.5 block">
-              Cumulative
+              Cumulative Property Views
             </span>
           </div>
         </div>
@@ -450,13 +450,24 @@ export default function OwnerOverview() {
                       >
                         {property.title}
                       </h4>
-                      <span
-                        className={`text-[10px] ${
-                          isDarkTheme ? "text-[#B3A499]" : "text-[#6E5D53]"
-                        }`}
-                      >
-                        {property.location}
-                      </span>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span
+                          className={`text-[10px] ${
+                            isDarkTheme ? "text-[#B3A499]" : "text-[#6E5D53]"
+                          }`}
+                        >
+                          {property.location}
+                        </span>
+                        <span className="text-[10px] text-neutral-400">•</span>
+                        <span
+                          className={`text-[10px] flex items-center gap-1 ${
+                            isDarkTheme ? "text-[#C5924E]" : "text-[#C5924E]"
+                          }`}
+                        >
+                          <Eye className="w-3 h-3" /> {property.views || 0}{" "}
+                          views
+                        </span>
+                      </div>
                     </div>
                   </div>
                   <span
@@ -483,9 +494,8 @@ export default function OwnerOverview() {
           </button>
         </div>
 
-        {/* Right Column: Earnings & Quick Stats Overview */}
+        {/* Right Column: Earnings Overview */}
         <div className="lg:col-span-5 space-y-6 flex flex-col">
-          {/* Earnings Overview Box */}
           <div
             className={`p-6 sm:p-8 rounded-3xl border shadow-xs space-y-4 transition-colors ${
               isDarkTheme
