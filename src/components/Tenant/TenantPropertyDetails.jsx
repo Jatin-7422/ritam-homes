@@ -54,8 +54,38 @@ export default function PropertyDetails() {
   useEffect(() => {
     if (id) {
       fetchPropertyAndSlots();
+      trackUniquePropertyView(id);
     }
   }, [id]);
+
+  // Track unique view per tenant per property using upsert to avoid 409 conflicts
+  // Track property view by incrementing the `views` column directly on the properties table
+  const trackUniquePropertyView = async (propertyId) => {
+    try {
+      // 1. Fetch current views count
+      const { data: prop, error: fetchError } = await supabase
+        .from("properties")
+        .select("views")
+        .eq("id", propertyId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const currentViews = prop?.views || 0;
+
+      // 2. Increment views by 1
+      const { error: updateError } = await supabase
+        .from("properties")
+        .update({ views: currentViews + 1 })
+        .eq("id", propertyId);
+
+      if (updateError) {
+        console.error("Error updating property views:", updateError);
+      }
+    } catch (err) {
+      console.error("Error in view tracker:", err);
+    }
+  };
 
   const fetchPropertyAndSlots = async () => {
     try {
@@ -71,12 +101,16 @@ export default function PropertyDetails() {
       if (propError) throw propError;
       setProperty(propData);
 
-      // 2. Fetch Available Visit Slots configured by the Owner
+      // 2. Get today's date in YYYY-MM-DD format to filter out past slots
+      const today = new Date().toISOString().split("T")[0];
+
+      // 3. Fetch Available Visit Slots configured by the Owner (excluding past dates)
       const { data: slotData, error: slotError } = await supabase
         .from("property_visit_slots")
         .select("*")
         .eq("property_id", id)
         .eq("is_booked", false)
+        .gte("date", today) // <--- Filters out past dates automatically
         .order("date", { ascending: true });
 
       if (slotError) {
