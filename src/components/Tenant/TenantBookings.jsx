@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
   Calendar,
   Clock,
@@ -16,6 +19,17 @@ import {
   Mail,
   X,
 } from "lucide-react";
+
+// Fix Leaflet default marker icon issue in React
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
 
 export default function TenantBookings() {
   const [bookings, setBookings] = useState([]);
@@ -68,7 +82,7 @@ export default function TenantBookings() {
         return;
       }
 
-      // 2. Fetch all slots booked or requested by this tenant
+      // 2. Fetch all slots booked or requested by this tenant using correct schema columns
       const { data, error } = await supabase
         .from("property_visit_slots")
         .select(
@@ -84,7 +98,9 @@ export default function TenantBookings() {
             title,
             location,
             price,
-            images
+            images,
+            latitude,
+            longitude
           )
         `,
         )
@@ -104,7 +120,7 @@ export default function TenantBookings() {
     }
   };
 
-  // Fetch owner details & property map info securely when confirmed visit is clicked
+  // Fetch owner details securely when confirmed visit is clicked
   const handleOpenDetails = async (slot) => {
     if (slot.status !== "confirmed") return;
 
@@ -220,7 +236,9 @@ export default function TenantBookings() {
 
             const propertyImage =
               property?.images && property.images.length > 0
-                ? property.images[0]
+                ? Array.isArray(property.images)
+                  ? property.images[0]
+                  : JSON.parse(property.images)[0]
                 : null;
 
             return (
@@ -316,7 +334,7 @@ export default function TenantBookings() {
         )}
       </div>
 
-      {/* CONFIRMED VISIT DETAILS MODAL (Owner Info & Map) */}
+      {/* CONFIRMED VISIT DETAILS MODAL (Owner Info & Leaflet Map) */}
       {selectedVisit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
           <div className="bg-white rounded-3xl border border-[#EADBCE] shadow-xl max-w-lg w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
@@ -326,7 +344,7 @@ export default function TenantBookings() {
                   Confirmed Visit & Owner Details
                 </h3>
                 <p className="text-xs text-[#6E5D53]">
-                  Property owner contact info and property map location.
+                  Property owner contact info and interactive map location.
                 </p>
               </div>
               <button
@@ -394,27 +412,80 @@ export default function TenantBookings() {
                   </div>
                 </div>
 
-                {/* Map Integration */}
+                {/* Leaflet Map Integration */}
                 <div className="space-y-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#C5924E]">
-                    Property Location Map
-                  </h4>
-                  <div className="w-full h-48 rounded-2xl overflow-hidden border border-[#EADBCE]">
-                    <iframe
-                      title="Property Location Map"
-                      width="100%"
-                      height="100%"
-                      frameBorder="0"
-                      style={{ border: 0 }}
-                      src={`https://maps.google.com/maps?q=${encodeURIComponent(
-                        ownerDetails.property_location,
-                      )}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
-                      allowFullScreen
-                    ></iframe>
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#C5924E]">
+                      Property Location Map
+                    </h4>
+                    {(() => {
+                      const lat = Number(
+                        selectedVisit.properties?.latitude ||
+                          ownerDetails.latitude ||
+                          12.9716,
+                      );
+                      const lng = Number(
+                        selectedVisit.properties?.longitude ||
+                          ownerDetails.longitude ||
+                          77.5946,
+                      );
+                      const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+                      return (
+                        <a
+                          href={directionsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-bold text-[#C5924E] hover:underline flex items-center gap-1"
+                        >
+                          <Navigation className="w-3 h-3" /> Get Directions
+                        </a>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="w-full h-48 rounded-2xl overflow-hidden border border-[#EADBCE] z-0 relative">
+                    {(() => {
+                      const lat = Number(
+                        selectedVisit.properties?.latitude ||
+                          ownerDetails.latitude ||
+                          12.9716,
+                      );
+                      const lng = Number(
+                        selectedVisit.properties?.longitude ||
+                          ownerDetails.longitude ||
+                          77.5946,
+                      );
+
+                      return (
+                        <MapContainer
+                          center={[lat, lng]}
+                          zoom={14}
+                          scrollWheelZoom={false}
+                          style={{ width: "100%", height: "100%" }}
+                        >
+                          <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          />
+                          <Marker position={[lat, lng]}>
+                            <Popup>
+                              <div className="text-xs font-bold">
+                                {selectedVisit.properties?.title ||
+                                  "Property Location"}
+                              </div>
+                            </Popup>
+                          </Marker>
+                        </MapContainer>
+                      );
+                    })()}
                   </div>
                   <p className="text-[11px] text-[#6E5D53] flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
-                    <span>{ownerDetails.property_location}</span>
+                    <span>
+                      {ownerDetails.property_location ||
+                        selectedVisit.properties?.location ||
+                        "Location coordinates pinned"}
+                    </span>
                   </p>
                 </div>
               </div>
