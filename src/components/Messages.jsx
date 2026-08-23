@@ -28,13 +28,11 @@ export default function Messages() {
 
   // Fetch unique conversations for the current user & listen to updates
   useEffect(() => {
+    if (!currentUserId) return;
+
     async function fetchConversations() {
       setLoadingConversations(true);
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData?.session) return;
-        const userId = sessionData.session.user.id;
-
         const { data, error } = await supabase
           .from("messages")
           .select(
@@ -43,12 +41,12 @@ export default function Messages() {
             properties (title, images)
           `,
           )
-          .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+          .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
           .order("created_at", { ascending: false });
 
         if (error) throw error;
 
-        processConversations(data, userId);
+        processConversations(data, currentUserId);
       } catch (err) {
         console.error("Error fetching conversations:", err.message);
       } finally {
@@ -63,7 +61,7 @@ export default function Messages() {
       .on(
         "postgres_changes",
         {
-          event: "*", // Listen to inserts and deletes to keep sidebar in sync
+          event: "*",
           schema: "public",
           table: "messages",
         },
@@ -136,7 +134,7 @@ export default function Messages() {
         if (error) throw error;
         setMessages(data || []);
 
-        // Mark unread messages as read
+        // Mark unread messages sent TO us by this partner as read in database
         await supabase
           .from("messages")
           .update({ is_read: true })
@@ -185,7 +183,11 @@ export default function Messages() {
               return [...prev, newMsg];
             });
 
-            if (newMsg.sender_id === activeChat.partner_id) {
+            // If incoming message arrives while chat is open, immediately mark it as read
+            if (
+              newMsg.sender_id === activeChat.partner_id &&
+              newMsg.receiver_id === currentUserId
+            ) {
               await supabase
                 .from("messages")
                 .update({ is_read: true })
@@ -242,7 +244,6 @@ export default function Messages() {
     }
   };
 
-  // Function to manually delete the active conversation thread
   const handleDeleteConversation = async () => {
     if (!window.confirm("Are you sure you want to delete this conversation?"))
       return;
