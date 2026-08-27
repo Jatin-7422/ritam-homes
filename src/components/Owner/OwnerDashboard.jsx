@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Building2,
   PlusCircle,
-  CalendarCheck,
   Calendar,
   Users,
   IndianRupee,
@@ -207,7 +206,7 @@ export default function OwnerDashboard() {
       path: "/owner-bookings",
       hasNotification: hasPendingBookings,
     },
-    { name: "Tenants", icon: Users, path: "/owner-tenants" },
+    { name: "Tenants", icon: Users, path: "/owner-dashboard/tenants" },
     { name: "Earnings", icon: IndianRupee, path: "/owner-earnings" },
     { name: "Documents", icon: FileText, path: "/owner-dashboard/documents" },
     {
@@ -222,7 +221,7 @@ export default function OwnerDashboard() {
 
   return (
     <div
-      className={`min-h-screen font-sans flex flex-col md:flex-row relative transition-colors duration-300 ${
+      className={`min-h-screen font-sans flex relative transition-colors duration-300 ${
         isDarkTheme ? "bg-[#1A120B] text-white" : "bg-[#F8F5EE] text-[#2D1F1A]"
       } ${isLoggingOut ? "opacity-90" : "opacity-100"}`}
     >
@@ -249,8 +248,8 @@ export default function OwnerDashboard() {
 
       {/* PERSISTENT SIDEBAR */}
       <aside
-        className={`w-72 bg-[#2D1F1A] text-[#D1C4B9] flex flex-col justify-between flex-shrink-0 z-50 fixed inset-y-0 left-0 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`w-72 bg-[#2D1F1A] text-[#D1C4B9] flex flex-col justify-between flex-shrink-0 z-50 fixed inset-y-0 left-0 transform transition-transform duration-300 ease-in-out ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
         <div className="flex flex-col h-full overflow-hidden">
@@ -364,8 +363,8 @@ export default function OwnerDashboard() {
         </div>
       </aside>
 
-      {/* MAIN CONTAINER FOR OUTLET CONTENT */}
-      <main className="flex-1 flex flex-col min-w-0">
+      {/* MAIN CONTAINER FOR OUTLET CONTENT (Fixed md:ml-72 margin offset) */}
+      <main className="flex-1 flex flex-col min-w-0 md:ml-72">
         <header
           className={`w-full px-6 sm:px-10 pt-6 pb-2 flex items-center justify-between transition-colors ${
             isDarkTheme ? "bg-[#1A120B]" : "bg-[#F8F5EE]"
@@ -395,7 +394,7 @@ export default function OwnerDashboard() {
         </header>
 
         {/* Dynamic Outlet Renders Individual Tab Files Cleanly */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col p-6 sm:p-10 pt-4">
           <Outlet />
         </div>
       </main>
