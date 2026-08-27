@@ -36,6 +36,7 @@ import OwnerPropertyDetails from "./components/Owner/OwnerPropertyDetails";
 import OwnerBookings from "./components/Owner/OwnerBookings";
 import OwnerEarnings from "./components/Owner/OwnerEarnings";
 import OwnerSettings from "./components/Owner/OwnerSettings";
+import OwnerTenants from "./components/Owner/OwnerTenants";
 import Messages from "./components/Messages";
 
 // Admin Component & Sub-dashboards (Modular Layout Structure)
@@ -450,6 +451,7 @@ function AppLayout() {
               path="/owner-dashboard/property/:id"
               element={<OwnerPropertyDetails />}
             />
+            <Route path="/owner-dashboard/tenants" element={<OwnerTenants />} />
             <Route path="/owner-dashboard/reviews" element={<OwnerReviews />} />
             <Route
               path="/owner-dashboard/documents"
