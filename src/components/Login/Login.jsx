@@ -21,7 +21,7 @@ import heroBg from "../../assets/login.jpg";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [role, setRole] = useState("tenant");
+  const [role, setRole] = useState("tenant"); // Only toggles between tenant and owner for UI
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -67,12 +67,24 @@ export default function Login() {
 
       const userRole = data.user?.user_metadata?.role || "tenant";
 
+      // If the user is an admin, bypass the standard role-matching block and go straight to admin dashboard
+      if (userRole === "admin") {
+        navigate("/admin-dashboard", { replace: true });
+        return;
+      }
+
+      // For standard tenants and owners, ensure they selected the correct tab
       if (userRole !== role) {
         await supabase.auth.signOut();
 
+        const formatRoleName = (r) => {
+          if (r === "owner") return "Owner";
+          return "Tenant";
+        };
+
         setBlockedRoleInfo({
-          currentRole: userRole === "owner" ? "Owner" : "Tenant",
-          attemptedRole: role === "owner" ? "Owner" : "Tenant",
+          currentRole: formatRoleName(userRole),
+          attemptedRole: formatRoleName(role),
         });
         setLoading(false);
         return;
@@ -148,7 +160,6 @@ export default function Login() {
     setSuccessMsg("");
 
     try {
-      // Trigger a behind-the-scenes recovery flow or update directly if session allows
       await supabase.auth.resetPasswordForEmail(forgotEmail, {
         redirectTo: `${window.location.origin}/`,
       });
@@ -292,7 +303,6 @@ export default function Login() {
                 </div>
               )}
 
-              {/* STEP 1: Send OTP via EmailJS */}
               {forgotStep === 1 && (
                 <form onSubmit={handleSendResetOtp} className="space-y-4">
                   <div>
@@ -328,7 +338,6 @@ export default function Login() {
                 </form>
               )}
 
-              {/* STEP 2: Verify OTP Code */}
               {forgotStep === 2 && (
                 <form onSubmit={handleVerifyOtp} className="space-y-4">
                   <div>
@@ -365,7 +374,6 @@ export default function Login() {
                 </form>
               )}
 
-              {/* STEP 3: Update Password */}
               {forgotStep === 3 && (
                 <form onSubmit={handleUpdatePassword} className="space-y-4">
                   <div>
@@ -478,6 +486,7 @@ export default function Login() {
                 </div>
               )}
 
+              {/* Clean toggle showing ONLY Tenant and Owner to regular users */}
               <div className="p-1 bg-[#FAF7F2] rounded-xl flex items-center justify-between border border-[#EADBCE]">
                 <button
                   type="button"
