@@ -31,6 +31,9 @@ export default function OwnerDashboard() {
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const [hasPendingBookings, setHasPendingBookings] = useState(false);
 
+  // Dynamic verification status state
+  const [verificationStatus, setVerificationStatus] = useState("Loading...");
+
   // Consume global context data
   const { userInfo, setUserInfo, preferences } = useContext(AppContext);
   const isDarkTheme =
@@ -39,9 +42,9 @@ export default function OwnerDashboard() {
   const useNavigateInstance = useNavigate();
   const location = useLocation();
 
-  // Fetch unread messages & pending bookings on load
+  // Fetch unread messages, pending bookings, and document verification status on load
   useEffect(() => {
-    const fetchNotifications = async () => {
+    const fetchNotificationsAndStatus = async () => {
       try {
         const {
           data: { session },
@@ -78,12 +81,64 @@ export default function OwnerDashboard() {
             setHasPendingBookings(true);
           }
         }
+
+        // 3. Fetch all owner documents to determine a consolidated verification status accurately
+        const { data: docData, error: docError } = await supabase
+          .from("owner_documents")
+          .select("status")
+          .eq("owner_id", userId);
+
+        if (docError) {
+          console.error("Error fetching verification status:", docError);
+        }
+
+        if (docData && docData.length > 0) {
+          // Check statuses across all uploaded records
+          const statuses = docData.map((d) => (d.status || "").toLowerCase());
+          
+          // Priority 1: If ANY document is rejected, overall status is Rejected
+          if (statuses.some((s) => s === "rejected")) {
+            setVerificationStatus("Rejected");
+          } 
+          // Priority 2: If ANY document is pending, overall status is Pending
+          else if (statuses.some((s) => s === "pending")) {
+            setVerificationStatus("Pending");
+          } 
+          // Priority 3: ONLY if ALL documents are verified, status is Verified
+          else if (statuses.every((s) => s === "verified")) {
+            setVerificationStatus("Verified");
+          } else {
+            // Fallback if status strings vary slightly
+            setVerificationStatus(docData[0].status || "Documents Uploaded");
+          }
+        } else {
+          setVerificationStatus("Not Uploaded");
+        }
       } catch (err) {
-        console.error("Error fetching notifications:", err);
+        console.error("Error fetching notifications and status:", err);
+        setVerificationStatus("Not Uploaded");
       }
     };
 
-    fetchNotifications();
+    fetchNotificationsAndStatus();
+
+    // Setup real-time listener for live notification updates
+    const messageSubscription = supabase
+      .channel("owner-dashboard-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload) => {
+          if (payload.new && payload.new.is_read === false) {
+            setHasUnreadMessages(true);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messageSubscription);
+    };
   }, []);
 
   // Sync basic auth data without overriding user-updated context states
@@ -238,8 +293,27 @@ export default function OwnerDashboard() {
               <p className="text-[10px] text-[#9E8B7F] truncate">
                 {userInfo.businessName}
               </p>
-              <div className="flex items-center gap-1 mt-0.5 text-[10px] text-green-400 font-medium">
-                <ShieldCheck className="w-3 h-3" /> Verified Owner
+              
+              {/* Dynamic Status Badge */}
+              <div
+                className={`flex items-center gap-1 mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md w-fit border ${
+                  verificationStatus.toLowerCase() === "verified"
+                    ? "text-emerald-400 bg-emerald-950/40 border-emerald-800/40"
+                    : verificationStatus.toLowerCase() === "rejected"
+                    ? "text-rose-400 bg-rose-950/40 border-rose-800/40"
+                    : verificationStatus.toLowerCase() === "pending"
+                    ? "text-amber-400 bg-amber-950/40 border-amber-800/40"
+                    : "text-neutral-400 bg-neutral-900/40 border-neutral-700/40"
+                }`}
+              >
+                <ShieldCheck className="w-3 h-3" />
+                {verificationStatus.toLowerCase() === "verified"
+                  ? "Verified Owner"
+                  : verificationStatus.toLowerCase() === "rejected"
+                  ? "Verification Rejected"
+                  : verificationStatus.toLowerCase() === "pending"
+                  ? "Pending Verification"
+                  : verificationStatus}
               </div>
             </div>
           </div>
