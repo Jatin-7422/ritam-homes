@@ -8,12 +8,14 @@ import {
   CalendarCheck,
   Users,
   Shield,
+  PlusCircle,
+  Compass,
 } from "lucide-react";
 
 // Import your image asset
 import heroImage from "../../assets/newbg.png"; // Adjust filename as needed
 
-export default function Hero() {
+export default function Hero({ isHostMode, setIsHostMode }) {
   return (
     <section className="relative w-full max-w-full overflow-hidden min-h-screen flex items-center pt-24 pb-12 font-sans bg-[#2D1F1A]">
       {/* 1. FULL BACKGROUND IMAGE & DARK OVERLAY */}
@@ -31,50 +33,102 @@ export default function Hero() {
       {/* 2. MAIN HERO CONTENT */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 md:px-12 w-full flex flex-col justify-between min-h-[80vh] box-border">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pt-6">
-          {/* Left Main Content */}
+          
+          {/* Left Main Content - Dynamic text based on YouTube-style mode */}
           <div className="lg:col-span-8 space-y-6">
+            
+            {/* Mode Status Pill */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 border border-[#C5924E]/30 text-xs font-semibold text-[#C5924E] backdrop-blur-md">
+              {isHostMode ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-[#C5924E] animate-pulse" />
+                  Host Studio Mode • Unified Account Hub
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Explorer Mode • Discover & Rent
+                </>
+              )}
+            </div>
+
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-6xl md:text-7xl font-black text-white leading-[1.08] tracking-tight">
-              Home you can, <br />
-              <span className="font-serif italic font-normal text-[#C5924E]">
-                Actually Trust.
-              </span>
+              {isHostMode ? (
+                <>
+                  Manage Properties, <br />
+                  <span className="font-serif italic font-normal text-[#C5924E]">
+                    Effortlessly.
+                  </span>
+                </>
+              ) : (
+                <>
+                  Home you can, <br />
+                  <span className="font-serif italic font-normal text-[#C5924E]">
+                    Actually Trust.
+                  </span>
+                </>
+              )}
             </h1>
 
             <p className="text-xs sm:text-sm text-[#D5C9B8] max-w-lg leading-relaxed font-medium">
-              Verified owners. Real listings. Zero brokerage. <br />
-              Book visits, connect & move in — hassle-free.
+              {isHostMode
+                ? "List properties, track active tenant agreements, and manage your rentals directly from your single account — no siloed dashboards."
+                : "Verified owners. Real listings. Zero brokerage. Book visits, connect & move in — hassle-free."}
             </p>
 
             {/* Quick Action Buttons */}
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              <a
-                href="#properties"
-                className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-xs bg-[#C5924E] hover:bg-[#b08040] text-black shadow-lg transition-all active:scale-95 cursor-pointer"
-              >
-                Explore Properties <ArrowRight className="w-4 h-4 text-black" />
-              </a>
+              {isHostMode ? (
+                <>
+                  <button
+                    onClick={() => alert("Open Property Listing Modal")}
+                    className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-xs bg-[#C5924E] hover:bg-[#b08040] text-[#2D1F1A] shadow-lg transition-all active:scale-95 cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4" /> Create New Property Listing
+                  </button>
+                  <button
+                    onClick={() => setIsHostMode(false)}
+                    className="flex items-center gap-2 px-6 py-3.5 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white font-bold text-xs hover:bg-white/20 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Compass className="w-4 h-4 text-[#C5924E]" /> Switch to Explorer View
+                  </button>
+                </>
+              ) : (
+                <>
+                  <a
+                    href="#properties"
+                    className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-xs bg-[#C5924E] hover:bg-[#b08040] text-[#2D1F1A] shadow-lg transition-all active:scale-95 cursor-pointer"
+                  >
+                    Explore Properties <ArrowRight className="w-4 h-4 text-[#2D1F1A]" />
+                  </a>
 
-              <Link
-                to="/signup"
-                className="px-6 py-3.5 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white font-bold text-xs hover:bg-white/20 transition-all active:scale-95 text-center cursor-pointer"
-              >
-                List Your Property
-              </Link>
+                  {/* YouTube-style quick trigger to switch directly to host mode */}
+                  <button
+                    onClick={() => setIsHostMode(true)}
+                    className="flex items-center gap-2 px-6 py-3.5 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white font-bold text-xs hover:bg-white/20 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4 text-[#C5924E]" /> Switch to Hosting
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
           {/* Floating Badges & Cards - Mobile Inline Layout & Desktop Floating Overlay */}
           <div className="lg:col-span-4 flex flex-col sm:flex-row lg:flex-col gap-4 items-start sm:items-center lg:items-end lg:pr-8">
+            
             {/* Verified Badge */}
             <div className="bg-black/40 backdrop-blur-md p-3.5 px-4 rounded-2xl shadow-xl border border-white/20 flex items-center gap-3 animate-bounce [animation-duration:4s]">
               <div className="p-2 rounded-xl bg-[#C5924E]/20 text-[#C5924E]">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs font-bold text-white">Verified Owners</p>
+                <p className="text-xs font-bold text-white">
+                  {isHostMode ? "Owner Studio Active" : "Verified Owners"}
+                </p>
                 <p className="text-[10px] text-[#D5C9B8] font-medium">
-                  100% verified properties
+                  {isHostMode ? "Unified single-profile session" : "100% verified properties"}
                 </p>
               </div>
             </div>

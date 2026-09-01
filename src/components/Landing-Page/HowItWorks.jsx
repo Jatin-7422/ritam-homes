@@ -47,7 +47,7 @@ export default function HowItWorks() {
 
   return (
     <section
-      className="max-w-4xl mx-auto px-4 py-16 scroll-mt-20"
+      className="max-w-4xl mx-auto px-4 py-16 scroll-mt-20 scale-90 sm:scale-100 origin-center transition-transform"
       id="how-it-works"
     >
       {/* Header */}
@@ -126,7 +126,7 @@ export default function HowItWorks() {
               </div>
 
               {/* Content Card */}
-              <div className="w-full max-w-xs bg-white/95 backdrop-blur-md p-6 rounded-2xl border border-[#EADBCE] shadow-[0_10px_30px_-5px_rgba(45,31,26,0.08)] hover:shadow-lg transition-all hover:-translate-y-1">
+              <div className="w-full max-w-xs scale-[0.85] sm:scale-100 origin-center bg-white/95 backdrop-blur-md p-6 rounded-2xl border border-[#EADBCE] shadow-[0_10px_30px_-5px_rgba(45,31,26,0.08)] hover:shadow-lg transition-all hover:-translate-y-1">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-[10px] font-extrabold tracking-widest text-[#C5924E] uppercase">
                     {step.stepTag}

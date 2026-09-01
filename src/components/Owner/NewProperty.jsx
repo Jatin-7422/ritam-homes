@@ -168,7 +168,6 @@ export default function NewProperty() {
     setLatitude(lat);
     setLongitude(lng);
 
-    // Optional: Reverse geocode to update address description using Google Geocoder
     if (window.google && window.google.maps) {
       const geocoder = new window.google.maps.Geocoder();
       geocoder.geocode({ location: { lat, lng } }, (results, status) => {
@@ -320,23 +319,25 @@ export default function NewProperty() {
         }
       }
 
-      // 3. Insert System Notification Record
+      // 3. Insert System Notification Record (Generates notification for Tenant Updates)
       const { error: notificationError } = await supabase
         .from("notifications")
         .insert([
           {
             user_id: ownerId,
             title: "Property Published!",
-            message: `Your listing "${insertedProperty.title}" is now live for tenants to see.`,
+            message: `Your listing "${insertedProperty.title}" is now live.`,
             type: "system",
             reference_id: propertyId,
+            is_read: false,
           },
           {
-            title: "New Property Published!",
-            message: `A new property "${insertedProperty.title}" has just been listed in ${locationAddress}. Check it out!`,
+            title: "New Property Nearby!",
+            message: `A new property "${insertedProperty.title}" was listed in ${locationAddress}.`,
             type: "new_property",
             reference_id: propertyId,
-            user_id: null,
+            user_id: ownerId, // Set recipient user_id or handle broadcast per tenant
+            is_read: false,
           },
         ]);
 

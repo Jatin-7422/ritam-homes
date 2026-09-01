@@ -81,10 +81,9 @@ export default function OwnerBookings() {
               title,
               location,
               price,
-              images,
               owner_id
             )
-          `,
+          `
         )
         .neq("status", "available");
 
@@ -93,7 +92,7 @@ export default function OwnerBookings() {
       // 3. Filter manually in JS to match owner's properties safely
       const ownerBookings = (slotsData || []).filter(
         (slot) =>
-          slot.properties && slot.properties.owner_id === session.user.id,
+          slot.properties && slot.properties.owner_id === session.user.id
       );
 
       // 4. Filter out past dates instantly
@@ -108,7 +107,7 @@ export default function OwnerBookings() {
     }
   };
 
-// Handle fetching tenant details securely via Postgres RPC function on click
+  // Handle fetching tenant details securely via Postgres RPC function on click
   const handleCardClick = async (slot) => {
     if (!slot.tenant_id) {
       setSelectedBooking({ ...slot, profiles: null });
@@ -116,8 +115,9 @@ export default function OwnerBookings() {
     }
 
     try {
-      const { data, error } = await supabase
-        .rpc('get_slot_tenant_details', { slot_id: slot.id });
+      const { data, error } = await supabase.rpc("get_slot_tenant_details", {
+        slot_id: slot.id,
+      });
 
       if (error) throw error;
 
@@ -125,11 +125,13 @@ export default function OwnerBookings() {
 
       setSelectedBooking({
         ...slot,
-        profiles: tenantInfo ? {
-          full_name: tenantInfo.full_name || "Tenant",
-          email: tenantInfo.email,
-          phone: tenantInfo.phone || "Not Provided"
-        } : null
+        profiles: tenantInfo
+          ? {
+              full_name: tenantInfo.full_name || "Tenant",
+              email: tenantInfo.email,
+              phone: tenantInfo.phone || "Not Provided",
+            }
+          : null,
       });
     } catch (err) {
       console.error("Error fetching tenant details:", err);
@@ -137,21 +139,44 @@ export default function OwnerBookings() {
     }
   };
 
-  // Handle Owner Confirm (Accept) or Reject action
-  const handleUpdateStatus = async (e, slotId, newStatus) => {
+  // Handle Owner Confirm (Accept) or Reject action + insert notification
+  const handleUpdateStatus = async (e, slot, newStatus) => {
     e.stopPropagation(); // Prevent opening modal when clicking accept/reject
     try {
       const isConfirmed = newStatus === "confirmed";
 
-      const { error } = await supabase
+      // 1. Update the booking slot status
+      const { error: updateError } = await supabase
         .from("property_visit_slots")
         .update({
           status: newStatus,
           is_booked: isConfirmed,
         })
-        .eq("id", slotId);
+        .eq("id", slot.id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      // 2. Send notification to the tenant
+      if (slot.tenant_id) {
+        const titleText = isConfirmed
+          ? "Visit Request Accepted!"
+          : "Visit Request Declined";
+        const messageText = `Your visit request for ${
+          slot.properties?.title || "the property"
+        } on ${slot.date} at ${slot.time_slot} was ${
+          isConfirmed ? "accepted" : "declined"
+        }.`;
+
+        await supabase.from("notifications").insert([
+          {
+            user_id: slot.tenant_id,
+            title: titleText,
+            message: messageText,
+            type: "visit_update",
+            is_read: false,
+          },
+        ]);
+      }
 
       // Refresh bookings list instantly
       fetchOwnerBookings();
@@ -163,10 +188,10 @@ export default function OwnerBookings() {
   // Calculate metrics for top cards dynamically
   const totalBookings = bookings.length;
   const activeBookings = bookings.filter(
-    (b) => b.status === "confirmed",
+    (b) => b.status === "confirmed"
   ).length;
   const pendingBookings = bookings.filter(
-    (b) => b.status === "pending" || !b.status,
+    (b) => b.status === "pending" || !b.status
   ).length;
 
   const estRevenue = bookings
@@ -338,8 +363,8 @@ export default function OwnerBookings() {
                           status === "confirmed"
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                             : status === "rejected"
-                              ? "bg-rose-50 text-rose-700 border-rose-200"
-                              : "bg-amber-50 text-amber-700 border-amber-200"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-amber-50 text-amber-700 border-amber-200"
                         }`}
                       >
                         {status === "confirmed" && (
@@ -379,7 +404,7 @@ export default function OwnerBookings() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={(e) =>
-                          handleUpdateStatus(e, slot.id, "confirmed")
+                          handleUpdateStatus(e, slot, "confirmed")
                         }
                         className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm transition-all"
                       >
@@ -387,7 +412,7 @@ export default function OwnerBookings() {
                       </button>
                       <button
                         onClick={(e) =>
-                          handleUpdateStatus(e, slot.id, "rejected")
+                          handleUpdateStatus(e, slot, "rejected")
                         }
                         className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm transition-all"
                       >
