@@ -148,7 +148,7 @@ export default function Navbar({ isHostMode, setIsHostMode }) {
             style={{ backgroundColor: "#C5924E", color: "#2D1F1A" }}
             className="px-5 py-2.5 text-xs font-bold rounded-xl hover:opacity-90 transition-all text-center shadow-lg active:scale-95 cursor-pointer"
           >
-            Get Started
+            Create Account
           </Link>
         </div>
 
@@ -208,7 +208,7 @@ export default function Navbar({ isHostMode, setIsHostMode }) {
               Login
             </Link>
             <Link to="/signup" onClick={() => setIsOpen(false)} style={{ backgroundColor: "#C5924E", color: "#2D1F1A" }} className="w-full px-5 py-2.5 text-xs font-bold rounded-xl text-center shadow-md active:scale-95">
-              Get Started
+              Create Account
             </Link>
           </div>
         </div>

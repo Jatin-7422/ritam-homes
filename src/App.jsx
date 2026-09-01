@@ -18,11 +18,9 @@ import Footer from "./components/Landing-Page/Footer";
 // Landing Page Components
 import Hero from "./components/Landing-Page/Hero";
 import SearchBar from "./components/Landing-Page/SearchBar";
-import StatsBar from "./components/Landing-Page/StatsBar";
 import FeaturedProperties from "./components/Landing-Page/FeaturedProperties";
 import WhyChooseUs from "./components/Landing-Page/WhyChooseUs";
 import HowItWorks from "./components/Landing-Page/HowItWorks";
-import Testimonials from "./components/Landing-Page/Testimonials";
 import AboutUs from "./components/Landing-Page/AboutUs";
 import Login from "./components/Login/Login";
 import ContactUs from "./components/ContactUs/ContactUs";
@@ -281,12 +279,10 @@ function Home() {
     <>
       <Hero />
       <SearchBar />
-      <StatsBar />
       <FeaturedProperties />
       <WhyChooseUs />
       <HowItWorks />
       <AboutUs />
-      <Testimonials />
     </>
   );
 }

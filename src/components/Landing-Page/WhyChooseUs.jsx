@@ -49,16 +49,16 @@ export default function WhyChooseUs() {
   };
 
   return (
-    <section className="w-full min-h-screen py-0 font-sans relative flex items-center">
-      {/* Full-width container with sharp edges (rounded-none) */}
-      <div className="w-full rounded-none p-4 sm:p-16 overflow-hidden bg-gradient-to-br from-[#2D1F1A] via-[#241713] to-[#1A100D] border-y border-[#C5924E]/30 shadow-2xl relative">
+    <section className="w-full min-h-0 py-0 font-sans relative flex items-center">
+      {/* Full-width container with reduced padding to eliminate large vertical gaps */}
+      <div className="w-full rounded-none px-4 py-6 sm:p-16 overflow-hidden bg-gradient-to-br from-[#2D1F1A] via-[#241713] to-[#1A100D] border-y border-[#C5924E]/30 shadow-2xl relative">
         
         {/* Abstract Glow Accents */}
         <div className="absolute top-0 right-0 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-[#C5924E]/10 rounded-full blur-[100px] pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[250px] sm:w-[400px] h-[250px] sm:h-[400px] bg-[#8C5E47]/10 rounded-full blur-[80px] pointer-events-none" />
 
         {/* Header Section */}
-        <div className="text-center max-w-2xl mx-auto mb-8 sm:mb-16 relative z-10 space-y-2 sm:space-y-4">
+        <div className="text-center max-w-2xl mx-auto mb-6 sm:mb-16 relative z-10 space-y-2 sm:space-y-4">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-none bg-[#C5924E]/15 border border-[#C5924E]/30 text-[#C5924E] text-[10px] sm:text-xs font-bold uppercase tracking-wider shadow-inner">
             <Sparkles className="w-3 h-3 animate-pulse" /> The Ritam Advantage
           </div>
@@ -111,7 +111,7 @@ export default function WhyChooseUs() {
         </div>
 
         {/* Bottom CTA Action Button */}
-        <div className="flex justify-center mt-8 sm:mt-12 relative z-10">
+        <div className="flex justify-center mt-6 sm:mt-12 relative z-10">
           <button 
             onClick={() => handleFeatureClick("explore all platform features")}
             className="group flex items-center gap-2 px-6 sm:px-7 py-3 sm:py-3.5 bg-[#C5924E] text-[#2D1F1A] rounded-none text-xs font-black hover:bg-white transition-all cursor-pointer shadow-xl active:scale-95"

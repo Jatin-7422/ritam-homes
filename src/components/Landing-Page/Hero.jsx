@@ -1,5 +1,5 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   ShieldCheck,
@@ -15,7 +15,17 @@ import {
 // Import your image asset
 import heroImage from "../../assets/newbg.png"; // Adjust filename as needed
 
-export default function Hero({ isHostMode, setIsHostMode }) {
+export default function Hero({ isHostMode, setIsHostMode, isLoggedIn }) {
+  const navigate = useNavigate();
+
+  const handleSwitchHosting = () => {
+    if (!isLoggedIn) {
+      navigate("/login");
+      return;
+    }
+    setIsHostMode(true);
+  };
+
   return (
     <section className="relative w-full max-w-full overflow-hidden min-h-screen flex items-center pt-24 pb-12 font-sans bg-[#2D1F1A]">
       {/* 1. FULL BACKGROUND IMAGE & DARK OVERLAY */}
@@ -103,9 +113,9 @@ export default function Hero({ isHostMode, setIsHostMode }) {
                     Explore Properties <ArrowRight className="w-4 h-4 text-[#2D1F1A]" />
                   </a>
 
-                  {/* YouTube-style quick trigger to switch directly to host mode */}
+                  {/* Quick trigger to switch to host mode or redirect to login if unauthenticated */}
                   <button
-                    onClick={() => setIsHostMode(true)}
+                    onClick={handleSwitchHosting}
                     className="flex items-center gap-2 px-6 py-3.5 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white font-bold text-xs hover:bg-white/20 transition-all active:scale-95 cursor-pointer"
                   >
                     <PlusCircle className="w-4 h-4 text-[#C5924E]" /> Switch to Hosting
