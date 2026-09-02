@@ -352,7 +352,10 @@ function AppLayout() {
     return () => clearTimeout(timer);
   }, [location.pathname]);
 
+  // Hidden global navbar/footer flag for standalone views (dashboards, login, and signup)
   const isDashboardRoute =
+    location.pathname === "/login" ||
+    location.pathname === "/signup" ||
     location.pathname === "/owner-dashboard" ||
     location.pathname.startsWith("/owner-dashboard/") ||
     location.pathname === "/owner-properties" ||
