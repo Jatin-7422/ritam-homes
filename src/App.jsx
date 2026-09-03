@@ -27,7 +27,7 @@ import ContactUs from "./components/ContactUs/ContactUs";
 import TenantDashboard from "./components/Tenant/TenantDashboard";
 import OwnerDashboard from "./components/Owner/OwnerDashboard";
 import OwnerOverview from "./components/Owner/OwnerOverview";
-import Signup from "./components/Login/Signup";
+
 import NewProperty from "./components/Owner/NewProperty";
 import OwnerProperties from "./components/Owner/owner_properties";
 import OwnerPropertyDetails from "./components/Owner/OwnerPropertyDetails";
@@ -37,14 +37,14 @@ import OwnerSettings from "./components/Owner/OwnerSettings";
 import OwnerTenants from "./components/Owner/OwnerTenants";
 import Messages from "./components/Messages";
 
-// Admin Component & Sub-dashboards (Modular Layout Structure)
+// Admin Component & Sub-dashboards
 import AdminLayout from "./components/Admin/AdminLayout";
 import AdminOverview from "./components/Admin/AdminOverview";
 import TenantsManagement from "./components/Admin/tenants";
 import OwnersManagement from "./components/Admin/owner";
 import PropertiesManagement from "./components/Admin/properties";
 
-// Owner Components ("Coming Soon" modules)
+// Owner Components
 import OwnerReviews from "./components/Owner/OwnerReviews";
 import OwnerDocuments from "./components/Owner/OwnerDocuments";
 
@@ -56,14 +56,10 @@ import TenantPropertyDetails from "./components/Tenant/TenantPropertyDetails";
 import SavedProperties from "./components/Tenant/TenantSaved";
 import TenantDocuments from "./components/Tenant/TenantDocument";
 import TenantBookings from "./components/Tenant/TenantBookings";
-
-// Tenant Account Settings Component (Fully Integrated with Supabase Auth)
 import TenantSettings from "./components/Tenant/TenantSettings";
 
-// Analytics
+// Analytics & Logo
 import { Analytics } from "@vercel/analytics/react";
-
-// Logo
 import logo from "./assets/newlogo.png";
 
 // ==========================================
@@ -143,10 +139,7 @@ export function AppProvider({ children }) {
           }));
         }
       } catch (err) {
-        console.error(
-          "Error loading session user in AppProvider:",
-          err.message,
-        );
+        console.error("Error loading session user in AppProvider:", err.message);
       }
     };
     fetchSessionUser();
@@ -165,6 +158,61 @@ export function AppProvider({ children }) {
     >
       {children}
     </AppContext.Provider>
+  );
+}
+
+// ==========================================
+// 🔄 DEDICATED OAUTH / AUTH CALLBACK HANDLER
+// ==========================================
+function AuthCallback() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+
+        if (session) {
+          const intendedRole = localStorage.getItem("oauth_intended_role");
+          let userRole = session.user?.user_metadata?.role || "tenant";
+
+          if (intendedRole && intendedRole !== userRole) {
+            const { data: updateData } = await supabase.auth.updateUser({
+              data: { role: intendedRole },
+            });
+            userRole = updateData?.user?.user_metadata?.role || intendedRole;
+            localStorage.removeItem("oauth_intended_role");
+          }
+
+          // Route based on role, or drop back to landing page root if preferred
+          if (userRole === "owner") {
+            navigate("/owner-dashboard", { replace: true });
+          } else if (userRole === "admin") {
+            navigate("/admin-dashboard", { replace: true });
+          } else {
+            // Change to "/" if you want Google OAuth to land on the public homepage instead
+            navigate("/", { replace: true });
+          }
+        } else {
+          navigate("/login", { replace: true });
+        }
+      } catch (err) {
+        console.error("Error during auth callback processing:", err.message);
+        navigate("/login", { replace: true });
+      }
+    };
+
+    handleAuthCallback();
+  }, [navigate]);
+
+  return (
+    <div className="min-h-screen bg-[#F8F5EE] flex flex-col items-center justify-center text-[#1E293B]">
+      <Loader2 className="w-8 h-8 animate-spin text-[#C5924E] mb-3" />
+      <p className="text-xs font-semibold tracking-wide text-[#6E5D53]">
+        Completing authentication...
+      </p>
+    </div>
   );
 }
 
@@ -290,55 +338,12 @@ function Home() {
 // 🔄 Inner App Layout
 function AppLayout() {
   const location = useLocation();
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
 
   const { preferences, toastMessage } = useContext(AppContext);
   const isDarkTheme =
     preferences.theme === "Dark Mode" || preferences.theme === "Dark";
-
-  useEffect(() => {
-    const checkOAuthReturn = async () => {
-      const hash = window.location.hash;
-      const search = window.location.search;
-
-      if (hash.includes("access_token") || search.includes("code=")) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        if (session) {
-          const intendedRole = localStorage.getItem("oauth_intended_role");
-          let userRole = session.user?.user_metadata?.role || "tenant";
-
-          if (intendedRole && intendedRole !== userRole) {
-            const { data: updateData } = await supabase.auth.updateUser({
-              data: { role: intendedRole },
-            });
-            userRole = updateData?.user?.user_metadata?.role || intendedRole;
-            localStorage.removeItem("oauth_intended_role");
-          }
-
-          window.history.replaceState(
-            {},
-            document.title,
-            window.location.pathname,
-          );
-
-          if (userRole === "owner") {
-            navigate("/owner-dashboard", { replace: true });
-          } else if (userRole === "admin") {
-            navigate("/admin-dashboard", { replace: true });
-          } else {
-            navigate("/tenant-dashboard", { replace: true });
-          }
-        }
-      }
-    };
-
-    checkOAuthReturn();
-  }, [navigate]);
 
   useEffect(() => {
     setLoading(true);
@@ -352,10 +357,9 @@ function AppLayout() {
     return () => clearTimeout(timer);
   }, [location.pathname]);
 
-  // Hidden global navbar/footer flag for standalone views (dashboards, login, and signup)
   const isDashboardRoute =
     location.pathname === "/login" ||
-    location.pathname === "/signup" ||
+    location.pathname === "/auth/callback" ||
     location.pathname === "/owner-dashboard" ||
     location.pathname.startsWith("/owner-dashboard/") ||
     location.pathname === "/owner-properties" ||
@@ -420,9 +424,9 @@ function AppLayout() {
           <Route path="/" element={<Home />} />
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
 
-          {/* Admin Dashboard & Sub-routes (Modular Layout Wrapper) */}
+          {/* Admin Dashboard & Sub-routes */}
           <Route
             element={
               <ProtectedRoute allowedRole="admin">

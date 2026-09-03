@@ -144,7 +144,7 @@ export default function Navbar({ isHostMode, setIsHostMode }) {
 
           {/* Get Started Button */}
           <Link
-            to="/signup"
+            to="/login"
             style={{ backgroundColor: "#C5924E", color: "#2D1F1A" }}
             className="px-5 py-2.5 text-xs font-bold rounded-xl hover:opacity-90 transition-all text-center shadow-lg active:scale-95 cursor-pointer"
           >
