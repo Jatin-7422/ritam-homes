@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.bg-page-gradient {
+  background: linear-gradient(180deg, #F9F6F0 0%, #F3EEE5 100%);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 10px 30px -10px rgba(45, 31, 26, 0.05);
+}
+html {
+  scroll-behavior: smooth;
+}

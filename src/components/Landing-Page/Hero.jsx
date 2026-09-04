@@ -1,0 +1,225 @@
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  ShieldCheck,
+  Home,
+  Tag,
+  CalendarCheck,
+  Users,
+  Shield,
+  PlusCircle,
+  Compass,
+} from "lucide-react";
+
+// Import your image asset
+import heroImage from "../../assets/newbg.png"; // Adjust filename as needed
+
+export default function Hero({ isHostMode, setIsHostMode, isLoggedIn }) {
+  const navigate = useNavigate();
+
+  const handleSwitchHosting = () => {
+    if (!isLoggedIn) {
+      navigate("/login");
+      return;
+    }
+    setIsHostMode(true);
+  };
+
+  return (
+    <section className="relative w-full max-w-full overflow-hidden min-h-screen flex items-center pt-24 pb-12 font-sans bg-[#2D1F1A]">
+      {/* 1. FULL BACKGROUND IMAGE & DARK OVERLAY */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <img
+          src={heroImage}
+          alt="Ritam Homes Exterior"
+          className="w-full h-full object-cover object-center"
+        />
+        {/* Darkening overlays for high text contrast */}
+        <div className="absolute inset-0 bg-[#2D1F1A]/70" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#2D1F1A] via-transparent to-[#2D1F1A]/60" />
+      </div>
+
+      {/* 2. MAIN HERO CONTENT */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 md:px-12 w-full flex flex-col justify-between min-h-[80vh] box-border">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pt-6">
+          
+          {/* Left Main Content - Dynamic text based on YouTube-style mode */}
+          <div className="lg:col-span-8 space-y-6">
+            
+            {/* Mode Status Pill */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/40 border border-[#C5924E]/30 text-xs font-semibold text-[#C5924E] backdrop-blur-md">
+              {isHostMode ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-[#C5924E] animate-pulse" />
+                  Host Studio Mode • Unified Account Hub
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Explorer Mode • Discover & Rent
+                </>
+              )}
+            </div>
+
+            {/* Main Headline */}
+            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black text-white leading-[1.08] tracking-tight">
+              {isHostMode ? (
+                <>
+                  Manage Properties, <br />
+                  <span className="font-serif italic font-normal text-[#C5924E]">
+                    Effortlessly.
+                  </span>
+                </>
+              ) : (
+                <>
+                  Home you can, <br />
+                  <span className="font-serif italic font-normal text-[#C5924E]">
+                    Actually Trust.
+                  </span>
+                </>
+              )}
+            </h1>
+
+            <p className="text-xs sm:text-sm text-[#D5C9B8] max-w-lg leading-relaxed font-medium">
+              {isHostMode
+                ? "List properties, track active tenant agreements, and manage your rentals directly from your single account — no siloed dashboards."
+                : "Verified owners. Real listings. Zero brokerage. Book visits, connect & move in — hassle-free."}
+            </p>
+
+            {/* Quick Action Buttons */}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              {isHostMode ? (
+                <>
+                  <button
+                    onClick={() => alert("Open Property Listing Modal")}
+                    className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-xs bg-[#C5924E] hover:bg-[#b08040] text-[#2D1F1A] shadow-lg transition-all active:scale-95 cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4" /> Create New Property Listing
+                  </button>
+                  <button
+                    onClick={() => setIsHostMode(false)}
+                    className="flex items-center gap-2 px-6 py-3.5 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white font-bold text-xs hover:bg-white/20 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Compass className="w-4 h-4 text-[#C5924E]" /> Switch to Explorer View
+                  </button>
+                </>
+              ) : (
+                <>
+                  <a
+                    href="#properties"
+                    className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-xs bg-[#C5924E] hover:bg-[#b08040] text-[#2D1F1A] shadow-lg transition-all active:scale-95 cursor-pointer"
+                  >
+                    Explore Properties <ArrowRight className="w-4 h-4 text-[#2D1F1A]" />
+                  </a>
+
+                  {/* Quick trigger to switch to host mode or redirect to login if unauthenticated */}
+                  <button
+                    onClick={handleSwitchHosting}
+                    className="flex items-center gap-2 px-6 py-3.5 rounded-xl border border-white/30 bg-white/10 backdrop-blur-md text-white font-bold text-xs hover:bg-white/20 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4 text-[#C5924E]" /> Switch to Hosting
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Floating Badges & Cards - Mobile Inline Layout & Desktop Floating Overlay */}
+          <div className="lg:col-span-4 flex flex-col sm:flex-row lg:flex-col gap-4 items-start sm:items-center lg:items-end lg:pr-8">
+            
+            {/* Verified Badge */}
+            <div className="bg-black/40 backdrop-blur-md p-3.5 px-4 rounded-2xl shadow-xl border border-white/20 flex items-center gap-3 animate-bounce [animation-duration:4s]">
+              <div className="p-2 rounded-xl bg-[#C5924E]/20 text-[#C5924E]">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white">
+                  {isHostMode ? "Owner Studio Active" : "Verified Owners"}
+                </p>
+                <p className="text-[10px] text-[#D5C9B8] font-medium">
+                  {isHostMode ? "Unified single-profile session" : "100% verified properties"}
+                </p>
+              </div>
+            </div>
+
+            {/* Featured Property Card */}
+            <div className="bg-black/50 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-white/20 min-w-[200px] sm:min-w-[220px] lg:mr-12 animate-bounce [animation-duration:5s] transition-all">
+              <div className="text-xl font-black text-white">
+                ₹22,000{" "}
+                <span className="text-xs font-normal text-[#D5C9B8]">
+                  /month
+                </span>
+              </div>
+              <div className="mt-2 text-xs space-y-1 text-[#D5C9B8] font-medium">
+                <p>🏢 2 BHK Apartment</p>
+                <p>📍 Whitefield, Bangalore</p>
+                <p className="text-emerald-400 font-bold pt-1 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
+                  Available Today
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. TRUST FEATURE BAR ACROSS THE BOTTOM */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 pt-8 pb-4 border-t border-white/15 mt-12">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="w-5 h-5 text-[#C5924E] shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-white leading-tight">
+                Verified Owners
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 border-l-0 sm:border-l border-white/15 sm:pl-4">
+            <Home className="w-5 h-5 text-[#C5924E] shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-white leading-tight">
+                Real Listings
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 border-l-0 md:border-l border-white/15 md:pl-4">
+            <Tag className="w-5 h-5 text-[#C5924E] shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-white leading-tight">
+                Zero Brokerage
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 border-l-0 sm:border-l border-white/15 sm:pl-4">
+            <CalendarCheck className="w-5 h-5 text-[#C5924E] shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-white leading-tight">
+                Book Visits
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 border-l-0 md:border-l border-white/15 md:pl-4">
+            <Users className="w-5 h-5 text-[#C5924E] shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-white leading-tight">
+                Direct Connect
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 border-l-0 sm:border-l border-white/15 sm:pl-4">
+            <Shield className="w-5 h-5 text-[#C5924E] shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-white leading-tight">
+                Hassle-Free
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
