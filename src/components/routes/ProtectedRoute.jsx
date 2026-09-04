@@ -51,12 +51,19 @@ export default function ProtectedRoute({ children, allowedRole }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Check if role authorization passes (supports string or array of roles)
+  const isAuthorized = Array.isArray(allowedRole)
+    ? allowedRole.includes(userRole)
+    : userRole === allowedRole;
+
   // If logged in as the wrong role, show the restriction warning message
-  if (allowedRole && userRole !== allowedRole) {
-    const currentRoleName = userRole === "owner" ? "Owner" : "Tenant";
-    const targetRoleName = allowedRole === "owner" ? "Owner" : "Tenant";
-    const correctDashboard =
-      userRole === "owner" ? "/owner-dashboard" : "/tenant-dashboard";
+  if (allowedRole && !isAuthorized) {
+    const currentRoleName = userRole ? userRole.toUpperCase() : "USER";
+    
+    // Determine appropriate dashboard route based on user's actual role
+    let correctDashboard = "/tenant-dashboard";
+    if (userRole === "owner") correctDashboard = "/owner-dashboard";
+    if (userRole === "admin") correctDashboard = "/admin-dashboard";
 
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4 py-12">
@@ -74,11 +81,7 @@ export default function ProtectedRoute({ children, allowedRole }) {
               <span className="font-bold text-[#2D1F1A] uppercase">
                 {currentRoleName}
               </span>
-              . You are not supposed to access the{" "}
-              <span className="font-bold text-[#2D1F1A] uppercase">
-                {targetRoleName}
-              </span>{" "}
-              dashboard.
+              . You are not authorized to access this section.
             </p>
           </div>
 
@@ -87,7 +90,7 @@ export default function ProtectedRoute({ children, allowedRole }) {
               to={correctDashboard}
               className="w-full py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
             >
-              <span>Go to Your {currentRoleName} Dashboard</span>
+              <span>Go to Your Dashboard</span>
             </Link>
 
             <Link

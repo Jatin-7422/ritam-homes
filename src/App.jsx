@@ -23,6 +23,7 @@ import WhyChooseUs from "./components/Landing-Page/WhyChooseUs";
 import HowItWorks from "./components/Landing-Page/HowItWorks";
 import AboutUs from "./components/Landing-Page/AboutUs";
 import Login from "./components/Login/Login";
+import Option from "./components/Login/Option"; // <-- IMPORTED YOUR OPTION COMPONENT HERE
 import ContactUs from "./components/ContactUs/ContactUs";
 import TenantDashboard from "./components/Tenant/TenantDashboard";
 import OwnerDashboard from "./components/Owner/OwnerDashboard";
@@ -185,13 +186,11 @@ function AuthCallback() {
             localStorage.removeItem("oauth_intended_role");
           }
 
-          // Route based on role, or drop back to landing page root if preferred
           if (userRole === "owner") {
             navigate("/owner-dashboard", { replace: true });
           } else if (userRole === "admin") {
             navigate("/admin-dashboard", { replace: true });
           } else {
-            // Change to "/" if you want Google OAuth to land on the public homepage instead
             navigate("/", { replace: true });
           }
         } else {
@@ -359,6 +358,7 @@ function AppLayout() {
 
   const isDashboardRoute =
     location.pathname === "/login" ||
+    location.pathname === "/option" || // <-- ADDED OPTION ROUTE HERE TO EXCLUDE NAVBAR/FOOTER IF NEEDED
     location.pathname === "/auth/callback" ||
     location.pathname === "/owner-dashboard" ||
     location.pathname.startsWith("/owner-dashboard/") ||
@@ -424,6 +424,7 @@ function AppLayout() {
           <Route path="/" element={<Home />} />
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/option" element={<Option />} /> {/* <-- ADDED ROUTE FOR YOUR OPTION PAGE */}
           <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* Admin Dashboard & Sub-routes */}
