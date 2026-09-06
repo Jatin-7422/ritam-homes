@@ -99,13 +99,17 @@ export default function Login({ setIsLoggedIn }) {
     }
   };
 
-  const handleGoogleLogin = async () => {
+const handleGoogleLogin = async () => {
     try {
+      // Flag that this user needs to pick an option/role if it's their first time
+      localStorage.setItem("oauth_intended_role", "pending");
+      sessionStorage.setItem("show_intent_popup", "true");
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          // Explicitly forcing redirect to the landing page root
-          redirectTo: `${window.location.origin}/`,
+          // Explicitly redirect to the option or callback route to handle intent
+          redirectTo: `${window.location.origin}/option`,
         },
       });
       if (error) throw error;

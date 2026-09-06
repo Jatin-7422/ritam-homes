@@ -1,46 +1,84 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
+import { Loader2 } from "lucide-react";
 
-export default function LandingPage() {
+export default function Option() {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
   const [showIntentModal, setShowIntentModal] = useState(false);
 
   useEffect(() => {
-    // Check if the user just logged in
-    const needsIntent = sessionStorage.getItem("show_intent_popup");
-    if (needsIntent === "true") {
-      setShowIntentModal(true);
-    }
-  }, []);
+    const checkUserAndRole = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error || !session) {
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        const role = session.user?.user_metadata?.role;
+        
+        // If an admin or an already-configured user returns here, route them properly
+        if (role === "admin") {
+          navigate("/admin-dashboard", { replace: true });
+          return;
+        } else if (role === "owner") {
+          navigate("/owner-dashboard", { replace: true });
+          return;
+        } else if (role === "tenant") {
+          navigate("/tenant-dashboard", { replace: true });
+          return;
+        }
+
+        // If no role is set yet, show the intent popup selection
+        setLoading(false);
+        setShowIntentModal(true);
+      } catch (err) {
+        console.error("Error checking session on option page:", err.message);
+        setLoading(false);
+      }
+    };
+
+    checkUserAndRole();
+  }, [navigate]);
 
   const handleChoice = async (roleType) => {
     try {
-      // Clear the popup flag
+      // Clear any session storage flag if present
       sessionStorage.removeItem("show_intent_popup");
 
-      // Optional: Save their role preference to Supabase user metadata
-      await supabase.auth.updateUser({
+      // Save role preference to Supabase user metadata
+      const { error } = await supabase.auth.updateUser({
         data: { role: roleType }
       });
 
+      if (error) throw error;
+
       setShowIntentModal(false);
 
-      // Redirect based on what they chose
+      // Redirect based on choice
       if (roleType === "tenant") {
-        navigate("/tenant-dashboard");
+        navigate("/tenant-dashboard", { replace: true });
       } else {
-        navigate("/owner-dashboard");
+        navigate("/owner-dashboard", { replace: true });
       }
     } catch (err) {
       console.error("Error saving preference:", err.message);
     }
   };
 
-  return (
-    <div className="relative min-h-screen bg-[#3b2219]">
-      {/* Your regular landing page content */}
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#3b2219] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#d4af37]" />
+      </div>
+    );
+  }
 
+  return (
+    <div className="relative min-h-screen bg-[#3b2219] flex items-center justify-center p-4">
       {/* INTENT SELECTION POPUP MODAL */}
       {showIntentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">

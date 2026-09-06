@@ -176,9 +176,10 @@ function AuthCallback() {
 
         if (session) {
           const intendedRole = localStorage.getItem("oauth_intended_role");
-          let userRole = session.user?.user_metadata?.role || "tenant";
+          let userRole = session.user?.user_metadata?.role;
 
-          if (intendedRole && intendedRole !== userRole) {
+          // If an intended role was stored (and isn't just "pending"), update metadata
+          if (intendedRole && intendedRole !== "pending" && intendedRole !== userRole) {
             const { data: updateData } = await supabase.auth.updateUser({
               data: { role: intendedRole },
             });
@@ -186,12 +187,19 @@ function AuthCallback() {
             localStorage.removeItem("oauth_intended_role");
           }
 
+          // If the user still has no role assigned, send them to /option to pick one
+          if (!userRole) {
+            navigate("/option", { replace: true });
+            return;
+          }
+
+          // Otherwise, route them to their respective dashboard
           if (userRole === "owner") {
             navigate("/owner-dashboard", { replace: true });
           } else if (userRole === "admin") {
             navigate("/admin-dashboard", { replace: true });
           } else {
-            navigate("/", { replace: true });
+            navigate("/tenant-dashboard", { replace: true });
           }
         } else {
           navigate("/login", { replace: true });
@@ -206,9 +214,9 @@ function AuthCallback() {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-[#F8F5EE] flex flex-col items-center justify-center text-[#1E293B]">
-      <Loader2 className="w-8 h-8 animate-spin text-[#C5924E] mb-3" />
-      <p className="text-xs font-semibold tracking-wide text-[#6E5D53]">
+    <div className="min-h-screen bg-[#3b2219] flex flex-col items-center justify-center text-white">
+      <Loader2 className="w-8 h-8 animate-spin text-[#d4af37] mb-3" />
+      <p className="text-xs font-semibold tracking-wide text-[#e6d5c3]">
         Completing authentication...
       </p>
     </div>
