@@ -46,7 +46,7 @@ import OwnersManagement from "./components/Admin/owner";
 import PropertiesManagement from "./components/Admin/properties";
 
 // Owner Components
-import OwnerReviews from "./components/Owner/OwnerReviews";
+
 import OwnerDocuments from "./components/Owner/OwnerDocuments";
 
 // Tenant Components
@@ -464,7 +464,7 @@ function AppLayout() {
               element={<OwnerPropertyDetails />}
             />
             <Route path="/owner-dashboard/tenants" element={<OwnerTenants />} />
-            <Route path="/owner-dashboard/reviews" element={<OwnerReviews />} />
+            
             <Route
               path="/owner-dashboard/documents"
               element={<OwnerDocuments />}

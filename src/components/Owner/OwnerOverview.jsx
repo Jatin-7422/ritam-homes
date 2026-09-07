@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
-import { AppContext } from "../../App"; // Adjust path if needed
+import { AppContext } from "../../App"; 
 import {
   Building2,
   Eye,

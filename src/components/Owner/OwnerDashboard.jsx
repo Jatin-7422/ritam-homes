@@ -92,22 +92,15 @@ export default function OwnerDashboard() {
         }
 
         if (docData && docData.length > 0) {
-          // Check statuses across all uploaded records
           const statuses = docData.map((d) => (d.status || "").toLowerCase());
-          
-          // Priority 1: If ANY document is rejected, overall status is Rejected
+
           if (statuses.some((s) => s === "rejected")) {
             setVerificationStatus("Rejected");
-          } 
-          // Priority 2: If ANY document is pending, overall status is Pending
-          else if (statuses.some((s) => s === "pending")) {
+          } else if (statuses.some((s) => s === "pending")) {
             setVerificationStatus("Pending");
-          } 
-          // Priority 3: ONLY if ALL documents are verified, status is Verified
-          else if (statuses.every((s) => s === "verified")) {
+          } else if (statuses.every((s) => s === "verified")) {
             setVerificationStatus("Verified");
           } else {
-            // Fallback if status strings vary slightly
             setVerificationStatus(docData[0].status || "Documents Uploaded");
           }
         } else {
@@ -198,8 +191,8 @@ export default function OwnerDashboard() {
 
   const navItems = [
     { name: "Dashboard", icon: LayoutDashboard, path: "/owner-dashboard" },
-    { name: "My Properties", icon: Building2, path: "/owner-properties" },
-    { name: "Add New Property", icon: PlusCircle, path: "/add-property" },
+    { name: "Properties", icon: Building2, path: "/owner-properties" },
+    { name: "Add Property", icon: PlusCircle, path: "/add-property" },
     {
       name: "Bookings",
       icon: Calendar,
@@ -215,13 +208,13 @@ export default function OwnerDashboard() {
       path: "/messages",
       hasNotification: hasUnreadMessages,
     },
-    { name: "Reviews", icon: Star, path: "/owner-dashboard/reviews" },
-    { name: "Account Settings", icon: Settings, path: "/owner-settings" },
+  
+    { name: "Settings", icon: Settings, path: "/owner-settings" },
   ];
 
   return (
     <div
-      className={`min-h-screen font-sans flex relative transition-colors duration-300 ${
+      className={`min-h-screen font-sans flex flex-col relative transition-colors duration-300 ${
         isDarkTheme ? "bg-[#1A120B] text-white" : "bg-[#F8F5EE] text-[#2D1F1A]"
       } ${isLoggingOut ? "opacity-90" : "opacity-100"}`}
     >
@@ -241,30 +234,29 @@ export default function OwnerDashboard() {
       {/* MOBILE BACKDROP */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden backdrop-blur-xs transition-opacity"
+          className="fixed inset-0 bg-black/50 z-50 md:hidden backdrop-blur-xs transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
-      {/* PERSISTENT SIDEBAR */}
+      {/* MOBILE SLIDE-OUT DRAWER */}
       <aside
-        className={`w-72 bg-[#2D1F1A] text-[#D1C4B9] flex flex-col justify-between flex-shrink-0 z-50 fixed inset-y-0 left-0 transform transition-transform duration-300 ease-in-out ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        className={`w-72 bg-[#2D1F1A] text-[#D1C4B9] flex flex-col justify-between flex-shrink-0 z-50 fixed inset-y-0 left-0 transform transition-transform duration-300 ease-in-out md:hidden ${
+          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex flex-col h-full overflow-hidden">
-          {/* Logo & Close */}
-          <div className="p-4 sm:p-5 flex items-center justify-between border-b border-white/15 flex-shrink-0">
-            <Link to="/" className="flex items-center">
+          <div className="p-4 flex items-center justify-between border-b border-white/15 flex-shrink-0">
+            <Link to="/owner-dashboard" className="flex items-center">
               <img
                 src={logoWhite}
                 alt="Ritam Homes"
-                className="h-8 w-auto object-contain"
+                className="h-10 w-auto object-contain drop-shadow-md"
               />
             </Link>
             <button
               onClick={() => setIsSidebarOpen(false)}
-              className="md:hidden text-[#D1C4B9] hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              className="text-[#D1C4B9] hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -292,8 +284,7 @@ export default function OwnerDashboard() {
               <p className="text-[10px] text-[#9E8B7F] truncate">
                 {userInfo.businessName}
               </p>
-              
-              {/* Dynamic Status Badge */}
+
               <div
                 className={`flex items-center gap-1 mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-md w-fit border ${
                   verificationStatus.toLowerCase() === "verified"
@@ -317,7 +308,6 @@ export default function OwnerDashboard() {
             </div>
           </div>
 
-          {/* Navigation Links */}
           <nav className="px-3 space-y-1 text-xs font-medium overflow-y-auto flex-1 custom-scrollbar">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -350,7 +340,6 @@ export default function OwnerDashboard() {
             })}
           </nav>
 
-          {/* Logout Footer */}
           <div className="p-3 border-t border-white/10 bg-[#221A17]/50 flex-shrink-0">
             <button
               onClick={handleLogout}
@@ -363,38 +352,126 @@ export default function OwnerDashboard() {
         </div>
       </aside>
 
-      {/* MAIN CONTAINER FOR OUTLET CONTENT (Fixed md:ml-72 margin offset) */}
-      <main className="flex-1 flex flex-col min-w-0 md:ml-72">
-        <header
-          className={`w-full px-6 sm:px-10 pt-6 pb-2 flex items-center justify-between transition-colors ${
-            isDarkTheme ? "bg-[#1A120B]" : "bg-[#F8F5EE]"
-          }`}
-        >
+      {/* DESKTOP HORIZONTAL HEADER / NAVBAR */}
+     {/* DESKTOP HORIZONTAL HEADER / NAVBAR */}
+      <header className="hidden md:flex bg-[#2D1F1A] text-[#D1C4B9] border-b border-white/10 px-4 lg:px-6 py-3 items-center justify-between sticky top-0 z-40 shadow-md">
+        <div className="flex items-center gap-3 lg:gap-5 flex-1 min-w-0">
+          {/* Enhanced Branding / Larger Logo Container - Redirects to Owner Dashboard */}
+          <Link
+            to="/owner-dashboard"
+            className="flex items-center flex-shrink-0 group pr-3 border-r border-white/10"
+          >
+            <img
+              src={logoWhite}
+              alt="Ritam Homes"
+              className="h-9 lg:h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-md"
+            />
+          </Link>
+
+          {/* Horizontal Nav Links - Perfectly Fitted Without Scrolling */}
+          <nav className="flex items-center gap-1 xl:gap-1.5 min-w-0">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+
+              return (
+                <Link
+                  key={item.name}
+                  to={item.path || "#"}
+                  className={`flex items-center gap-1 px-2 lg:px-2.5 py-2 rounded-xl text-[11px] lg:text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                    isActive
+                      ? "bg-[#C5924E] text-[#2D1F1A] font-bold shadow-md"
+                      : "hover:bg-[#3A2E2A] text-[#D1C4B9] hover:text-white"
+                  }`}
+                >
+                  <Icon
+                    className={`w-3.5 h-3.5 flex-shrink-0 ${
+                      isActive ? "text-[#2D1F1A]" : "text-[#9E8B7F]"
+                    }`}
+                  />
+                  <span className="truncate">{item.name}</span>
+                  {item.hasNotification && (
+                    <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse flex-shrink-0"></span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Right Side: Profile Info, Notification, Logout */}
+        <div className="flex items-center gap-2.5 flex-shrink-0 ml-3">
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-[#221A17] border border-[#3A2E2A] rounded-xl">
+            {userInfo.avatar ? (
+              <img
+                src={userInfo.avatar}
+                alt={userInfo.fullName}
+                className="w-7 h-7 rounded-full object-cover border border-[#C5924E]/50 flex-shrink-0"
+              />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-[#C5924E] flex items-center justify-center text-[#2D1F1A] font-bold text-xs shadow flex-shrink-0">
+                {userInfo.fullName
+                  ? userInfo.fullName.charAt(0).toUpperCase()
+                  : "M"}
+              </div>
+            )}
+            <div className="hidden xl:block text-left">
+              <h4 className="text-white font-bold text-xs leading-tight truncate max-w-[110px]">
+                {userInfo.fullName}
+              </h4>
+              <p className="text-[9px] text-[#9E8B7F] truncate max-w-[110px]">
+                {verificationStatus}
+              </p>
+            </div>
+          </div>
+
           <button
-            onClick={() => setIsSidebarOpen(true)}
-            className={`md:hidden p-2 border rounded-xl transition-colors cursor-pointer ${
+            className={`relative p-2.5 border rounded-full transition-colors cursor-pointer flex-shrink-0 ${
               isDarkTheme
                 ? "bg-[#251B14] border-neutral-800 text-white hover:bg-neutral-800"
-                : "bg-white border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#E3D9CC]/50"
+                : "bg-[#221A17] border-[#3A2E2A] text-[#D1C4B9] hover:bg-[#3A2E2A]"
             }`}
           >
-            <Menu className="w-5 h-5" />
+            <Bell className="w-4 h-4" />
           </button>
-          <div className="ml-auto">
-            <button
-              className={`relative p-2.5 border rounded-full transition-colors cursor-pointer ${
-                isDarkTheme
-                  ? "bg-[#251B14] border-neutral-800 text-white hover:bg-neutral-800"
-                  : "bg-white border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#E3D9CC]/50"
-              }`}
-            >
-              <Bell className="w-4 h-4" />
-            </button>
-          </div>
-        </header>
 
-        {/* Dynamic Outlet Renders Individual Tab Files Cleanly */}
-        <div className="flex-1 flex flex-col p-6 sm:p-10 pt-4">
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            title="Logout"
+            className="p-2.5 border border-red-500/30 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all cursor-pointer flex-shrink-0"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+      </header>
+
+      {/* MOBILE TOP BAR */}
+      <div className="md:hidden flex items-center justify-between px-5 py-3.5 border-b border-white/10 bg-[#2D1F1A] text-white shadow-md">
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="p-2 border border-neutral-700 rounded-xl bg-[#221A17] text-white cursor-pointer active:scale-95 transition-transform"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        {/* Bigger Branded Logo Container - Redirects to Owner Dashboard */}
+        <Link to="/owner-dashboard" className="flex items-center gap-2">
+          <img
+            src={logoWhite}
+            alt="Ritam Homes"
+            className="h-11 sm:h-12 w-auto object-contain drop-shadow-md"
+          />
+        </Link>
+
+        <button className="p-2 border border-neutral-700 rounded-full bg-[#221A17] text-white cursor-pointer active:scale-95 transition-transform">
+          <Bell className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* MAIN CONTAINER FOR OUTLET CONTENT */}
+      <main className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col p-6 sm:p-10 pt-6">
           <Outlet />
         </div>
       </main>
