@@ -197,6 +197,11 @@ export default function AccountSettings() {
     confirm: "",
   });
 
+  // Keep tempProfile in sync when userInfo updates from context/session
+  useEffect(() => {
+    setTempProfile({ ...userInfo });
+  }, [userInfo]);
+
   const handleImageUpload = async (e) => {
     try {
       const file = e.target.files?.[0];
@@ -245,7 +250,7 @@ export default function AccountSettings() {
       if (!session) throw new Error("No active session");
       const userId = session.user.id;
 
-      // Update strictly the columns present in your custom public.profiles table schema
+      // 1. Update public.profiles table
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
@@ -258,6 +263,20 @@ export default function AccountSettings() {
 
       if (profileError) throw profileError;
 
+      // 2. Also update Supabase auth user_metadata so headers/sessions sync everywhere instantly
+      const { error: authUpdateError } = await supabase.auth.updateUser({
+        data: {
+          full_name: tempProfile.fullName,
+          phone: tempProfile.phone,
+          avatar_url: tempProfile.avatarUrl,
+        },
+      });
+
+      if (authUpdateError) {
+        console.error("Auth metadata update warning:", authUpdateError.message);
+      }
+
+      // 3. Update global AppContext state immediately so all components rerender
       setUserInfo((prev) => ({
         ...prev,
         fullName: tempProfile.fullName,
