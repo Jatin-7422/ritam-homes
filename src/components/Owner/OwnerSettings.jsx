@@ -243,23 +243,27 @@ export default function AccountSettings() {
       if (!session) throw new Error("No active session");
       const userId = session.user.id;
 
-      // 1. Update auth user metadata for extra fields
+      // 1. Update auth user metadata
       const { error: authError } = await supabase.auth.updateUser({
         data: {
+          full_name: tempProfile.fullName,
+          phone: tempProfile.phone,
           business_name: tempProfile.businessName,
           location: tempProfile.location,
-          role: tempProfile.role,
+          avatar_url: tempProfile.avatarUrl,
         },
       });
 
       if (authError) throw authError;
 
-      // 2. Update your exact public.profiles table columns
+    // 2. Update custom public.profiles table
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
           full_name: tempProfile.fullName,
           phone: tempProfile.phone,
+          business_name: tempProfile.businessName,
+          location: tempProfile.location,
           avatar_url: tempProfile.avatarUrl,
           updated_at: new Date(),
         })
