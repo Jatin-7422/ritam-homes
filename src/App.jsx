@@ -32,13 +32,14 @@ import OwnerOverview from "./components/Owner/OwnerOverview";
 import NewProperty from "./components/Owner/NewProperty";
 import OwnerProperties from "./components/Owner/owner_properties";
 import OwnerPropertyDetails from "./components/Owner/OwnerPropertyDetails";
+import OwnerEditProperty from "./components/Owner/EditProperty";
 import OwnerBookings from "./components/Owner/OwnerBookings";
 import OwnerEarnings from "./components/Owner/OwnerEarnings";
 import OwnerSettings from "./components/Owner/OwnerSettings";
 import OwnerTenants from "./components/Owner/OwnerTenants";
 
 // 📥 UPDATED MESSAGE IMPORTS FOR OWNER & TENANT
-import OwnerMessages from "./components/Owner/OwnerMessages"
+import OwnerMessages from "./components/Owner/OwnerMessages";
 import TenantMessages from "./components/Tenant/TenantMessages";
 
 // Admin Component & Sub-dashboards
@@ -368,6 +369,8 @@ function AppLayout() {
     location.pathname === "/auth/callback" ||
     location.pathname === "/owner-dashboard" ||
     location.pathname.startsWith("/owner-dashboard/") ||
+    location.pathname.startsWith("/owner/properties/edit/") || 
+    location.pathname.startsWith("/edit-property/") || // Added check for global route format
     location.pathname === "/owner-properties" ||
     location.pathname === "/owner-bookings" ||
     location.pathname === "/owner-earnings" ||
@@ -460,6 +463,15 @@ function AppLayout() {
             <Route
               path="/owner-dashboard/property/:id"
               element={<OwnerPropertyDetails />}
+            />
+            {/* 📥 ADDED EDIT PROPERTY ROUTES TO HANDLE BOTH PATTERNS */}
+            <Route
+              path="/owner/properties/edit/:id"
+              element={<OwnerEditProperty />}
+            />
+            <Route
+              path="/edit-property/:id"
+              element={<OwnerEditProperty />}
             />
             <Route path="/owner-dashboard/tenants" element={<OwnerTenants />} />
             <Route

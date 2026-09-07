@@ -108,6 +108,8 @@ export default function OwnerPropertyDetails() {
     property.images.length > 0
   ) {
     images = property.images;
+  } else if (property.image_url) {
+    images = Array.isArray(property.image_url) ? property.image_url : [property.image_url];
   } else if (property.image) {
     images = Array.isArray(property.image) ? property.image : [property.image];
   }
@@ -338,7 +340,7 @@ export default function OwnerPropertyDetails() {
             {/* Owner Management Buttons */}
             <div className="space-y-3 pt-2">
               <button
-                onClick={() => navigate(`/edit-property/${property.id}`)}
+                onClick={() => navigate(`/owner/properties/edit/${property.id}`)}
                 className="w-full py-3 bg-[#C5924E] hover:bg-[#b08043] text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Edit3 className="w-4 h-4" />
