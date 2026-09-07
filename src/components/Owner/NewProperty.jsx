@@ -47,8 +47,10 @@ export default function NewProperty() {
   const fileInputRef = useRef(null);
 
   // Step 2: Property details state
+  // Step 2: Property details state
   const [propertyDetails, setPropertyDetails] = useState({
     title: "",
+    description: "", // Added description field
     propertyType: "Apartment / Flat",
     configuration: "2 BHK",
     monthlyRent: "",
@@ -257,6 +259,7 @@ export default function NewProperty() {
         title:
           propertyDetails.title ||
           `${propertyDetails.configuration} ${propertyDetails.propertyType}`,
+        description: propertyDetails.description, // Added description payload
         location: locationAddress,
         latitude: latitude,
         longitude: longitude,
@@ -390,9 +393,11 @@ export default function NewProperty() {
         </p>
       </div>
 
+
       {/* STEPPER NAVIGATION BAR */}
-      <div className="px-6 sm:px-10 py-4">
-        <div className="bg-white border border-[#E3D9CC] rounded-2xl p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 shadow-xs">
+      <div className="px-4 sm:px-10 py-4">
+        {/* Desktop View: Keep original grid stepper */}
+        <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { step: 1, label: "Photos", sub: "Show your home" },
             {
@@ -416,35 +421,30 @@ export default function NewProperty() {
                     setCurrentStep(item.step);
                   }
                 }}
-                className={`flex items-center gap-3.5 p-3 rounded-xl text-left transition-all ${
-                  item.step < currentStep ? "cursor-pointer" : "cursor-default"
-                } border ${
-                  isSelected
+                className={`flex items-center gap-3 p-3 rounded-2xl text-left transition-all border ${item.step < currentStep ? "cursor-pointer" : "cursor-default"
+                  } ${isSelected
                     ? "bg-[#2D1F1A] text-white border-[#2D1F1A] shadow-md"
-                    : "bg-[#FBF9F4] text-[#2D1F1A] border-[#E3D9CC] hover:bg-[#F2ECE1]"
-                }`}
+                    : "bg-white text-[#2D1F1A] border-[#E3D9CC] hover:bg-[#F2ECE1]"
+                  }`}
               >
                 <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
-                    isSelected
+                  className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${isSelected
                       ? "bg-[#C5924E] text-[#2D1F1A]"
                       : "bg-[#2D1F1A] text-white"
-                  }`}
+                    }`}
                 >
                   {item.step}
                 </div>
                 <div className="min-w-0 flex-1">
                   <strong
-                    className={`block text-xs font-bold truncate ${
-                      isSelected ? "text-white" : "text-[#2D1F1A]"
-                    }`}
+                    className={`block text-xs font-bold truncate ${isSelected ? "text-white" : "text-[#2D1F1A]"
+                      }`}
                   >
                     {item.label}
                   </strong>
                   <span
-                    className={`block text-[10px] truncate ${
-                      isSelected ? "text-[#C6B6A8]" : "text-[#6E5D53]"
-                    }`}
+                    className={`block text-[10px] truncate ${isSelected ? "text-[#C6B6A8]" : "text-[#6E5D53]"
+                      }`}
                   >
                     {item.sub}
                   </span>
@@ -452,6 +452,94 @@ export default function NewProperty() {
               </button>
             );
           })}
+        </div>
+
+        {/* Mobile View: Connected Node Line Stepper with Icons */}
+        <div className="block sm:hidden w-full bg-white border border-[#E3D9CC] rounded-2xl p-4 shadow-sm overflow-x-auto no-scrollbar">
+          <div className="flex items-center justify-between min-w-[280px] relative px-2">
+            {/* Background Connecting Line */}
+            <div className="absolute left-6 right-6 top-5 h-[3px] bg-[#E3D9CC] -z-0" />
+
+            {/* Active Fill Line */}
+            <div
+              className="absolute left-6 top-5 h-[3px] bg-[#2D1F1A] transition-all duration-300 -z-0"
+              style={{ width: `${((currentStep - 1) / 3) * 100}%` }}
+            />
+
+            {[
+              {
+                step: 1,
+                label: "Photos",
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                    <circle cx="9" cy="9" r="2" />
+                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+                  </svg>
+                )
+              },
+              {
+                step: 2,
+                label: "Details",
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+                    <path d="M6 6h10M6 10h10M6 14h6" />
+                  </svg>
+                )
+              },
+              {
+                step: 3,
+                label: "Slots",
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                    <path d="M16 2v4M8 2v4m-5 4h18" />
+                  </svg>
+                )
+              },
+              {
+                step: 4,
+                label: "Location",
+                icon: (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                    <circle cx="12" cy="10" r="3" />
+                  </svg>
+                )
+              },
+            ].map((item) => {
+              const isCompleted = item.step < currentStep;
+              const isSelected = item.step === currentStep;
+
+              return (
+                <div key={item.step} className="flex flex-col items-center relative z-10">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isSelected
+                        ? "bg-[#2D1F1A] text-[#C5924E] shadow-md ring-4 ring-[#F2ECE1]"
+                        : isCompleted
+                          ? "bg-[#2D1F1A] text-white"
+                          : "bg-[#F2ECE1] text-[#6E5D53] border border-[#E3D9CC]"
+                      }`}
+                  >
+                    {isCompleted ? (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    ) : (
+                      item.icon
+                    )}
+                  </div>
+                  <span
+                    className={`text-[10px] mt-2 font-medium whitespace-nowrap ${isSelected ? "text-[#2D1F1A] font-bold" : "text-[#6E5D53]"
+                      }`}
+                  >
+                    {item.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -565,6 +653,23 @@ export default function NewProperty() {
                       setPropertyDetails({
                         ...propertyDetails,
                         title: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                  />
+                </div>
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="text-xs font-bold text-[#2D1F1A]">
+                    Property Description
+                  </label>
+                  <textarea
+                    rows="3"
+                    placeholder="Write a short description about the highlights, neighborhood, or rules of your property..."
+                    value={propertyDetails.description}
+                    onChange={(e) =>
+                      setPropertyDetails({
+                        ...propertyDetails,
+                        description: e.target.value,
                       })
                     }
                     className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
@@ -703,11 +808,10 @@ export default function NewProperty() {
                               furnishing: opt,
                             })
                           }
-                          className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${
-                            propertyDetails.furnishing === opt
-                              ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                              : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                          }`}
+                          className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${propertyDetails.furnishing === opt
+                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                            }`}
                         >
                           {opt}
                         </button>
@@ -736,11 +840,10 @@ export default function NewProperty() {
                             preferredTenant: opt,
                           })
                         }
-                        className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${
-                          propertyDetails.preferredTenant === opt
-                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                        }`}
+                        className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${propertyDetails.preferredTenant === opt
+                          ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                          : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                          }`}
                       >
                         {opt}
                       </button>
@@ -764,11 +867,10 @@ export default function NewProperty() {
                               parking: opt,
                             })
                           }
-                          className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${
-                            propertyDetails.parking === opt
-                              ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                              : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                          }`}
+                          className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${propertyDetails.parking === opt
+                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                            }`}
                         >
                           {opt}
                         </button>
@@ -813,11 +915,10 @@ export default function NewProperty() {
                             waterSupply: opt,
                           })
                         }
-                        className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${
-                          propertyDetails.waterSupply === opt
-                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                        }`}
+                        className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${propertyDetails.waterSupply === opt
+                          ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                          : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                          }`}
                       >
                         {opt}
                       </button>
@@ -845,11 +946,10 @@ export default function NewProperty() {
                             facing: opt,
                           })
                         }
-                        className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${
-                          propertyDetails.facing === opt
-                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                        }`}
+                        className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${propertyDetails.facing === opt
+                          ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                          : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                          }`}
                       >
                         {opt}
                       </button>
@@ -876,11 +976,10 @@ export default function NewProperty() {
                             foodPreference: opt,
                           })
                         }
-                        className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${
-                          propertyDetails.foodPreference === opt
-                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                        }`}
+                        className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${propertyDetails.foodPreference === opt
+                          ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                          : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                          }`}
                       >
                         {opt}
                       </button>
@@ -988,11 +1087,10 @@ export default function NewProperty() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
                   <div
                     onClick={() => setBookingMode("manual")}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                      bookingMode === "manual"
-                        ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
-                        : "border-[#E3D9CC] bg-[#F8F5EE]/50"
-                    }`}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${bookingMode === "manual"
+                      ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
+                      : "border-[#E3D9CC] bg-[#F8F5EE]/50"
+                      }`}
                   >
                     <strong className="block text-xs font-bold text-[#2D1F1A]">
                       I'll confirm each one
@@ -1004,11 +1102,10 @@ export default function NewProperty() {
 
                   <div
                     onClick={() => setBookingMode("auto")}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                      bookingMode === "auto"
-                        ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
-                        : "border-[#E3D9CC] bg-[#F8F5EE]/50"
-                    }`}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${bookingMode === "auto"
+                      ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
+                      : "border-[#E3D9CC] bg-[#F8F5EE]/50"
+                      }`}
                   >
                     <strong className="block text-xs font-bold text-[#2D1F1A]">
                       Auto-accept requests
@@ -1061,11 +1158,10 @@ export default function NewProperty() {
                               key={slotTime}
                               type="button"
                               onClick={() => handleToggleTimeBlock(slotTime)}
-                              className={`px-3 py-2 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer flex items-center justify-between ${
-                                isSelected
-                                  ? "bg-[#2D1F1A] text-white border-[#2D1F1A] font-bold shadow-xs"
-                                  : "bg-white text-[#6E5D53] border-[#E3D9CC] hover:bg-[#F2ECE1]"
-                              }`}
+                              className={`px-3 py-2 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer flex items-center justify-between ${isSelected
+                                ? "bg-[#2D1F1A] text-white border-[#2D1F1A] font-bold shadow-xs"
+                                : "bg-white text-[#6E5D53] border-[#E3D9CC] hover:bg-[#F2ECE1]"
+                                }`}
                             >
                               <span>{slotTime}</span>
                               {isSelected && (
@@ -1227,11 +1323,10 @@ export default function NewProperty() {
               type="button"
               onClick={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
               disabled={currentStep === 1 || isSubmitting}
-              className={`px-6 py-2.5 rounded-xl text-xs font-bold border transition-all ${
-                currentStep === 1
-                  ? "opacity-40 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400"
-                  : "bg-white border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#F8F5EE] cursor-pointer"
-              }`}
+              className={`px-6 py-2.5 rounded-xl text-xs font-bold border transition-all ${currentStep === 1
+                ? "opacity-40 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400"
+                : "bg-white border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#F8F5EE] cursor-pointer"
+                }`}
             >
               Back
             </button>

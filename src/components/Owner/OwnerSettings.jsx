@@ -20,6 +20,7 @@ import {
   Laptop,
   Smartphone,
   Loader2,
+  ChevronRight,
 } from "lucide-react";
 
 export const AppContext = createContext(null);
@@ -43,12 +44,8 @@ export function AppProvider({ children }) {
     setTimeout(() => setToastMessage(""), 3500);
   };
 
-  // Helper function to extract and parse user metadata safely
   const updateUserInfoFromSession = (user) => {
-    if (!user) {
-      // Reset or handle signed-out state if needed
-      return;
-    }
+    if (!user) return;
     const metadata = user.user_metadata || {};
 
     const rawName =
@@ -84,7 +81,6 @@ export function AppProvider({ children }) {
   };
 
   useEffect(() => {
-    // 1. Fetch initial session on load
     const fetchSessionUser = async () => {
       try {
         const {
@@ -100,14 +96,12 @@ export function AppProvider({ children }) {
 
     fetchSessionUser();
 
-    // 2. Listen to real-time auth changes (handles account switches, logins, logouts automatically)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session && session.user) {
         updateUserInfoFromSession(session.user);
       } else {
-        // Clear or reset user info on sign-out
         setUserInfo({
           fullName: "",
           email: "",
@@ -186,8 +180,6 @@ export default function AccountSettings() {
     setLoading(true);
 
     try {
-      // Save phone inside user metadata (data) instead of the root phone attribute
-      // to avoid needing an SMS provider setup.
       const { error } = await supabase.auth.updateUser({
         data: {
           full_name: tempProfile.fullName,
@@ -199,7 +191,6 @@ export default function AccountSettings() {
 
       if (error) throw error;
 
-      // Immediately update local state so the UI changes instantly without a reload
       setUserInfo((prev) => ({
         ...prev,
         fullName: tempProfile.fullName,
@@ -278,25 +269,24 @@ export default function AccountSettings() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8 pb-12 relative transition-colors text-[#2D1F1A]">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8 text-[#2D1F1A]">
       {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 bg-[#2D1F1A] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#C5924E] text-xs font-bold flex items-center gap-3 animate-bounce">
+        <div className="fixed top-6 right-6 z-50 bg-[#2D1F1A] text-white px-5 py-3 rounded-2xl shadow-xl border border-[#C5924E]/40 text-xs font-semibold flex items-center gap-3 backdrop-blur-md animate-in fade-in slide-in-from-top-4 duration-300">
           <CheckCircle2 className="w-4 h-4 text-[#C5924E]" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-5 border-[#EADBCE]">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-serif font-bold">
+      {/* Modern Minimal Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#EADBCE]/60">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold tracking-tight">
               Account Settings
             </h1>
-            <SettingsIcon className="w-6 h-6 text-[#C5924E]" />
           </div>
-          <p className="text-xs sm:text-sm mt-1 text-[#6E5D53]">
-            Manage your account credentials and security settings.
+          <p className="text-xs sm:text-sm text-[#6E5D53]">
+            Configure your personal profile parameters and security preferences.
           </p>
         </div>
         <button
@@ -305,18 +295,18 @@ export default function AccountSettings() {
             setTempProfile({ ...userInfo });
             setModalType("edit-profile");
           }}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white text-xs font-semibold rounded-xl transition-all shadow-sm hover:shadow cursor-pointer active:scale-95"
         >
-          <Edit3 className="w-4 h-4 text-[#C5924E]" />
+          <Edit3 className="w-3.5 h-3.5 text-[#C5924E]" />
           <span>Edit Profile</span>
         </button>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="border rounded-2xl p-2 grid grid-cols-2 gap-2 shadow-sm bg-white border-[#EADBCE]">
+      {/* Segmented Pill Tabs */}
+      <div className="inline-flex p-1.5 bg-[#F2ECE1]/60 rounded-2xl border border-[#EADBCE]/60 w-full sm:w-auto gap-1">
         {[
           { id: "profile", label: "Profile Information", icon: User },
-          { id: "security", label: "Security", icon: Shield },
+          { id: "security", label: "Security & Sessions", icon: Shield },
         ].map((tab) => {
           const Icon = tab.icon;
           const isSelected = activeTab === tab.id;
@@ -324,14 +314,20 @@ export default function AccountSettings() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 isSelected
-                  ? "bg-[#C5924E] text-[#2D1F1A] shadow-md"
-                  : "bg-[#FBF9F4] text-[#6E5D53] hover:bg-[#F2ECE1] hover:text-[#2D1F1A]"
+                  .toString()
+                  .replace(
+                    /true/,
+                    "bg-white text-[#2D1F1A] shadow-sm border border-[#EADBCE]/40"
+                  )
+                  .replace(/false/, "text-[#6E5D53] hover:text-[#2D1F1A]")
               }`}
             >
               <Icon
-                className={`w-4 h-4 ${isSelected ? "text-[#2D1F1A]" : ""}`}
+                className={`w-3.5 h-3.5 ${
+                  isSelected ? "text-[#C5924E]" : "text-[#6E5D53]"
+                }`}
               />
               <span>{tab.label}</span>
             </button>
@@ -340,91 +336,88 @@ export default function AccountSettings() {
       </div>
 
       {activeTab === "profile" && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-          {/* Left Column */}
-          <div className="space-y-6">
-            <div className="rounded-3xl p-6 shadow-sm border flex flex-col items-center text-center space-y-4 bg-white border-[#EADBCE]">
-              <div className="w-20 h-20 rounded-2xl bg-[#2D1F1A] text-[#C5924E] flex items-center justify-center text-3xl font-serif font-bold shadow-inner">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          {/* User Card Sidebar */}
+          <div className="md:col-span-4">
+            <div className="bg-white rounded-3xl p-6 border border-[#EADBCE]/80 shadow-sm flex flex-col items-center text-center space-y-4 relative overflow-hidden">
+              <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#C5924E] to-[#2D1F1A]" />
+              <div className="w-20 h-20 rounded-2xl bg-[#F8F5EE] border border-[#EADBCE] text-[#2D1F1A] flex items-center justify-center text-2xl font-serif font-bold shadow-inner mt-2">
                 {userInfo.fullName
                   ? userInfo.fullName.charAt(0).toUpperCase()
                   : "J"}
               </div>
-              <div>
-                <h2 className="text-xl font-serif font-bold">
+              <div className="space-y-0.5">
+                <h2 className="text-base font-serif font-bold">
                   {userInfo.fullName || "Jatin Kumar"}
                 </h2>
-                <p className="text-xs mt-0.5 text-[#6E5D53]">
+                <p className="text-xs text-[#6E5D53]">
                   {userInfo.businessName || "Master Properties"}
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <Shield className="w-3.5 h-3.5" /> {userInfo.role}
-              </span>
+              <div className="pt-2 w-full border-t border-[#F2ECE1]">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium bg-[#F8F5EE] text-[#2D1F1A] border border-[#EADBCE]">
+                  <Shield className="w-3 h-3 text-[#C5924E]" /> {userInfo.role}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Right Information Column */}
-          <div className="md:col-span-2 space-y-6">
-            <div className="rounded-3xl p-5 sm:p-8 shadow-sm border space-y-6 bg-white border-[#EADBCE]">
-              <h3 className="text-lg font-serif font-bold">
-                Personal Information
+          {/* Details Grid Container */}
+          <div className="md:col-span-8">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#EADBCE]/80 shadow-sm space-y-6">
+              <h3 className="text-base font-serif font-bold border-b border-[#F2ECE1] pb-4">
+                Personal Details
               </h3>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-[#6E5D53]">
-                    <User className="w-4 h-4 text-[#C5924E]" /> Full Name
-                  </label>
-                  <p className="text-sm font-medium py-3 px-4 rounded-xl border border-transparent truncate bg-[#F8F5EE] text-[#2D1F1A]">
-                    {userInfo.fullName || "Not provided"}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-[#6E5D53]">
-                    <Mail className="w-4 h-4 text-[#C5924E]" /> Email Address
-                  </label>
-                  <p className="text-sm font-medium py-3 px-4 rounded-xl border border-transparent truncate bg-[#F8F5EE] text-[#6E5D53]">
-                    {userInfo.email || "Not provided"}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-[#6E5D53]">
-                    <Phone className="w-4 h-4 text-[#C5924E]" /> Phone Number
-                  </label>
-                  <p className="text-sm font-medium py-3 px-4 rounded-xl border border-transparent truncate bg-[#F8F5EE] text-[#2D1F1A]">
-                    {userInfo.phone || "Not provided"}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-[#6E5D53]">
-                    <Building className="w-4 h-4 text-[#C5924E]" /> Business
-                    Name
-                  </label>
-                  <p className="text-sm font-medium py-3 px-4 rounded-xl border border-transparent truncate bg-[#F8F5EE] text-[#2D1F1A]">
-                    {userInfo.businessName || "Master Properties"}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-[#6E5D53]">
-                    <Calendar className="w-4 h-4 text-[#C5924E]" /> Member Since
-                  </label>
-                  <p className="text-sm font-medium py-3 px-4 rounded-xl border border-transparent truncate bg-[#F8F5EE] text-[#2D1F1A]">
-                    {userInfo.memberSince || "N/A"}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-[#6E5D53]">
-                    <MapPin className="w-4 h-4 text-[#C5924E]" /> Location
-                  </label>
-                  <p className="text-sm font-medium py-3 px-4 rounded-xl border border-transparent truncate bg-[#F8F5EE] text-[#2D1F1A]">
-                    {userInfo.location || "India"}
-                  </p>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                {[
+                  {
+                    label: "Full Name",
+                    value: userInfo.fullName,
+                    icon: User,
+                  },
+                  {
+                    label: "Email Address",
+                    value: userInfo.email,
+                    icon: Mail,
+                  },
+                  {
+                    label: "Phone Number",
+                    value: userInfo.phone,
+                    icon: Phone,
+                  },
+                  {
+                    label: "Business Name",
+                    value: userInfo.businessName,
+                    icon: Building,
+                  },
+                  {
+                    label: "Member Since",
+                    value: userInfo.memberSince,
+                    icon: Calendar,
+                  },
+                  {
+                    label: "Location",
+                    value: userInfo.location,
+                    icon: MapPin,
+                  },
+                ].map((item, idx) => {
+                  const ItemIcon = item.icon;
+                  return (
+                    <div
+                      key={idx}
+                      className="p-3.5 rounded-2xl bg-[#FBF9F4] border border-[#F2ECE1] space-y-1"
+                    >
+                      <label className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 text-[#6E5D53]">
+                        <ItemIcon className="w-3.5 h-3.5 text-[#C5924E]" />{" "}
+                        {item.label}
+                      </label>
+                      <p className="text-xs font-semibold text-[#2D1F1A] truncate pl-5">
+                        {item.value || "Not provided"}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -432,30 +425,41 @@ export default function AccountSettings() {
       )}
 
       {activeTab === "security" && (
-        <div className="rounded-3xl border p-8 space-y-6 bg-white border-[#EADBCE]">
-          <h2 className="text-lg font-serif font-bold">
+        <div className="bg-white rounded-3xl border border-[#EADBCE]/80 p-6 sm:p-8 shadow-sm space-y-6">
+          <h2 className="text-base font-serif font-bold border-b border-[#F2ECE1] pb-4">
             Security & Authentication Center
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-5 border rounded-2xl space-y-3 border-[#EADBCE] bg-[#FBF9F4]">
-              <h3 className="text-xs font-bold flex items-center gap-2">
-                <Lock className="w-4 h-4 text-[#C5924E]" /> Password Management
-              </h3>
+            <div className="p-5 rounded-2xl border border-[#EADBCE]/60 bg-[#FBF9F4] flex flex-col justify-between space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-xs font-bold flex items-center gap-2 text-[#2D1F1A]">
+                  <Lock className="w-4 h-4 text-[#C5924E]" /> Password Management
+                </h3>
+                <p className="text-[11px] text-[#6E5D53]">
+                  Update your account password regularly to keep your data secure.
+                </p>
+              </div>
               <button
                 onClick={() => setModalType("change-password")}
-                className="px-4 py-2.5 bg-[#C5924E] hover:bg-[#b07e3d] text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md"
+                className="self-start px-4 py-2 bg-[#C5924E] hover:bg-[#b07e3d] text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-sm"
               >
                 Change Password
               </button>
             </div>
-            <div className="p-5 border rounded-2xl space-y-3 border-[#EADBCE] bg-[#FBF9F4]">
-              <h3 className="text-xs font-bold flex items-center gap-2">
-                <Monitor className="w-4 h-4 text-[#C5924E]" /> Active Device
-                Sessions
-              </h3>
+
+            <div className="p-5 rounded-2xl border border-[#EADBCE]/60 bg-[#FBF9F4] flex flex-col justify-between space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-xs font-bold flex items-center gap-2 text-[#2D1F1A]">
+                  <Monitor className="w-4 h-4 text-[#C5924E]" /> Active Device
+                  Sessions
+                </h3>
+                <p className="text-[11px] text-[#6E5D53]">
+                  Review and manage devices currently signed into your account.
+                </p>
+              </div>
               <button
                 onClick={() => setModalType("sessions")}
-                className="px-4 py-2.5 border rounded-xl text-xs font-bold transition-all cursor-pointer border-[#EADBCE] bg-white text-[#2D1F1A] hover:bg-gray-50"
+                className="self-start px-4 py-2 border border-[#EADBCE] rounded-xl text-xs font-semibold transition-all cursor-pointer bg-white text-[#2D1F1A] hover:bg-[#F2ECE1]/50"
               >
                 Manage Sessions ({activeSessions.length})
               </button>
@@ -465,15 +469,17 @@ export default function AccountSettings() {
       )}
 
       {/* Danger Zone Section */}
-      <div className="rounded-3xl border p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm bg-red-50/50 border-red-200">
-        <div>
-          <div className="flex items-center gap-2 text-red-600 mb-1">
-            <AlertTriangle className="w-5 h-5" />
-            <h3 className="text-sm font-serif font-bold">Danger Zone</h3>
+      <div className="bg-red-50/30 rounded-3xl border border-red-200/60 p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-red-600">
+            <AlertTriangle className="w-4 h-4" />
+            <h3 className="text-xs font-serif font-bold uppercase tracking-wider">
+              Danger Zone
+            </h3>
           </div>
-          <p className="text-xs text-red-700">
-            Permanently remove your account and all associated data from the
-            system.
+          <p className="text-xs text-red-700/80">
+            Permanently remove your account profile and all associated data from
+            the system.
           </p>
         </div>
         <button
@@ -482,36 +488,38 @@ export default function AccountSettings() {
             setConfirmText("");
             setShowDeleteModal(true);
           }}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold transition-all shadow-sm cursor-pointer shrink-0"
         >
-          <Trash2 className="w-4 h-4" />
+          <Trash2 className="w-3.5 h-3.5" />
           <span>Delete Account</span>
         </button>
       </div>
 
       {/* Modals Container */}
       {modalType && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
           {modalType === "edit-profile" && (
             <form
               onSubmit={handleSaveProfile}
-              className="rounded-3xl border w-full max-w-lg p-6 sm:p-8 space-y-5 shadow-2xl bg-white border-[#EADBCE] text-[#2D1F1A]"
+              className="bg-white rounded-3xl border border-[#EADBCE] w-full max-w-lg p-6 sm:p-8 space-y-5 shadow-2xl text-[#2D1F1A]"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-[#EADBCE]">
+              <div className="flex items-center justify-between pb-3 border-b border-[#EADBCE]/60">
                 <h3 className="text-base font-serif font-bold">
                   Edit Profile & Business
                 </h3>
                 <button
                   type="button"
                   onClick={() => setModalType(null)}
-                  className="p-1.5 rounded-xl cursor-pointer hover:bg-gray-100"
+                  className="p-1.5 rounded-xl cursor-pointer hover:bg-[#F2ECE1] transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 <div>
-                  <label className="text-[11px] font-bold">Full Name</label>
+                  <label className="text-[11px] font-semibold text-[#6E5D53]">
+                    Full Name
+                  </label>
                   <input
                     type="text"
                     value={tempProfile.fullName}
@@ -522,22 +530,24 @@ export default function AccountSettings() {
                       })
                     }
                     required
-                    className="w-full mt-1 p-3 rounded-xl border text-xs font-bold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
+                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border text-xs font-semibold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold">
+                  <label className="text-[11px] font-semibold text-[#6E5D53]">
                     Email Address (Read-only)
                   </label>
                   <input
                     type="email"
                     value={tempProfile.email}
                     disabled
-                    className="w-full mt-1 p-3 rounded-xl border text-xs font-bold outline-none opacity-60 cursor-not-allowed border-[#EADBCE] bg-[#FAF7F2] text-neutral-500"
+                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border text-xs font-semibold outline-none opacity-60 cursor-not-allowed border-[#EADBCE] bg-[#FAF7F2] text-neutral-500"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold">Phone Number</label>
+                  <label className="text-[11px] font-semibold text-[#6E5D53]">
+                    Phone Number
+                  </label>
                   <input
                     type="text"
                     value={tempProfile.phone}
@@ -545,11 +555,13 @@ export default function AccountSettings() {
                       setTempProfile({ ...tempProfile, phone: e.target.value })
                     }
                     placeholder="Enter phone number"
-                    className="w-full mt-1 p-3 rounded-xl border text-xs font-bold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
+                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border text-xs font-semibold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold">Business Name</label>
+                  <label className="text-[11px] font-semibold text-[#6E5D53]">
+                    Business Name
+                  </label>
                   <input
                     type="text"
                     value={tempProfile.businessName}
@@ -560,11 +572,13 @@ export default function AccountSettings() {
                       })
                     }
                     required
-                    className="w-full mt-1 p-3 rounded-xl border text-xs font-bold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
+                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border text-xs font-semibold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold">Location</label>
+                  <label className="text-[11px] font-semibold text-[#6E5D53]">
+                    Location
+                  </label>
                   <input
                     type="text"
                     value={tempProfile.location}
@@ -575,23 +589,23 @@ export default function AccountSettings() {
                       })
                     }
                     required
-                    className="w-full mt-1 p-3 rounded-xl border text-xs font-bold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
+                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border text-xs font-semibold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
                   />
                 </div>
               </div>
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex items-center justify-end gap-2.5 pt-2">
                 <button
                   type="button"
                   onClick={() => setModalType(null)}
                   disabled={loading}
-                  className="px-4 py-2.5 rounded-xl border text-xs font-bold cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-2.5 rounded-xl border border-[#EADBCE] text-xs font-semibold cursor-pointer hover:bg-[#F2ECE1] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#C5924E] hover:bg-[#b07e3d] text-white text-xs font-bold cursor-pointer disabled:opacity-50 shadow-md"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#C5924E] hover:bg-[#b07e3d] text-white text-xs font-semibold cursor-pointer disabled:opacity-50 shadow-sm transition-all"
                 >
                   {loading ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -607,23 +621,23 @@ export default function AccountSettings() {
           {modalType === "change-password" && (
             <form
               onSubmit={handleSavePassword}
-              className="rounded-3xl border w-full max-w-md p-6 sm:p-8 space-y-5 shadow-2xl bg-white border-[#EADBCE] text-[#2D1F1A]"
+              className="bg-white rounded-3xl border border-[#EADBCE] w-full max-w-md p-6 sm:p-8 space-y-5 shadow-2xl text-[#2D1F1A]"
             >
-              <div className="flex items-center justify-between pb-3 border-b border-[#EADBCE]">
+              <div className="flex items-center justify-between pb-3 border-b border-[#EADBCE]/60">
                 <h3 className="text-base font-serif font-bold">
                   Change Password
                 </h3>
                 <button
                   type="button"
                   onClick={() => setModalType(null)}
-                  className="p-1.5 rounded-xl cursor-pointer hover:bg-gray-100"
+                  className="p-1.5 rounded-xl cursor-pointer hover:bg-[#F2ECE1] transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 <div>
-                  <label className="text-[11px] font-bold">
+                  <label className="text-[11px] font-semibold text-[#6E5D53]">
                     Current Password
                   </label>
                   <input
@@ -636,11 +650,13 @@ export default function AccountSettings() {
                       })
                     }
                     required
-                    className="w-full mt-1 p-3 rounded-xl border text-xs font-bold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
+                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border text-xs font-semibold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold">New Password</label>
+                  <label className="text-[11px] font-semibold text-[#6E5D53]">
+                    New Password
+                  </label>
                   <input
                     type="password"
                     value={passwordForm.newPass}
@@ -652,11 +668,11 @@ export default function AccountSettings() {
                     }
                     required
                     placeholder="At least 6 characters"
-                    className="w-full mt-1 p-3 rounded-xl border text-xs font-bold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
+                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border text-xs font-semibold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold">
+                  <label className="text-[11px] font-semibold text-[#6E5D53]">
                     Confirm New Password
                   </label>
                   <input
@@ -670,23 +686,23 @@ export default function AccountSettings() {
                     }
                     required
                     placeholder="Re-enter new password"
-                    className="w-full mt-1 p-3 rounded-xl border text-xs font-bold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
+                    className="w-full mt-1 px-3.5 py-2.5 rounded-xl border text-xs font-semibold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A]"
                   />
                 </div>
               </div>
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="flex items-center justify-end gap-2.5 pt-2">
                 <button
                   type="button"
                   onClick={() => setModalType(null)}
                   disabled={securityLoading}
-                  className="px-4 py-2.5 rounded-xl border text-xs font-bold cursor-pointer hover:bg-gray-100"
+                  className="px-4 py-2.5 rounded-xl border border-[#EADBCE] text-xs font-semibold cursor-pointer hover:bg-[#F2ECE1] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={securityLoading || !passwordForm.newPass}
-                  className="flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#2D1F1A] hover:bg-[#3E2E27] text-white text-xs font-bold cursor-pointer disabled:opacity-50 shadow-md"
+                  className="flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#2D1F1A] hover:bg-[#3E2E27] text-white text-xs font-semibold cursor-pointer disabled:opacity-50 shadow-sm transition-all"
                 >
                   {securityLoading && (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -698,29 +714,31 @@ export default function AccountSettings() {
           )}
 
           {modalType === "sessions" && (
-            <div className="rounded-3xl border w-full max-w-lg p-6 sm:p-8 space-y-5 shadow-2xl bg-white border-[#EADBCE] text-[#2D1F1A]">
-              <div className="flex items-center justify-between pb-3 border-b border-[#EADBCE]">
+            <div className="bg-white rounded-3xl border border-[#EADBCE] w-full max-w-lg p-6 sm:p-8 space-y-5 shadow-2xl text-[#2D1F1A]">
+              <div className="flex items-center justify-between pb-3 border-b border-[#EADBCE]/60">
                 <h3 className="text-base font-serif font-bold">
                   Manage Active Sessions
                 </h3>
                 <button
                   type="button"
                   onClick={() => setModalType(null)}
-                  className="p-1.5 rounded-xl cursor-pointer hover:bg-gray-100"
+                  className="p-1.5 rounded-xl cursor-pointer hover:bg-[#F2ECE1] transition-colors"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="space-y-3 max-h-60 overflow-y-auto">
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
                 {activeSessions.map((session) => (
                   <div
                     key={session.id}
-                    className="flex items-center justify-between p-3 border rounded-xl border-[#EADBCE] bg-[#FBF9F4]"
+                    className="flex items-center justify-between p-3.5 border rounded-2xl border-[#EADBCE]/60 bg-[#FBF9F4]"
                   >
                     <div className="flex items-center gap-3">
-                      <Laptop className="w-5 h-5 text-[#C5924E]" />
+                      <div className="p-2 rounded-xl bg-white border border-[#EADBCE] text-[#C5924E]">
+                        <Laptop className="w-4 h-4" />
+                      </div>
                       <div>
-                        <p className="text-xs font-bold">{session.device}</p>
+                        <p className="text-xs font-semibold">{session.device}</p>
                         <span className="text-[10px] text-[#6E5D53]">
                           {session.location} • {session.lastActive}
                         </span>
@@ -728,7 +746,7 @@ export default function AccountSettings() {
                     </div>
                     <button
                       onClick={() => handleRevokeSession(session.id)}
-                      className="px-3 py-1.5 rounded-lg border border-red-500/30 bg-red-500/10 text-red-500 text-[11px] font-bold cursor-pointer hover:bg-red-500/20"
+                      className="px-3 py-1.5 rounded-xl border border-red-500/20 bg-red-50 text-red-600 text-[11px] font-semibold cursor-pointer hover:bg-red-100 transition-colors"
                     >
                       Revoke
                     </button>
@@ -738,7 +756,7 @@ export default function AccountSettings() {
               <div className="flex justify-end pt-2">
                 <button
                   onClick={() => setModalType(null)}
-                  className="px-4 py-2.5 rounded-xl bg-[#2D1F1A] text-white text-xs font-bold cursor-pointer hover:bg-[#3E2E27]"
+                  className="px-4 py-2.5 rounded-xl bg-[#2D1F1A] text-white text-xs font-semibold cursor-pointer hover:bg-[#3E2E27] transition-colors"
                 >
                   Close
                 </button>
@@ -750,8 +768,8 @@ export default function AccountSettings() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-red-100 space-y-6 relative animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-red-100 space-y-5 relative">
             <button
               onClick={() => setShowDeleteModal(false)}
               className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 cursor-pointer"
@@ -759,19 +777,19 @@ export default function AccountSettings() {
               <X className="w-5 h-5" />
             </button>
 
-            <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center border border-red-100">
+              <AlertTriangle className="w-5 h-5" />
             </div>
 
-            <div className="space-y-2">
-              <h3 className="text-xl font-serif font-bold text-[#2D1F1A]">
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-serif font-bold text-[#2D1F1A]">
                 Are you absolutely sure?
               </h3>
               <p className="text-xs text-[#6E5D53] leading-relaxed">
-                This will delete your database profile information and sign you
-                out permanently. Type{" "}
-                <strong className="text-red-600">DELETE</strong> below to
-                confirm.
+                This action will delete your database profile information and
+                sign you out permanently. Type{" "}
+                <strong className="text-red-600 font-bold">DELETE</strong> below
+                to confirm.
               </p>
             </div>
 
@@ -780,25 +798,25 @@ export default function AccountSettings() {
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               placeholder="Type DELETE"
-              className="w-full px-4 py-3 bg-[#FAF7F2] border border-red-200 rounded-xl text-sm text-[#2D1F1A] focus:outline-none focus:border-red-600 uppercase font-bold tracking-widest text-center"
+              className="w-full px-4 py-3 bg-[#FAF7F2] border border-red-200 rounded-xl text-xs text-[#2D1F1A] focus:outline-none focus:border-red-600 uppercase font-bold tracking-widest text-center"
             />
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex items-center gap-2.5 pt-2">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-[#2D1F1A] text-xs font-bold rounded-xl transition-all cursor-pointer"
+                className="flex-1 px-4 py-3 bg-[#F2ECE1] hover:bg-[#EADBCE] text-[#2D1F1A] text-xs font-semibold rounded-xl transition-all cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteAccount}
                 disabled={deleteLoading || confirmText !== "DELETE"}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer disabled:opacity-40"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-40"
               >
                 {deleteLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 )}
                 <span>Confirm Delete</span>
               </button>
