@@ -23,7 +23,7 @@ import WhyChooseUs from "./components/Landing-Page/WhyChooseUs";
 import HowItWorks from "./components/Landing-Page/HowItWorks";
 import AboutUs from "./components/Landing-Page/AboutUs";
 import Login from "./components/Login/Login";
-import Option from "./components/Login/Option"; // <-- IMPORTED YOUR OPTION COMPONENT HERE
+import Option from "./components/Login/Option";
 import ContactUs from "./components/ContactUs/ContactUs";
 import TenantDashboard from "./components/Tenant/TenantDashboard";
 import OwnerDashboard from "./components/Owner/OwnerDashboard";
@@ -36,7 +36,10 @@ import OwnerBookings from "./components/Owner/OwnerBookings";
 import OwnerEarnings from "./components/Owner/OwnerEarnings";
 import OwnerSettings from "./components/Owner/OwnerSettings";
 import OwnerTenants from "./components/Owner/OwnerTenants";
-import Messages from "./components/Messages";
+
+// 📥 UPDATED MESSAGE IMPORTS FOR OWNER & TENANT
+import OwnerMessages from "./components/Owner/OwnerMessages"
+import TenantMessages from "./components/Tenant/TenantMessages";
 
 // Admin Component & Sub-dashboards
 import AdminLayout from "./components/Admin/AdminLayout";
@@ -46,13 +49,11 @@ import OwnersManagement from "./components/Admin/owner";
 import PropertiesManagement from "./components/Admin/properties";
 
 // Owner Components
-
 import OwnerDocuments from "./components/Owner/OwnerDocuments";
 
 // Tenant Components
 import TenantOverview from "./components/Tenant/TenantOverview";
 import ExploreProperty from "./components/Tenant/ExploreProperty";
-import TenantMessageSimulator from "./components/Tenant/TenantMessageSimulator";
 import TenantPropertyDetails from "./components/Tenant/TenantPropertyDetails";
 import SavedProperties from "./components/Tenant/TenantSaved";
 import TenantDocuments from "./components/Tenant/TenantDocument";
@@ -178,7 +179,6 @@ function AuthCallback() {
           const intendedRole = localStorage.getItem("oauth_intended_role");
           let userRole = session.user?.user_metadata?.role;
 
-          // If an intended role was stored (and isn't just "pending"), update metadata
           if (intendedRole && intendedRole !== "pending" && intendedRole !== userRole) {
             const { data: updateData } = await supabase.auth.updateUser({
               data: { role: intendedRole },
@@ -187,13 +187,11 @@ function AuthCallback() {
             localStorage.removeItem("oauth_intended_role");
           }
 
-          // If the user still has no role assigned, send them to /option to pick one
           if (!userRole) {
             navigate("/option", { replace: true });
             return;
           }
 
-          // Otherwise, route them to their respective dashboard
           if (userRole === "owner") {
             navigate("/owner-dashboard", { replace: true });
           } else if (userRole === "admin") {
@@ -366,7 +364,7 @@ function AppLayout() {
 
   const isDashboardRoute =
     location.pathname === "/login" ||
-    location.pathname === "/option" || // <-- ADDED OPTION ROUTE HERE TO EXCLUDE NAVBAR/FOOTER IF NEEDED
+    location.pathname === "/option" ||
     location.pathname === "/auth/callback" ||
     location.pathname === "/owner-dashboard" ||
     location.pathname.startsWith("/owner-dashboard/") ||
@@ -432,7 +430,7 @@ function AppLayout() {
           <Route path="/" element={<Home />} />
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/option" element={<Option />} /> {/* <-- ADDED ROUTE FOR YOUR OPTION PAGE */}
+          <Route path="/option" element={<Option />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* Admin Dashboard & Sub-routes */}
@@ -464,7 +462,6 @@ function AppLayout() {
               element={<OwnerPropertyDetails />}
             />
             <Route path="/owner-dashboard/tenants" element={<OwnerTenants />} />
-            
             <Route
               path="/owner-dashboard/documents"
               element={<OwnerDocuments />}
@@ -473,7 +470,10 @@ function AppLayout() {
             <Route path="/owner-bookings" element={<OwnerBookings />} />
             <Route path="/owner-earnings" element={<OwnerEarnings />} />
             <Route path="/owner-settings" element={<OwnerSettings />} />
-            <Route path="/messages" element={<Messages />} />
+            
+            {/* Owner Messages Integrated Here */}
+            <Route path="/messages" element={<OwnerMessages />} />
+            <Route path="/owner-dashboard/messages" element={<OwnerMessages />} />
           </Route>
 
           {/* Tenant Dashboard Routes */}
@@ -487,7 +487,10 @@ function AppLayout() {
           >
             <Route index element={<TenantOverview />} />
             <Route path="explore" element={<ExploreProperty />} />
-            <Route path="messages" element={<TenantMessageSimulator />} />
+            
+            {/* Tenant Messages Integrated Here */}
+            <Route path="messages" element={<TenantMessages />} />
+            
             <Route path="bookings" element={<TenantBookings />} />
             <Route path="saved-properties" element={<SavedProperties />} />
             <Route path="saved" element={<SavedProperties />} />

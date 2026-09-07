@@ -26,6 +26,10 @@ export default function TenantDashboard() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notificationRef = useRef(null);
 
+  // Notification state indicators
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  const [hasActiveBookingsUpdate, setHasActiveBookingsUpdate] = useState(false);
+
   // Consume global context data with safe fallbacks
   const context = useContext(AppContext);
   if (!context) {
@@ -38,6 +42,74 @@ export default function TenantDashboard() {
 
   const useNavigateInstance = useNavigate();
   const location = useLocation();
+
+  // Fetch unread messages and booking updates dynamically on load & route change
+  useEffect(() => {
+    const fetchTenantNotifications = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session || !session.user) return;
+        const userId = session.user.id;
+
+        // 1. Check for unread messages received by the tenant
+        const { count: msgCount, error: msgError } = await supabase
+          .from("messages")
+          .select("*", { count: "exact", head: true })
+          .eq("receiver_id", userId)
+          .eq("is_read", false);
+
+        if (!msgError) {
+          setHasUnreadMessages(Boolean(msgCount && msgCount > 0));
+        }
+
+        // 2. Check for updated or confirmed property visit slots/bookings for this tenant
+        const { count: bookingCount, error: bookingError } = await supabase
+          .from("property_visit_slots")
+          .select("*", { count: "exact", head: true })
+          .eq("tenant_id", userId)
+          .in("status", ["confirmed", "rescheduled"]);
+
+        if (!bookingError) {
+          setHasActiveBookingsUpdate(Boolean(bookingCount && bookingCount > 0));
+        } else {
+          setHasActiveBookingsUpdate(false);
+        }
+      } catch (err) {
+        console.error("Error fetching tenant notifications:", err);
+      }
+    };
+
+    fetchTenantNotifications();
+
+    // Setup real-time listener for live message updates
+    const messageSubscription = supabase
+      .channel("tenant-dashboard-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "messages" },
+        async () => {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (!session || !session.user) return;
+
+          const { count } = await supabase
+            .from("messages")
+            .select("*", { count: "exact", head: true })
+            .eq("receiver_id", session.user.id)
+            .eq("is_read", false);
+
+          setHasUnreadMessages(Boolean(count && count > 0));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messageSubscription);
+    };
+  }, [location.pathname]);
 
   // Close notification dropdown when clicking outside
   useEffect(() => {
@@ -118,8 +190,14 @@ export default function TenantDashboard() {
       name: "Messages",
       icon: MessageSquare,
       path: "/tenant-dashboard/messages",
+      hasNotification: hasUnreadMessages,
     },
-    { name: "My Bookings", icon: Calendar, path: "/tenant-dashboard/bookings" },
+    {
+      name: "My Bookings",
+      icon: Calendar,
+      path: "/tenant-dashboard/bookings",
+      hasNotification: hasActiveBookingsUpdate,
+    },
     {
       name: "Saved Properties",
       icon: Heart,
@@ -240,6 +318,9 @@ export default function TenantDashboard() {
                     />
                     <span>{item.name}</span>
                   </div>
+                  {item.hasNotification && (
+                    <span className="w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse shadow-sm"></span>
+                  )}
                 </Link>
               );
             })}
@@ -286,6 +367,9 @@ export default function TenantDashboard() {
               }`}
             >
               <Bell className="w-4 h-4" />
+              {(hasUnreadMessages || hasActiveBookingsUpdate) && (
+                <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse border border-white"></span>
+              )}
             </button>
 
             {/* Notification Dropdown Popover */}

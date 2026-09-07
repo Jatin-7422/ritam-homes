@@ -41,7 +41,7 @@ export default function OwnerDashboard() {
   const useNavigateInstance = useNavigate();
   const location = useLocation();
 
-  // Fetch unread messages, pending bookings, and document verification status on load
+  // Fetch unread messages, pending bookings, and document verification status on load & route change
   useEffect(() => {
     const fetchNotificationsAndStatus = async () => {
       try {
@@ -51,18 +51,18 @@ export default function OwnerDashboard() {
         if (!session || !session.user) return;
         const userId = session.user.id;
 
-        // 1. Initial check for unread messages
-        const { count: msgCount } = await supabase
+        // 1. Check for unread messages (Strictly checking count > 0)
+        const { count: msgCount, error: msgError } = await supabase
           .from("messages")
           .select("*", { count: "exact", head: true })
           .eq("receiver_id", userId)
           .eq("is_read", false);
 
-        if (msgCount && msgCount > 0) {
-          setHasUnreadMessages(true);
+        if (!msgError) {
+          setHasUnreadMessages(Boolean(msgCount && msgCount > 0));
         }
 
-        // 2. Initial check for pending bookings on owner's properties
+        // 2. Check for pending bookings on owner's properties
         const { data: props } = await supabase
           .from("properties")
           .select("id")
@@ -70,15 +70,19 @@ export default function OwnerDashboard() {
 
         if (props && props.length > 0) {
           const propertyIds = props.map((p) => p.id);
-          const { count: slotCount } = await supabase
+          const { count: slotCount, error: slotError } = await supabase
             .from("property_visit_slots")
             .select("*", { count: "exact", head: true })
             .in("property_id", propertyIds)
             .eq("status", "pending");
 
-          if (slotCount && slotCount > 0) {
-            setHasPendingBookings(true);
+          if (!slotError) {
+            setHasPendingBookings(Boolean(slotCount && slotCount > 0));
+          } else {
+            setHasPendingBookings(false);
           }
+        } else {
+          setHasPendingBookings(false);
         }
 
         // 3. Fetch all owner documents to determine a consolidated verification status accurately
@@ -114,16 +118,26 @@ export default function OwnerDashboard() {
 
     fetchNotificationsAndStatus();
 
-    // Setup real-time listener for live notification updates
+    // Setup real-time listener for live message updates
     const messageSubscription = supabase
       .channel("owner-dashboard-realtime")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          if (payload.new && payload.new.is_read === false) {
-            setHasUnreadMessages(true);
-          }
+        { event: "*", schema: "public", table: "messages" },
+        async () => {
+          // Re-verify unread count on any message change event
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          if (!session || !session.user) return;
+          
+          const { count } = await supabase
+            .from("messages")
+            .select("*", { count: "exact", head: true })
+            .eq("receiver_id", session.user.id)
+            .eq("is_read", false);
+
+          setHasUnreadMessages(Boolean(count && count > 0));
         }
       )
       .subscribe();
@@ -131,7 +145,7 @@ export default function OwnerDashboard() {
     return () => {
       supabase.removeChannel(messageSubscription);
     };
-  }, []);
+  }, [location.pathname]); // Re-runs check whenever user navigates across routes (e.g. leaving inbox)
 
   // Sync basic auth data without overriding user-updated context states
   useEffect(() => {
@@ -208,7 +222,6 @@ export default function OwnerDashboard() {
       path: "/messages",
       hasNotification: hasUnreadMessages,
     },
-  
     { name: "Settings", icon: Settings, path: "/owner-settings" },
   ];
 
@@ -353,10 +366,8 @@ export default function OwnerDashboard() {
       </aside>
 
       {/* DESKTOP HORIZONTAL HEADER / NAVBAR */}
-     {/* DESKTOP HORIZONTAL HEADER / NAVBAR */}
       <header className="hidden md:flex bg-[#2D1F1A] text-[#D1C4B9] border-b border-white/10 px-4 lg:px-6 py-3 items-center justify-between sticky top-0 z-40 shadow-md">
         <div className="flex items-center gap-3 lg:gap-5 flex-1 min-w-0">
-          {/* Enhanced Branding / Larger Logo Container - Redirects to Owner Dashboard */}
           <Link
             to="/owner-dashboard"
             className="flex items-center flex-shrink-0 group pr-3 border-r border-white/10"
@@ -368,7 +379,6 @@ export default function OwnerDashboard() {
             />
           </Link>
 
-          {/* Horizontal Nav Links - Perfectly Fitted Without Scrolling */}
           <nav className="flex items-center gap-1 xl:gap-1.5 min-w-0">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -378,7 +388,7 @@ export default function OwnerDashboard() {
                 <Link
                   key={item.name}
                   to={item.path || "#"}
-                  className={`flex items-center gap-1 px-2 lg:px-2.5 py-2 rounded-xl text-[11px] lg:text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                  className={`flex items-center gap-1 px-2 lg:px-2.5 py-2 rounded-xl text-[11px] lg:text-xs font-medium transition-all cursor-pointer whitespace-nowrap relative ${
                     isActive
                       ? "bg-[#C5924E] text-[#2D1F1A] font-bold shadow-md"
                       : "hover:bg-[#3A2E2A] text-[#D1C4B9] hover:text-white"
@@ -455,7 +465,6 @@ export default function OwnerDashboard() {
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Bigger Branded Logo Container - Redirects to Owner Dashboard */}
         <Link to="/owner-dashboard" className="flex items-center gap-2">
           <img
             src={logoWhite}

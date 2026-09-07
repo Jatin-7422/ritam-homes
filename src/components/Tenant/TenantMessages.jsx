@@ -1,19 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
-import { supabase } from "../supabaseClient";
-import { Send, User, Loader2, MessageSquare, Trash2 } from "lucide-react";
+import { supabase } from "../../supabaseClient";
+import { Send, User, Loader2, MessageSquare, Trash2, ArrowLeft, Check, CheckCheck, Home } from "lucide-react";
 
-export default function Messages() {
+export default function TenantMessages() {
   const [conversations, setConversations] = useState([]);
   const [activeChat, setActiveChat] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+  
   const messagesEndRef = useRef(null);
 
-  const [currentUserId, setCurrentUserId] = useState(null);
-
-  // Fetch current user ID on mount
   useEffect(() => {
     async function getUser() {
       const {
@@ -26,38 +25,41 @@ export default function Messages() {
     getUser();
   }, []);
 
-  // Fetch unique conversations for the current user & listen to updates
+  // Fetch conversations where the user is the sender/tenant inquiring about properties
   useEffect(() => {
     if (!currentUserId) return;
 
-    async function fetchConversations() {
+    async function fetchTenantConversations() {
       setLoadingConversations(true);
       try {
         const { data, error } = await supabase
           .from("messages")
-          .select(
-            `
+          .select(`
             *,
-            properties (title, images)
-          `,
-          )
+            properties (title, images, owner_id)
+          `)
           .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
           .order("created_at", { ascending: false });
 
         if (error) throw error;
 
-        processConversations(data, currentUserId);
+        // Filter to only show conversations where the current user is NOT the owner of the property
+        const tenantFilteredData = (data || []).filter(
+          (msg) => msg.properties?.owner_id !== currentUserId
+        );
+
+        processConversations(tenantFilteredData, currentUserId);
       } catch (err) {
-        console.error("Error fetching conversations:", err.message);
+        console.error("Error fetching tenant conversations:", err.message);
       } finally {
         setLoadingConversations(false);
       }
     }
 
-    fetchConversations();
+    fetchTenantConversations();
 
     const globalChannel = supabase
-      .channel("global_messages_permanent")
+      .channel("tenant_global_messages")
       .on(
         "postgres_changes",
         {
@@ -66,8 +68,8 @@ export default function Messages() {
           table: "messages",
         },
         () => {
-          fetchConversations();
-        },
+          fetchTenantConversations();
+        }
       )
       .subscribe();
 
@@ -76,18 +78,16 @@ export default function Messages() {
     };
   }, [currentUserId]);
 
-  // Helper to group messages into distinct conversations
   const processConversations = (data, userId) => {
     const convoMap = new Map();
     const sortedData = [...(data || [])].sort(
-      (a, b) => new Date(a.created_at) - new Date(b.created_at),
+      (a, b) => new Date(a.created_at) - new Date(b.created_at)
     );
 
     sortedData.forEach((msg) => {
       const partnerId =
         msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
       const key = `${msg.property_id}-${partnerId}`;
-
       const isUnread = msg.receiver_id === userId && !msg.is_read;
 
       if (!convoMap.has(key)) {
@@ -109,13 +109,12 @@ export default function Messages() {
     });
 
     const convoArray = Array.from(convoMap.values()).sort(
-      (a, b) => new Date(b.created_at) - new Date(a.created_at),
+      (a, b) => new Date(b.created_at) - new Date(a.created_at)
     );
 
     setConversations(convoArray);
   };
 
-  // Fetch messages for active chat and mark them as read
   useEffect(() => {
     if (!activeChat || !currentUserId) return;
 
@@ -127,14 +126,13 @@ export default function Messages() {
           .select("*")
           .eq("property_id", activeChat.property_id)
           .or(
-            `and(sender_id.eq.${currentUserId},receiver_id.eq.${activeChat.partner_id}),and(sender_id.eq.${activeChat.partner_id},receiver_id.eq.${currentUserId})`,
+            `and(sender_id.eq.${currentUserId},receiver_id.eq.${activeChat.partner_id}),and(sender_id.eq.${activeChat.partner_id},receiver_id.eq.${currentUserId})`
           )
           .order("created_at", { ascending: true });
 
         if (error) throw error;
         setMessages(data || []);
 
-        // Mark unread messages sent TO us by this partner as read in database
         await supabase
           .from("messages")
           .update({ is_read: true })
@@ -148,11 +146,11 @@ export default function Messages() {
             c.property_id === activeChat.property_id &&
             c.partner_id === activeChat.partner_id
               ? { ...c, hasUnread: false }
-              : c,
-          ),
+              : c
+          )
         );
       } catch (err) {
-        console.error("Error fetching chat messages:", err.message);
+        console.error("Error fetching tenant chat messages:", err.message);
       } finally {
         setLoadingMessages(false);
       }
@@ -161,7 +159,7 @@ export default function Messages() {
     fetchMessagesAndMarkRead();
 
     const channel = supabase
-      .channel(`chat_perm_${activeChat.property_id}_${activeChat.partner_id}`)
+      .channel(`tenant_chat_${activeChat.property_id}_${activeChat.partner_id}`)
       .on(
         "postgres_changes",
         {
@@ -183,7 +181,6 @@ export default function Messages() {
               return [...prev, newMsg];
             });
 
-            // If incoming message arrives while chat is open, immediately mark it as read
             if (
               newMsg.sender_id === activeChat.partner_id &&
               newMsg.receiver_id === currentUserId
@@ -194,7 +191,7 @@ export default function Messages() {
                 .eq("id", newMsg.id);
             }
           }
-        },
+        }
       )
       .subscribe();
 
@@ -203,7 +200,6 @@ export default function Messages() {
     };
   }, [activeChat, currentUserId]);
 
-  // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -254,7 +250,7 @@ export default function Messages() {
         .delete()
         .eq("property_id", activeChat.property_id)
         .or(
-          `and(sender_id.eq.${currentUserId},receiver_id.eq.${activeChat.partner_id}),and(sender_id.eq.${activeChat.partner_id},receiver_id.eq.${currentUserId})`,
+          `and(sender_id.eq.${currentUserId},receiver_id.eq.${activeChat.partner_id}),and(sender_id.eq.${activeChat.partner_id},receiver_id.eq.${currentUserId})`
         );
 
       if (error) throw error;
@@ -267,8 +263,8 @@ export default function Messages() {
             !(
               c.property_id === activeChat.property_id &&
               c.partner_id === activeChat.partner_id
-            ),
-        ),
+            )
+        )
       );
     } catch (err) {
       console.error("Error deleting conversation:", err.message);
@@ -277,21 +273,35 @@ export default function Messages() {
   };
 
   return (
-    <div className="px-6 sm:px-10 py-6 max-w-7xl mx-auto w-full h-[calc(100vh-100px)] flex flex-col">
-      <div className="mb-4">
-        <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#2D1F1A]">
-          Messages
-        </h1>
-        <p className="text-xs sm:text-sm text-[#6E5D53] mt-0.5">
-          Chat directly with property owners or interested tenants.
-        </p>
+    <div className="px-4 sm:px-10 py-6 max-w-7xl mx-auto w-full h-[calc(100vh-80px)] flex flex-col">
+      <div className="mb-4 flex-shrink-0 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#2D1F1A]">
+            My Inquiries
+          </h1>
+          <p className="text-xs sm:text-sm text-[#6E5D53] mt-0.5">
+            Chat with property owners regarding your listing inquiries.
+          </p>
+        </div>
+        <div className="hidden sm:flex items-center gap-2 bg-[#C5924E]/10 px-3 py-1.5 rounded-xl border border-[#C5924E]/30">
+          <Home className="w-4 h-4 text-[#C5924E]" />
+          <span className="text-xs font-bold text-[#2D1F1A]">Tenant Portal</span>
+        </div>
       </div>
 
-      <div className="bg-white border border-[#E3D9CC] rounded-3xl shadow-xs flex-1 grid grid-cols-1 md:grid-cols-12 overflow-hidden min-h-0">
+      <div className="bg-white border border-[#E3D9CC] rounded-3xl shadow-sm flex-1 grid grid-cols-1 md:grid-cols-12 overflow-hidden min-h-0 relative">
+        
         {/* CONVERSATIONS SIDEBAR */}
-        <div className="md:col-span-4 border-r border-[#E3D9CC] flex flex-col bg-[#F8F5EE]/40 min-h-0 overflow-hidden">
-          <div className="p-4 border-b border-[#E3D9CC] bg-white font-serif font-bold text-xs text-[#2D1F1A] flex-shrink-0">
-            Active Chats
+        <div 
+          className={`md:col-span-4 border-r border-[#E3D9CC] flex flex-col bg-[#F8F5EE]/40 min-h-0 overflow-hidden ${
+            activeChat ? "hidden md:flex" : "flex"
+          }`}
+        >
+          <div className="p-4 border-b border-[#E3D9CC] bg-white font-serif font-bold text-xs uppercase tracking-wider text-[#2D1F1A] flex-shrink-0 flex items-center justify-between">
+            <span>Owner Chats</span>
+            <span className="bg-[#C5924E]/10 text-[#C5924E] px-2 py-0.5 rounded-full text-[10px]">
+              {conversations.length}
+            </span>
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-[#E3D9CC] min-h-0">
@@ -302,8 +312,7 @@ export default function Messages() {
             ) : conversations.length === 0 ? (
               <div className="p-8 text-center text-xs text-[#6E5D53]">
                 <MessageSquare className="w-8 h-8 mx-auto text-[#C5924E] mb-2 opacity-60" />
-                No messages yet. Start a conversation from a property listing or
-                visit request!
+                No active property inquiries. Reach out to an owner from any listing page!
               </div>
             ) : (
               conversations.map((convo, idx) => {
@@ -314,13 +323,13 @@ export default function Messages() {
                   <div
                     key={idx}
                     onClick={() => setActiveChat(convo)}
-                    className={`p-4 cursor-pointer transition-colors flex gap-3 items-center relative ${
+                    className={`p-4 cursor-pointer transition-all flex gap-3 items-center relative ${
                       isActive
-                        ? "bg-[#C5924E]/10 border-l-4 border-[#C5924E]"
-                        : "hover:bg-white"
+                        ? "bg-[#C5924E]/15 border-l-4 border-[#C5924E]"
+                        : "hover:bg-white/80"
                     }`}
                   >
-                    <div className="w-10 h-10 rounded-full bg-[#E3D9CC] overflow-hidden flex-shrink-0 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-2xl bg-[#E3D9CC] overflow-hidden flex-shrink-0 flex items-center justify-center shadow-inner">
                       {convo.property_image ? (
                         <img
                           src={convo.property_image}
@@ -337,11 +346,13 @@ export default function Messages() {
                           {convo.property_title}
                         </strong>
                         {convo.hasUnread && (
-                          <span className="w-2 h-2 rounded-full bg-[#C5924E] flex-shrink-0 ml-2 animate-pulse" />
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#C5924E] flex-shrink-0 ml-2 animate-pulse shadow-sm" />
                         )}
                       </div>
                       <p
-                        className={`text-[11px] truncate mt-0.5 ${convo.hasUnread ? "font-bold text-[#2D1F1A]" : "text-[#6E5D53]"}`}
+                        className={`text-[11px] truncate mt-1 ${
+                          convo.hasUnread ? "font-bold text-[#2D1F1A]" : "text-[#6E5D53]"
+                        }`}
                       >
                         {convo.last_message}
                       </p>
@@ -354,38 +365,51 @@ export default function Messages() {
         </div>
 
         {/* CHAT WINDOW AREA */}
-        <div className="md:col-span-8 flex flex-col bg-white min-h-0 overflow-hidden">
+        <div 
+          className={`md:col-span-8 flex flex-col bg-white min-h-0 overflow-hidden ${
+            !activeChat ? "hidden md:flex" : "flex"
+          }`}
+        >
           {activeChat ? (
             <>
               {/* CHAT HEADER */}
               <div className="p-4 border-b border-[#E3D9CC] flex items-center justify-between bg-[#F8F5EE]/30 flex-shrink-0">
-                <div>
-                  <h3 className="font-serif font-bold text-xs sm:text-sm text-[#2D1F1A]">
-                    {activeChat.property_title}
-                  </h3>
-                  <span className="text-[10px] text-[#6E5D53]">
-                    Secure direct chat
-                  </span>
+                <div className="flex items-center gap-3 min-w-0">
+                  <button
+                    onClick={() => setActiveChat(null)}
+                    className="md:hidden p-2 rounded-xl bg-white border border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#F8F5EE] transition-colors cursor-pointer"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+                  <div className="min-w-0">
+                    <h3 className="font-serif font-bold text-xs sm:text-sm text-[#2D1F1A] truncate">
+                      {activeChat.property_title}
+                    </h3>
+                    <span className="text-[10px] text-[#C5924E] font-medium flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Direct Owner Chat
+                    </span>
+                  </div>
                 </div>
                 <button
                   onClick={handleDeleteConversation}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-xs font-medium transition-colors cursor-pointer flex-shrink-0 shadow-xs"
                   title="Delete Chat"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Delete Chat</span>
+                  <span className="hidden sm:inline">Delete Thread</span>
                 </button>
               </div>
 
               {/* MESSAGES LIST */}
-              <div className="flex-1 p-4 overflow-y-auto space-y-3 bg-[#FBF9F4] min-h-0">
+              <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-3.5 bg-[#FBF9F4] min-h-0">
                 {loadingMessages ? (
                   <div className="flex items-center justify-center h-full">
                     <Loader2 className="w-6 h-6 animate-spin text-[#C5924E]" />
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-xs text-[#6E5D53]">
-                    Say hello and start the discussion!
+                    No messages yet. Send a message to the owner below!
                   </div>
                 ) : (
                   messages.map((msg, mIdx) => {
@@ -396,20 +420,31 @@ export default function Messages() {
                         className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
                       >
                         <div
-                          className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-xs ${
+                          className={`max-w-[80%] sm:max-w-[70%] px-4 py-3 rounded-2xl text-xs leading-relaxed ${
                             isMe
-                              ? "bg-[#2D1F1A] text-white rounded-br-xs"
+                              ? "bg-[#2D1F1A] text-white rounded-br-xs shadow-sm"
                               : "bg-white border border-[#E3D9CC] text-[#2D1F1A] rounded-bl-xs shadow-xs"
                           }`}
                         >
                           {msg.content}
                         </div>
-                        <span className="text-[9px] text-[#9E8B7F] mt-1 px-1">
-                          {new Date(msg.created_at).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </span>
+                        <div className="flex items-center gap-1 mt-1 px-1">
+                          <span className="text-[9px] text-[#9E8B7F]">
+                            {new Date(msg.created_at).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                          {isMe && (
+                            <span className="text-[#C5924E]">
+                              {msg.is_read ? (
+                                <CheckCheck className="w-3 h-3" />
+                              ) : (
+                                <Check className="w-3 h-3" />
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     );
                   })
@@ -420,31 +455,32 @@ export default function Messages() {
               {/* MESSAGE INPUT */}
               <form
                 onSubmit={handleSendMessage}
-                className="p-3 border-t border-[#E3D9CC] flex gap-2 bg-white flex-shrink-0"
+                className="p-3 sm:p-4 border-t border-[#E3D9CC] flex gap-2.5 bg-white flex-shrink-0"
               >
                 <input
                   type="text"
-                  placeholder="Type a message..."
+                  placeholder="Type message to property owner..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                  className="flex-1 px-4 py-3 rounded-2xl border border-[#E3D9CC] bg-[#F8F5EE]/60 text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] focus:bg-white transition-all shadow-inner"
                 />
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#C5924E] text-[#2D1F1A] hover:bg-[#b07f3e] rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center justify-center"
+                  disabled={!newMessage.trim()}
+                  className="px-5 py-3 bg-[#C5924E] text-[#2D1F1A] hover:bg-[#b07f3e] disabled:opacity-50 disabled:cursor-not-allowed rounded-2xl text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center justify-center flex-shrink-0"
                 >
                   <Send className="w-4 h-4" />
                 </button>
               </form>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-[#6E5D53] min-h-0">
-              <MessageSquare className="w-12 h-12 text-[#C5924E] mb-3 opacity-50" />
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-[#6E5D53] min-h-0 bg-[#FBF9F4]/50">
+              <MessageSquare className="w-12 h-12 text-[#C5924E] mb-3 opacity-40" />
               <strong className="text-sm font-serif text-[#2D1F1A]">
-                Select a conversation
+                Select an owner conversation
               </strong>
-              <p className="text-xs text-[#6E5D53] mt-1">
-                Choose a chat from the left sidebar to start messaging.
+              <p className="text-xs text-[#6E5D53] mt-1 max-w-xs">
+                Choose a chat thread from the left panel to message the property owner.
               </p>
             </div>
           )}
