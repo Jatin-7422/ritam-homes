@@ -20,7 +20,7 @@ import {
   Laptop,
   Smartphone,
   Loader2,
-  ChevronRight,
+  Camera,
 } from "lucide-react";
 
 export const AppContext = createContext(null);
@@ -35,6 +35,7 @@ export function AppProvider({ children }) {
     memberSince: "N/A",
     location: "Bangalore, Karnataka, India",
     isVerified: true,
+    avatarUrl: "",
   });
 
   const [toastMessage, setToastMessage] = useState("");
@@ -44,11 +45,25 @@ export function AppProvider({ children }) {
     setTimeout(() => setToastMessage(""), 3500);
   };
 
-  const updateUserInfoFromSession = (user) => {
+  const updateUserInfoFromSession = async (user) => {
     if (!user) return;
     const metadata = user.user_metadata || {};
 
+    // Fetch from profiles table if available
+    let profileData = null;
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      profileData = data;
+    } catch (err) {
+      console.error("Error fetching profile:", err.message);
+    }
+
     const rawName =
+      profileData?.full_name ||
       metadata.full_name ||
       metadata.name ||
       user.email?.split("@")[0] ||
@@ -63,20 +78,21 @@ export function AppProvider({ children }) {
       : "N/A";
 
     const rawPhone =
-      user.phone || metadata.phone || metadata.phone_number || "";
+      profileData?.phone || user.phone || metadata.phone || metadata.phone_number || "";
     const validPhone = rawPhone === "Not provided" ? "" : rawPhone;
 
     setUserInfo({
       fullName: formattedName,
-      email: user.email || "",
+      email: profileData?.email || user.email || "",
       phone: validPhone,
-      businessName: metadata.business_name || "Master Properties",
-      location: metadata.location || "India",
-      role: metadata.role
+      businessName: profileData?.business_name || metadata.business_name || "Master Properties",
+      location: profileData?.location || metadata.location || "India",
+      role: profileData?.role || (metadata.role
         ? metadata.role.charAt(0).toUpperCase() + metadata.role.slice(1)
-        : "Property Owner",
+        : "Property Owner"),
       memberSince: createdAt,
       isVerified: user.email_confirmed_at ? true : false,
+      avatarUrl: profileData?.avatar_url || metadata.avatar_url || metadata.picture || "",
     });
   };
 
@@ -111,6 +127,7 @@ export function AppProvider({ children }) {
           memberSince: "N/A",
           location: "",
           isVerified: false,
+          avatarUrl: "",
         });
       }
     });
@@ -145,6 +162,7 @@ export default function AccountSettings() {
 
   const [activeTab, setActiveTab] = useState("profile");
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [securityLoading, setSecurityLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -175,21 +193,79 @@ export default function AccountSettings() {
     confirm: "",
   });
 
+  const handleImageUpload = async (e) => {
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setUploadingImage(true);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${session.user.id}-${Math.random()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Upload to Supabase Storage 'avatars' bucket
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get Public URL
+      const { data: publicUrlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      const avatarUrl = publicUrlData.publicUrl;
+
+      setTempProfile((prev) => ({ ...prev, avatarUrl }));
+      showToast("Image uploaded! Click 'Save Changes' to apply.");
+    } catch (err) {
+      console.error("Error uploading image:", err.message);
+      showToast(`Upload failed: ${err.message}`);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("No active session");
+      const userId = session.user.id;
+
+      // 1. Update auth user metadata for extra fields
+      const { error: authError } = await supabase.auth.updateUser({
         data: {
-          full_name: tempProfile.fullName,
-          phone: tempProfile.phone,
           business_name: tempProfile.businessName,
           location: tempProfile.location,
+          role: tempProfile.role,
         },
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
+
+      // 2. Update your exact public.profiles table columns
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          full_name: tempProfile.fullName,
+          phone: tempProfile.phone,
+          avatar_url: tempProfile.avatarUrl,
+          updated_at: new Date(),
+        })
+        .eq("id", userId);
+
+      if (profileError) throw profileError;
 
       setUserInfo((prev) => ({
         ...prev,
@@ -197,6 +273,7 @@ export default function AccountSettings() {
         phone: tempProfile.phone,
         businessName: tempProfile.businessName,
         location: tempProfile.location,
+        avatarUrl: tempProfile.avatarUrl,
       }));
 
       setModalType(null);
@@ -316,12 +393,8 @@ export default function AccountSettings() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 sm:flex-none flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 isSelected
-                  .toString()
-                  .replace(
-                    /true/,
-                    "bg-white text-[#2D1F1A] shadow-sm border border-[#EADBCE]/40"
-                  )
-                  .replace(/false/, "text-[#6E5D53] hover:text-[#2D1F1A]")
+                  ? "bg-white text-[#2D1F1A] shadow-sm border border-[#EADBCE]/40"
+                  : "text-[#6E5D53] hover:text-[#2D1F1A]"
               }`}
             >
               <Icon
@@ -337,14 +410,24 @@ export default function AccountSettings() {
 
       {activeTab === "profile" && (
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          {/* User Card Sidebar */}
+          {/* User Card Sidebar with Image Preview */}
           <div className="md:col-span-4">
             <div className="bg-white rounded-3xl p-6 border border-[#EADBCE]/80 shadow-sm flex flex-col items-center text-center space-y-4 relative overflow-hidden">
               <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#C5924E] to-[#2D1F1A]" />
-              <div className="w-20 h-20 rounded-2xl bg-[#F8F5EE] border border-[#EADBCE] text-[#2D1F1A] flex items-center justify-center text-2xl font-serif font-bold shadow-inner mt-2">
-                {userInfo.fullName
-                  ? userInfo.fullName.charAt(0).toUpperCase()
-                  : "J"}
+              <div className="w-20 h-20 rounded-2xl bg-[#F8F5EE] border border-[#EADBCE] text-[#2D1F1A] flex items-center justify-center text-2xl font-serif font-bold shadow-inner mt-2 overflow-hidden relative">
+                {userInfo.avatarUrl ? (
+                  <img
+                    src={userInfo.avatarUrl}
+                    alt={userInfo.fullName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>
+                    {userInfo.fullName
+                      ? userInfo.fullName.charAt(0).toUpperCase()
+                      : "J"}
+                  </span>
+                )}
               </div>
               <div className="space-y-0.5">
                 <h2 className="text-base font-serif font-bold">
@@ -501,7 +584,7 @@ export default function AccountSettings() {
           {modalType === "edit-profile" && (
             <form
               onSubmit={handleSaveProfile}
-              className="bg-white rounded-3xl border border-[#EADBCE] w-full max-w-lg p-6 sm:p-8 space-y-5 shadow-2xl text-[#2D1F1A]"
+              className="bg-white rounded-3xl border border-[#EADBCE] w-full max-w-lg p-6 sm:p-8 space-y-5 shadow-2xl text-[#2D1F1A] max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between pb-3 border-b border-[#EADBCE]/60">
                 <h3 className="text-base font-serif font-bold">
@@ -515,7 +598,42 @@ export default function AccountSettings() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
+
               <div className="space-y-3.5">
+                {/* Profile Picture Upload Section */}
+                <div>
+                  <label className="text-[11px] font-semibold text-[#6E5D53]">
+                    Profile Picture
+                  </label>
+                  <div className="flex items-center gap-4 mt-1.5">
+                    <div className="w-14 h-14 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {tempProfile.avatarUrl ? (
+                        <img
+                          src={tempProfile.avatarUrl}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Camera className="w-5 h-5 text-[#C5924E]" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        disabled={uploadingImage}
+                        className="w-full text-xs text-[#6E5D53] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#C5924E] file:text-white hover:file:bg-[#b07e3d] file:cursor-pointer cursor-pointer"
+                      />
+                      {uploadingImage && (
+                        <span className="text-[10px] text-[#C5924E] flex items-center gap-1 mt-1">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Uploading image...
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-[11px] font-semibold text-[#6E5D53]">
                     Full Name
@@ -604,7 +722,7 @@ export default function AccountSettings() {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || uploadingImage}
                   className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#C5924E] hover:bg-[#b07e3d] text-white text-xs font-semibold cursor-pointer disabled:opacity-50 shadow-sm transition-all"
                 >
                   {loading ? (
