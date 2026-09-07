@@ -288,7 +288,7 @@ export default function OwnerMessages() {
       <div className="mb-4 flex-shrink-0 flex items-center justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#2D1F1A]">
-            Owner Inbox
+            Your Inbox
           </h1>
           <p className="text-xs sm:text-sm text-[#6E5D53] mt-0.5">
             Manage prospective tenant inquiries for your listed properties.
