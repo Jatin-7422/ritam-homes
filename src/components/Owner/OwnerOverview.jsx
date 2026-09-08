@@ -136,7 +136,7 @@ export default function OwnerOverview() {
               isDarkTheme ? "text-white" : "text-[#2D1F1A]"
             }`}
           >
-            Welcome back, {loading ? "..." : userInfo.fullName || "Owner"}! 👋
+            Helloo !! , {loading ? "..." : userInfo.fullName || "Owner"}! 👋
           </h1>
           <p
             className={`text-xs sm:text-sm mt-0.5 ${
