@@ -116,6 +116,7 @@ export default function OwnerEditProperty() {
           food_preference: data.food_preference || "Veg and non-veg both allowed",
           status: data.status || "Active",
           amenities: amenitiesList,
+          owner_id: data.owner_id || "",
         });
       }
     } catch (err) {
@@ -143,16 +144,31 @@ export default function OwnerEditProperty() {
     });
   };
 
-  const handleAddImage = () => {
-    if (!newImageUrl.trim()) return;
-    setFormData((prev) => ({
-      ...prev,
-      images: [...prev.images, newImageUrl.trim()],
-    }));
-    setNewImageUrl("");
-  };
+  const handleDeleteImage = async (indexToRemove) => {
+    const imageUrl = formData.images[indexToRemove];
 
-  const handleDeleteImage = (indexToRemove) => {
+    try {
+      // Parse the URL to get the file path within the 'properties' bucket
+      const urlObj = new URL(imageUrl);
+      const pathParts = urlObj.pathname.split('/properties/');
+
+      if (pathParts.length > 1) {
+        const filePath = decodeURIComponent(pathParts[1]);
+
+        // Delete the file from the Supabase bucket
+        const { error: deleteError } = await supabase.storage
+          .from("properties")
+          .remove([filePath]);
+
+        if (deleteError) {
+          console.error("Error deleting file from bucket:", deleteError.message);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to parse image URL for deletion:", err);
+    }
+
+    // Update frontend state to remove the image instantly
     setFormData((prev) => ({
       ...prev,
       images: prev.images.filter((_, idx) => idx !== indexToRemove),
@@ -168,7 +184,6 @@ export default function OwnerEditProperty() {
     try {
       const primaryImage = formData.images.length > 0 ? formData.images[0] : null;
 
-      // Payload matching exact column names in your schema
       const payload = {
         title: formData.title,
         location: formData.location,
@@ -500,7 +515,6 @@ export default function OwnerEditProperty() {
 
         <hr className="border-[#F2ECE4]" />
 
-        {/* Section 3: Amenities & Features */}
         <div className="space-y-4">
           <h2 className="text-xs font-bold tracking-wider uppercase text-[#C5924E]">
             Amenities & Features
@@ -514,8 +528,8 @@ export default function OwnerEditProperty() {
                   key={amenity}
                   onClick={() => toggleAmenity(amenity)}
                   className={`flex items-center gap-2.5 px-3.5 py-3 rounded-xl border text-xs font-bold transition-all text-left cursor-pointer ${isSelected
-                      ? "bg-[#2D1F1A] text-white border-[#2D1F1A] shadow-xs"
-                      : "bg-[#FAF7F2] text-[#6E5D53] border-[#EADBCE] hover:bg-[#F0E6D8]"
+                    ? "bg-[#2D1F1A] text-white border-[#2D1F1A] shadow-xs"
+                    : "bg-[#FAF7F2] text-[#6E5D53] border-[#EADBCE] hover:bg-[#F0E6D8]"
                     }`}
                 >
                   <CheckCircle2
@@ -528,7 +542,6 @@ export default function OwnerEditProperty() {
             })}
           </div>
 
-          {/* Custom Amenity Adder */}
           <div className="pt-2 flex gap-2">
             <input
               type="text"
@@ -562,7 +575,6 @@ export default function OwnerEditProperty() {
             </button>
           </div>
 
-          {/* Display currently selected/custom added amenities */}
           {formData.amenities.length > 0 && (
             <div className="flex flex-wrap gap-1.5 pt-2">
               {formData.amenities.map((item, index) => (
@@ -591,21 +603,61 @@ export default function OwnerEditProperty() {
             <ImageIcon className="w-4 h-4" /> Property Images Management
           </h2>
 
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={newImageUrl}
-              onChange={(e) => setNewImageUrl(e.target.value)}
-              placeholder="Paste new image URL to add..."
-              className="flex-grow px-4 py-3 bg-[#FAF7F2] border border-[#EADBCE] rounded-xl text-xs text-[#2D1F1A] focus:outline-none focus:ring-2 focus:ring-[#C5924E]"
-            />
-            <button
-              type="button"
-              onClick={handleAddImage}
-              className="px-5 py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer flex-shrink-0"
-            >
-              <Plus className="w-4 h-4 text-[#C5924E]" /> Add Image
-            </button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <label className="flex-grow flex items-center justify-center gap-2 px-4 py-3 bg-[#FAF7F2] border border-dashed border-[#C5924E]/60 hover:border-[#C5924E] rounded-xl text-xs text-[#6E5D53] font-semibold cursor-pointer transition-all">
+              <Plus className="w-4 h-4 text-[#C5924E]" />
+              <span>Choose image files to upload...</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files);
+                  if (files.length === 0) return;
+
+                  try {
+                    setSubmitting(true);
+                    const uploadedUrls = [];
+
+                    for (const file of files) {
+                      // Inside your file upload handler:
+                      const fileExt = file.name.split(".").pop();
+                      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+                      // Use the owner ID as the folder name instead of the property ID
+                      const folderName = formData.owner_id || id;
+                      const filePath = `${folderName}/${fileName}`;
+
+                      const { error: uploadError } = await supabase.storage
+                        .from("properties")
+                        .upload(filePath, file);
+
+                      if (uploadError) throw uploadError;
+
+                      const { data: publicURLData } = supabase.storage
+                        .from("properties")
+                        .getPublicUrl(filePath);
+
+                      if (publicURLData?.publicUrl) {
+                        uploadedUrls.push(publicURLData.publicUrl);
+                      }
+                    }
+
+                    setFormData((prev) => ({
+                      ...prev,
+                      images: [...prev.images, ...uploadedUrls],
+                    }));
+                  } catch (err) {
+                    console.error("Error uploading images:", err.message);
+                    setErrorMsg("Failed to upload image(s): " + err.message);
+                  } finally {
+                    setSubmitting(false);
+                    e.target.value = null;
+                  }
+                }}
+              />
+            </label>
           </div>
 
           {formData.images.length > 0 ? (
@@ -643,7 +695,7 @@ export default function OwnerEditProperty() {
             </div>
           ) : (
             <p className="text-xs text-[#6E5D53] italic">
-              No images added yet. Add at least one image URL above.
+              No images uploaded yet. Select images above to upload.
             </p>
           )}
         </div>
