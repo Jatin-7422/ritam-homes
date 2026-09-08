@@ -223,7 +223,7 @@ function AuthCallback() {
 }
 
 // ==========================================
-// 🛡️ PROTECTED ROUTE
+// 🛡️ PROTECTED ROUTE (Updated for Dual Owner/Tenant Access)
 // ==========================================
 function ProtectedRoute({ children, allowedRole }) {
   const [loading, setLoading] = useState(true);
@@ -271,12 +271,22 @@ function ProtectedRoute({ children, allowedRole }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  const isAuthorized = Array.isArray(allowedRole)
-    ? allowedRole.includes(userRole)
-    : userRole === allowedRole;
+  // Dual-access logic: Allow owners to view tenant portals & vice versa, unless restricted to admin
+  let isAuthorized = false;
+
+  if (!allowedRole) {
+    isAuthorized = true;
+  } else if (allowedRole === "admin") {
+    isAuthorized = userRole === "admin";
+  } else if (Array.isArray(allowedRole)) {
+    isAuthorized = allowedRole.includes(userRole) || userRole === "owner";
+  } else {
+    // If the route requests 'tenant' or 'owner', let both interchange seamlessly
+    isAuthorized = userRole === allowedRole || userRole === "owner" || allowedRole === "tenant";
+  }
 
   if (allowedRole && !isAuthorized) {
-    const currentRoleName = userRole.toUpperCase();
+    const currentRoleName = userRole ? userRole.toUpperCase() : "USER";
     
     let correctDashboard = "/tenant-dashboard";
     if (userRole === "owner") correctDashboard = "/owner-dashboard";
@@ -370,7 +380,7 @@ function AppLayout() {
     location.pathname === "/owner-dashboard" ||
     location.pathname.startsWith("/owner-dashboard/") ||
     location.pathname.startsWith("/owner/properties/edit/") || 
-    location.pathname.startsWith("/edit-property/") || // Added check for global route format
+    location.pathname.startsWith("/edit-property/") || 
     location.pathname === "/owner-properties" ||
     location.pathname === "/owner-bookings" ||
     location.pathname === "/owner-earnings" ||
@@ -453,7 +463,7 @@ function AppLayout() {
           {/* Owner Dashboard Routes */}
           <Route
             element={
-              <ProtectedRoute allowedRole="owner">
+              <ProtectedRoute allowedRole={["owner", "tenant"]}>
                 <OwnerDashboard />
               </ProtectedRoute>
             }
@@ -464,7 +474,6 @@ function AppLayout() {
               path="/owner-dashboard/property/:id"
               element={<OwnerPropertyDetails />}
             />
-            {/* 📥 ADDED EDIT PROPERTY ROUTES TO HANDLE BOTH PATTERNS */}
             <Route
               path="/owner/properties/edit/:id"
               element={<OwnerEditProperty />}
@@ -492,7 +501,7 @@ function AppLayout() {
           <Route
             path="/tenant-dashboard"
             element={
-              <ProtectedRoute allowedRole="tenant">
+              <ProtectedRoute allowedRole={["tenant", "owner"]}>
                 <TenantDashboard />
               </ProtectedRoute>
             }

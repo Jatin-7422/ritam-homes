@@ -18,6 +18,7 @@ import {
   Loader2,
   Menu,
   X,
+  Building2,
 } from "lucide-react";
 
 export default function TenantDashboard() {
@@ -326,8 +327,16 @@ export default function TenantDashboard() {
             })}
           </nav>
 
-          {/* Logout Footer */}
-          <div className="p-3 border-t border-white/10 bg-[#221A17]/50 flex-shrink-0">
+          {/* Sidebar Footer: Switch to Hosting & Logout */}
+          <div className="p-3 border-t border-white/10 bg-[#221A17]/50 flex-shrink-0 space-y-1.5">
+            <Link
+              to="/owner-dashboard"
+              onClick={() => setIsSidebarOpen(false)}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-medium text-[#C5924E] hover:bg-[#C5924E]/10 transition-all cursor-pointer"
+            >
+              <Building2 className="w-4 h-4" /> Switch to Hosting
+            </Link>
+
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}

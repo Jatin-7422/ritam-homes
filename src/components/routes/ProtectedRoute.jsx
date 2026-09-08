@@ -51,10 +51,20 @@ export default function ProtectedRoute({ children, allowedRole }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check if role authorization passes (supports string or array of roles)
-  const isAuthorized = Array.isArray(allowedRole)
-    ? allowedRole.includes(userRole)
-    : userRole === allowedRole;
+  // Check if role authorization passes. 
+  // Dual-access logic: If allowedRole isn't strictly designated as admin-only, 
+  // allow both tenants and owners to access general dashboard/portal features.
+  let isAuthorized = false;
+
+  if (!allowedRole) {
+    isAuthorized = true; // If no role specified, let them through
+  } else if (Array.isArray(allowedRole)) {
+    isAuthorized = allowedRole.includes(userRole) || (allowedRole.includes("tenant") && userRole === "owner");
+  } else {
+    // If a specific single role is requested, allow owners to access tenant views automatically 
+    // or evaluate exact match + dual owner/tenant interchangeability
+    isAuthorized = userRole === allowedRole || (allowedRole === "tenant" && userRole === "owner");
+  }
 
   // If logged in as the wrong role, show the restriction warning message
   if (allowedRole && !isAuthorized) {

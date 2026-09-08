@@ -12,7 +12,6 @@ import {
   IndianRupee,
   FileText,
   MessageSquare,
-  Star,
   Settings,
   LogOut,
   Bell,
@@ -20,6 +19,7 @@ import {
   Loader2,
   Menu,
   X,
+  ArrowLeftRight,
 } from "lucide-react";
 
 export default function OwnerDashboard() {
@@ -125,7 +125,6 @@ export default function OwnerDashboard() {
         "postgres_changes",
         { event: "*", schema: "public", table: "messages" },
         async () => {
-          // Re-verify unread count on any message change event
           const {
             data: { session },
           } = await supabase.auth.getSession();
@@ -145,7 +144,7 @@ export default function OwnerDashboard() {
     return () => {
       supabase.removeChannel(messageSubscription);
     };
-  }, [location.pathname]); // Re-runs check whenever user navigates across routes (e.g. leaving inbox)
+  }, [location.pathname]);
 
   // Sync basic auth data without overriding user-updated context states
   useEffect(() => {
@@ -321,6 +320,20 @@ export default function OwnerDashboard() {
             </div>
           </div>
 
+          {/* Switch to Tenant View Option */}
+          <div className="mx-3 mb-2 flex-shrink-0">
+            <button
+              onClick={() => {
+                setIsSidebarOpen(false);
+                useNavigateInstance("/tenant-dashboard");
+              }}
+              className="w-full py-2 px-3 bg-[#C5924E]/15 hover:bg-[#C5924E] text-[#C5924E] hover:text-[#2D1F1A] border border-[#C5924E]/30 rounded-xl text-xs font-mono font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5" />
+              Switch to Tenant View
+            </button>
+          </div>
+
           <nav className="px-3 space-y-1 text-xs font-medium overflow-y-auto flex-1 custom-scrollbar">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -366,8 +379,9 @@ export default function OwnerDashboard() {
       </aside>
 
       {/* DESKTOP HORIZONTAL HEADER / NAVBAR */}
-      <header className="hidden md:flex bg-[#2D1F1A] text-[#D1C4B9] border-b border-white/10 px-4 lg:px-6 py-3 items-center justify-between sticky top-0 z-40 shadow-md">
-        <div className="flex items-center gap-3 lg:gap-5 flex-1 min-w-0">
+      <header className="hidden md:flex bg-[#2D1F1A] text-[#D1C4B9] border-b border-white/10 px-3 lg:px-4 py-2.5 items-center justify-between gap-3 sticky top-0 z-40 shadow-md">
+        {/* Left Section: Logo & Nav items tightly distributed */}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           <Link
             to="/owner-dashboard"
             className="flex items-center flex-shrink-0 group pr-3 border-r border-white/10"
@@ -375,11 +389,11 @@ export default function OwnerDashboard() {
             <img
               src={logoWhite}
               alt="Ritam Homes"
-              className="h-9 lg:h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-md"
+              className="h-8 lg:h-9 w-auto object-contain transition-transform duration-300 group-hover:scale-105 drop-shadow-md"
             />
           </Link>
 
-          <nav className="flex items-center gap-1 xl:gap-1.5 min-w-0">
+          <nav className="flex items-center justify-between flex-1 max-w-4xl px-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
@@ -388,18 +402,18 @@ export default function OwnerDashboard() {
                 <Link
                   key={item.name}
                   to={item.path || "#"}
-                  className={`flex items-center gap-1 px-2 lg:px-2.5 py-2 rounded-xl text-[11px] lg:text-xs font-medium transition-all cursor-pointer whitespace-nowrap relative ${
+                  className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer whitespace-nowrap relative ${
                     isActive
                       ? "bg-[#C5924E] text-[#2D1F1A] font-bold shadow-md"
                       : "hover:bg-[#3A2E2A] text-[#D1C4B9] hover:text-white"
                   }`}
                 >
                   <Icon
-                    className={`w-3.5 h-3.5 flex-shrink-0 ${
+                    className={`w-3.5 h-3.5 lg:w-4 lg:h-4 flex-shrink-0 ${
                       isActive ? "text-[#2D1F1A]" : "text-[#9E8B7F]"
                     }`}
                   />
-                  <span className="truncate">{item.name}</span>
+                  <span>{item.name}</span>
                   {item.hasNotification && (
                     <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse flex-shrink-0"></span>
                   )}
@@ -409,9 +423,19 @@ export default function OwnerDashboard() {
           </nav>
         </div>
 
-        {/* Right Side: Profile Info, Notification, Logout */}
-        <div className="flex items-center gap-2.5 flex-shrink-0 ml-3">
-          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-[#221A17] border border-[#3A2E2A] rounded-xl">
+        {/* Right Side: Switch Role Button, Profile Info, Notification, Logout */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Switch to Tenant Button */}
+          <button
+            onClick={() => useNavigateInstance("/tenant-dashboard")}
+            className="px-2.5 py-1.5 bg-[#C5924E]/20 hover:bg-[#C5924E] text-[#C5924E] hover:text-[#2D1F1A] border border-[#C5924E]/40 rounded-xl text-xs font-mono font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs whitespace-nowrap"
+            title="Switch context to Tenant Portal"
+          >
+            <ArrowLeftRight className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>Switch to Tenant</span>
+          </button>
+
+          <div className="flex items-center gap-2 px-2 py-1.5 bg-[#221A17] border border-[#3A2E2A] rounded-xl">
             {userInfo.avatar ? (
               <img
                 src={userInfo.avatar}
@@ -426,32 +450,32 @@ export default function OwnerDashboard() {
               </div>
             )}
             <div className="hidden xl:block text-left">
-              <h4 className="text-white font-bold text-xs leading-tight truncate max-w-[110px]">
+              <h4 className="text-white font-bold text-xs leading-tight truncate max-w-[90px]">
                 {userInfo.fullName}
               </h4>
-              <p className="text-[9px] text-[#9E8B7F] truncate max-w-[110px]">
+              <p className="text-[9px] text-[#9E8B7F] truncate max-w-[90px]">
                 {verificationStatus}
               </p>
             </div>
           </div>
 
           <button
-            className={`relative p-2.5 border rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+            className={`relative p-2 border rounded-full transition-colors cursor-pointer flex-shrink-0 ${
               isDarkTheme
                 ? "bg-[#251B14] border-neutral-800 text-white hover:bg-neutral-800"
                 : "bg-[#221A17] border-[#3A2E2A] text-[#D1C4B9] hover:bg-[#3A2E2A]"
             }`}
           >
-            <Bell className="w-4 h-4" />
+            <Bell className="w-3.5 h-3.5" />
           </button>
 
           <button
             onClick={handleLogout}
             disabled={isLoggingOut}
             title="Logout"
-            className="p-2.5 border border-red-500/30 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all cursor-pointer flex-shrink-0"
+            className="p-2 border border-red-500/30 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all cursor-pointer flex-shrink-0"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-3.5 h-3.5" />
           </button>
         </div>
       </header>
