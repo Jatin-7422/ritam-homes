@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
+
 import {
   MapPin,
   Loader2,
@@ -9,6 +10,8 @@ import {
   Calendar as CalendarIcon,
   Clock,
   Check,
+  Image,
+  FileText,
 } from "lucide-react";
 import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 import AddressAutocomplete from "./AddressAutocomplete";
@@ -47,10 +50,9 @@ export default function NewProperty() {
   const fileInputRef = useRef(null);
 
   // Step 2: Property details state
-  // Step 2: Property details state
   const [propertyDetails, setPropertyDetails] = useState({
     title: "",
-    description: "", // Added description field
+    description: "",
     propertyType: "Apartment / Flat",
     configuration: "2 BHK",
     monthlyRent: "",
@@ -259,7 +261,7 @@ export default function NewProperty() {
         title:
           propertyDetails.title ||
           `${propertyDetails.configuration} ${propertyDetails.propertyType}`,
-        description: propertyDetails.description, // Added description payload
+        description: propertyDetails.description,
         location: locationAddress,
         latitude: latitude,
         longitude: longitude,
@@ -292,7 +294,6 @@ export default function NewProperty() {
         },
       };
 
-      // 1. Insert Property into Properties Table
       const { data: insertedProperty, error: insertError } = await supabase
         .from("properties")
         .insert([propertyPayload])
@@ -301,7 +302,6 @@ export default function NewProperty() {
 
       if (insertError) throw insertError;
 
-      // 2. Insert Explicit Owner Visit Slots into property_visit_slots Table
       const propertyId = insertedProperty.id;
       const validSlots = ownerSlots
         .filter((slot) => slot.date && slot.time_slot)
@@ -322,7 +322,6 @@ export default function NewProperty() {
         }
       }
 
-      // 3. Insert System Notification Record (Generates notification for Tenant Updates)
       const { error: notificationError } = await supabase
         .from("notifications")
         .insert([
@@ -334,21 +333,12 @@ export default function NewProperty() {
             reference_id: propertyId,
             is_read: false,
           },
-          {
-            title: "New Property Nearby!",
-            message: `A new property "${insertedProperty.title}" was listed in ${locationAddress}.`,
-            type: "new_property",
-            reference_id: propertyId,
-            user_id: ownerId, // Set recipient user_id or handle broadcast per tenant
-            is_read: false,
-          },
         ]);
 
       if (notificationError) {
         console.error("Error saving notification:", notificationError.message);
       }
 
-      // 4. Trigger Native Desktop Push Notification
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification("Property Published!", {
           body: `Your listing "${insertedProperty.title}" is now live for tenants to see.`,
@@ -368,13 +358,14 @@ export default function NewProperty() {
 
   return (
     <div
-      className={`flex flex-col w-full relative transition-opacity duration-500 ${isSubmitting ? "opacity-90" : "opacity-100"}`}
+      className={`flex flex-col w-full min-h-screen relative transition-opacity duration-500 overflow-x-hidden box-border pb-12 ${isSubmitting ? "opacity-90" : "opacity-100"
+        }`}
     >
       {/* LOADING OVERLAY */}
       {isSubmitting && (
-        <div className="fixed inset-0 bg-[#2D1F1A]/80 backdrop-blur-xs z-50 flex flex-col items-center justify-center text-white">
+        <div className="fixed inset-0 bg-[#2D1F1A]/80 backdrop-blur-xs z-50 flex flex-col items-center justify-center text-white px-4 text-center">
           <Loader2 className="w-12 h-12 animate-spin text-[#C5924E] mb-4" />
-          <p className="font-serif font-bold text-xl">
+          <p className="font-serif font-bold text-lg sm:text-xl">
             Publishing your property & slots...
           </p>
           <p className="text-xs text-[#9E8B7F] mt-1">
@@ -384,20 +375,19 @@ export default function NewProperty() {
       )}
 
       {/* HEADER TITLE SECTION */}
-      <div className="px-6 sm:px-10 pt-6 pb-2 flex flex-col gap-1">
-        <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#2D1F1A]">
+      <div className="px-3 sm:px-10 pt-4 sm:pt-6 pb-2 flex flex-col gap-1 w-full box-border">
+        <h1 className="text-lg sm:text-3xl font-serif font-bold text-[#2D1F1A] break-words">
           List a new property
         </h1>
-        <p className="text-xs sm:text-sm text-[#6E5D53] mt-1">
+        <p className="text-xs sm:text-sm text-[#6E5D53] mt-0.5 leading-relaxed">
           Add photos, details, your visit availability, and the address.
         </p>
       </div>
 
-
-      {/* STEPPER NAVIGATION BAR */}
-      <div className="px-4 sm:px-10 py-4">
-        {/* Desktop View: Keep original grid stepper */}
-        <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* REDESIGNED STEPPER NAVIGATION BAR */}
+      <div className="px-3 sm:px-10 py-3 sm:py-4 w-full box-border">
+        {/* Desktop View Stepper */}
+        <div className="hidden md:grid md:grid-cols-4 gap-3">
           {[
             { step: 1, label: "Photos", sub: "Show your home" },
             {
@@ -413,6 +403,7 @@ export default function NewProperty() {
             { step: 4, label: "Location", sub: "Enter your address" },
           ].map((item) => {
             const isSelected = currentStep === item.step;
+            const isCompleted = item.step < currentStep;
             return (
               <button
                 key={item.step}
@@ -421,19 +412,23 @@ export default function NewProperty() {
                     setCurrentStep(item.step);
                   }
                 }}
-                className={`flex items-center gap-3 p-3 rounded-2xl text-left transition-all border ${item.step < currentStep ? "cursor-pointer" : "cursor-default"
+                className={`flex items-center gap-3 p-3.5 rounded-2xl text-left transition-all border ${item.step < currentStep ? "cursor-pointer" : "cursor-default"
                   } ${isSelected
-                    ? "bg-[#2D1F1A] text-white border-[#2D1F1A] shadow-md"
-                    : "bg-white text-[#2D1F1A] border-[#E3D9CC] hover:bg-[#F2ECE1]"
+                    ? "bg-[#2D1F1A] text-white border-[#2D1F1A] shadow-md ring-2 ring-[#C5924E]/30"
+                    : isCompleted
+                      ? "bg-white text-[#2D1F1A] border-[#C5924E]/40 hover:bg-[#F2ECE1]/50"
+                      : "bg-white text-[#6E5D53] border-[#E3D9CC] hover:bg-[#F2ECE1]/50"
                   }`}
               >
                 <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${isSelected
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 transition-all ${isSelected
                       ? "bg-[#C5924E] text-[#2D1F1A]"
-                      : "bg-[#2D1F1A] text-white"
+                      : isCompleted
+                        ? "bg-[#C5924E] text-[#2D1F1A]"
+                        : "bg-[#F8F5EE] text-[#6E5D53] border border-[#E3D9CC]"
                     }`}
                 >
-                  {item.step}
+                  {isCompleted ? "✓" : item.step}
                 </div>
                 <div className="min-w-0 flex-1">
                   <strong
@@ -454,84 +449,48 @@ export default function NewProperty() {
           })}
         </div>
 
-        {/* Mobile View: Connected Node Line Stepper with Icons */}
-        <div className="block sm:hidden w-full bg-white border border-[#E3D9CC] rounded-2xl p-4 shadow-sm overflow-x-auto no-scrollbar">
-          <div className="flex items-center justify-between min-w-[280px] relative px-2">
-            {/* Background Connecting Line */}
-            <div className="absolute left-6 right-6 top-5 h-[3px] bg-[#E3D9CC] -z-0" />
+        {/* Redesigned Mobile / Tablet Responsive Stepper with Icons */}
+        <div className="block md:hidden w-full bg-white border border-[#E3D9CC] rounded-2xl p-4 shadow-xs box-border overflow-hidden">
+          <div className="flex items-center justify-between relative px-4">
+            {/* Background track line properly inset */}
+            <div className="absolute left-10 right-10 top-4 h-1 bg-[#F2ECE1] rounded-full z-0" />
 
-            {/* Active Fill Line */}
+            {/* Active progress fill */}
             <div
-              className="absolute left-6 top-5 h-[3px] bg-[#2D1F1A] transition-all duration-300 -z-0"
-              style={{ width: `${((currentStep - 1) / 3) * 100}%` }}
+              className="absolute left-10 top-4 h-1 bg-[#C5924E] rounded-full transition-all duration-300 z-0"
+              style={{ width: `${((currentStep - 1) / 3) * 68}%` }}
             />
 
             {[
-              {
-                step: 1,
-                label: "Photos",
-                icon: (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                    <circle cx="9" cy="9" r="2" />
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                  </svg>
-                )
-              },
-              {
-                step: 2,
-                label: "Details",
-                icon: (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
-                    <path d="M6 6h10M6 10h10M6 14h6" />
-                  </svg>
-                )
-              },
-              {
-                step: 3,
-                label: "Slots",
-                icon: (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-                    <path d="M16 2v4M8 2v4m-5 4h18" />
-                  </svg>
-                )
-              },
-              {
-                step: 4,
-                label: "Location",
-                icon: (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-                    <circle cx="12" cy="10" r="3" />
-                  </svg>
-                )
-              },
+              { step: 1, label: "Photos", icon: <Image className="w-3.5 h-3.5" /> },
+              { step: 2, label: "Details", icon: <FileText className="w-3.5 h-3.5" /> },
+              { step: 3, label: "Slots", icon: <Clock className="w-3.5 h-3.5" /> },
+              { step: 4, label: "Location", icon: <MapPin className="w-3.5 h-3.5" /> },
             ].map((item) => {
               const isCompleted = item.step < currentStep;
               const isSelected = item.step === currentStep;
 
               return (
-                <div key={item.step} className="flex flex-col items-center relative z-10">
+                <div
+                  key={item.step}
+                  onClick={() => {
+                    if (item.step < currentStep) setCurrentStep(item.step);
+                  }}
+                  className={`flex flex-col items-center relative z-10 ${item.step < currentStep ? "cursor-pointer" : ""
+                    }`}
+                >
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isSelected
-                        ? "bg-[#2D1F1A] text-[#C5924E] shadow-md ring-4 ring-[#F2ECE1]"
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-xs ${isSelected
+                        ? "bg-[#2D1F1A] text-[#C5924E] ring-4 ring-[#C5924E]/25"
                         : isCompleted
-                          ? "bg-[#2D1F1A] text-white"
-                          : "bg-[#F2ECE1] text-[#6E5D53] border border-[#E3D9CC]"
+                          ? "bg-[#C5924E] text-[#2D1F1A]"
+                          : "bg-white text-[#6E5D53] border-2 border-[#E3D9CC]"
                       }`}
                   >
-                    {isCompleted ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                    ) : (
-                      item.icon
-                    )}
+                    {isCompleted ? <Check className="w-3.5 h-3.5" /> : item.icon}
                   </div>
                   <span
-                    className={`text-[10px] mt-2 font-medium whitespace-nowrap ${isSelected ? "text-[#2D1F1A] font-bold" : "text-[#6E5D53]"
+                    className={`text-[10px] mt-1.5 font-medium whitespace-nowrap ${isSelected ? "text-[#2D1F1A] font-bold" : "text-[#6E5D53]"
                       }`}
                   >
                     {item.label}
@@ -544,30 +503,31 @@ export default function NewProperty() {
       </div>
 
       {/* FORM BODY PANEL */}
-      <div className="px-6 sm:px-10 pb-12 max-w-7xl w-full mx-auto space-y-6 flex-1">
-        <div className="bg-white rounded-3xl border border-[#E3D9CC] p-6 sm:p-10 shadow-xs">
+      <div className="px-3 sm:px-10 pb-16 max-w-7xl w-full mx-auto space-y-6 flex-1 box-border">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#E3D9CC] p-4 sm:p-10 shadow-xs box-border">
+
           {/* STEP 1: PHOTOS */}
           {currentStep === 1 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-serif font-bold text-[#2D1F1A]">
+                <h3 className="text-base sm:text-lg font-serif font-bold text-[#2D1F1A]">
                   Upload photos
                 </h3>
-                <p className="text-xs text-[#6E5D53] mt-0.5">
-                  Clear, well-lit photos get more visit requests. The first
-                  photo becomes the cover image.
+                <p className="text-xs text-[#6E5D53] mt-0.5 leading-relaxed">
+                  Clear, well-lit photos get more visit requests. The first photo
+                  becomes the cover image.
                 </p>
               </div>
 
               <label
                 htmlFor="photo-input"
-                className="border-2 border-dashed border-[#C5924E]/50 rounded-2xl p-10 flex flex-col items-center justify-center text-center bg-[#F8F5EE]/50 hover:bg-[#F8F5EE] transition-all cursor-pointer"
+                className="border-2 border-dashed border-[#C5924E]/50 rounded-2xl p-6 sm:p-10 flex flex-col items-center justify-center text-center bg-[#F8F5EE]/50 hover:bg-[#F8F5EE] transition-all cursor-pointer box-border"
               >
-                <div className="w-10 h-10 text-[#C5924E] flex items-center justify-center mb-2 text-xl font-bold">
+                <div className="w-10 h-10 text-[#C5924E] flex items-center justify-center mb-2 text-xl font-bold bg-white rounded-full shadow-xs">
                   ↑
                 </div>
                 <strong className="text-xs sm:text-sm font-bold text-[#2D1F1A]">
-                  Drag photos here, or click to browse
+                  Tap here to upload photos
                 </strong>
                 <span className="text-[11px] text-[#6E5D53] mt-1">
                   JPG or PNG, up to 10 photos
@@ -584,7 +544,7 @@ export default function NewProperty() {
               />
 
               {photos.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
                   {photos.map((photoUrl, idx) => (
                     <div
                       key={idx}
@@ -603,7 +563,7 @@ export default function NewProperty() {
                       <button
                         type="button"
                         onClick={() => removePhoto(idx)}
-                        className="absolute top-2 right-2 w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        className="absolute top-2 right-2 w-7 h-7 bg-red-600 text-white rounded-full flex items-center justify-center text-xs shadow-md cursor-pointer"
                       >
                         &times;
                       </button>
@@ -615,8 +575,8 @@ export default function NewProperty() {
               <p className="text-xs font-medium text-[#6E5D53]">
                 {photos.length} of 10 photos added.{" "}
                 {photos.length < 3 ? (
-                  <span className="text-amber-600">
-                    Add at least {3 - photos.length} photos to continue.
+                  <span className="text-amber-600 block sm:inline mt-1 sm:mt-0">
+                    Add at least {3 - photos.length} more photo(s) to continue.
                   </span>
                 ) : (
                   <span className="text-emerald-600 font-bold">
@@ -631,10 +591,10 @@ export default function NewProperty() {
           {currentStep === 2 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-serif font-bold text-[#2D1F1A]">
+                <h3 className="text-base sm:text-lg font-serif font-bold text-[#2D1F1A]">
                   Property details
                 </h3>
-                <p className="text-xs text-[#6E5D53] mt-0.5">
+                <p className="text-xs text-[#6E5D53] mt-0.5 leading-relaxed">
                   These details help tenants filter and understand your home
                   before requesting a visit.
                 </p>
@@ -655,16 +615,17 @@ export default function NewProperty() {
                         title: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                   />
                 </div>
+
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Property Description
                   </label>
                   <textarea
                     rows="3"
-                    placeholder="Write a short description about the highlights, neighborhood, or rules of your property..."
+                    placeholder="Write a short description about the highlights, neighborhood, or rules..."
                     value={propertyDetails.description}
                     onChange={(e) =>
                       setPropertyDetails({
@@ -672,7 +633,7 @@ export default function NewProperty() {
                         description: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                   />
                 </div>
 
@@ -688,7 +649,7 @@ export default function NewProperty() {
                         propertyType: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                   >
                     <option>Apartment / Flat</option>
                     <option>Independent house</option>
@@ -709,7 +670,7 @@ export default function NewProperty() {
                         configuration: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                   >
                     <option>1 RK</option>
                     <option>1 BHK</option>
@@ -733,7 +694,7 @@ export default function NewProperty() {
                         monthlyRent: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                   />
                 </div>
 
@@ -751,14 +712,13 @@ export default function NewProperty() {
                         securityDeposit: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                   />
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
-                    Built-up area (sq. ft.){" "}
-                    <span className="text-red-500">*</span>
+                    Built-up area (sq. ft.) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -770,7 +730,7 @@ export default function NewProperty() {
                         builtUpArea: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                   />
                 </div>
 
@@ -788,49 +748,44 @@ export default function NewProperty() {
                         floorDetails: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                   />
                 </div>
 
+                {/* Furnishing */}
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Furnishing
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    {["Unfurnished", "Semi-furnished", "Fully furnished"].map(
-                      (opt) => (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() =>
-                            setPropertyDetails({
-                              ...propertyDetails,
-                              furnishing: opt,
-                            })
-                          }
-                          className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${propertyDetails.furnishing === opt
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {["Unfurnished", "Semi-furnished", "Fully furnished"].map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() =>
+                          setPropertyDetails({
+                            ...propertyDetails,
+                            furnishing: opt,
+                          })
+                        }
+                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${propertyDetails.furnishing === opt
                             ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
                             : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                            }`}
-                        >
-                          {opt}
-                        </button>
-                      ),
-                    )}
+                          }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
+                {/* Preferred tenants */}
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Preferred tenants
                   </label>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      "Any",
-                      "Family",
-                      "Bachelors",
-                      "Working professionals",
-                    ].map((opt) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {["Any", "Family", "Bachelors", "Working professionals"].map((opt) => (
                       <button
                         key={opt}
                         type="button"
@@ -840,9 +795,9 @@ export default function NewProperty() {
                             preferredTenant: opt,
                           })
                         }
-                        className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${propertyDetails.preferredTenant === opt
-                          ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                          : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${propertyDetails.preferredTenant === opt
+                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
                           }`}
                       >
                         {opt}
@@ -855,7 +810,7 @@ export default function NewProperty() {
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Parking
                   </label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {["None", "Two-wheeler", "Two + four-wheeler"].map(
                       (opt) => (
                         <button
@@ -867,9 +822,9 @@ export default function NewProperty() {
                               parking: opt,
                             })
                           }
-                          className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${propertyDetails.parking === opt
-                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                          className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${propertyDetails.parking === opt
+                              ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                              : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
                             }`}
                         >
                           {opt}
@@ -891,7 +846,7 @@ export default function NewProperty() {
                         bathrooms: e.target.value,
                       })
                     }
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                   >
                     <option>1</option>
                     <option>2</option>
@@ -904,7 +859,7 @@ export default function NewProperty() {
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Water supply
                   </label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {["Borewell", "Tank water", "Both"].map((opt) => (
                       <button
                         key={opt}
@@ -915,9 +870,9 @@ export default function NewProperty() {
                             waterSupply: opt,
                           })
                         }
-                        className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${propertyDetails.waterSupply === opt
-                          ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                          : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                        className={`px-1 py-2.5 rounded-xl text-[10px] sm:text-xs font-medium border cursor-pointer transition-all text-center truncate ${propertyDetails.waterSupply === opt
+                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
                           }`}
                       >
                         {opt}
@@ -930,7 +885,7 @@ export default function NewProperty() {
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Facing (Vastu direction)
                   </label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {[
                       "North facing",
                       "East facing",
@@ -946,9 +901,9 @@ export default function NewProperty() {
                             facing: opt,
                           })
                         }
-                        className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${propertyDetails.facing === opt
-                          ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                          : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${propertyDetails.facing === opt
+                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
                           }`}
                       >
                         {opt}
@@ -961,7 +916,7 @@ export default function NewProperty() {
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Food / cooking preference
                   </label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {[
                       "Veg and non-veg both allowed",
                       "Veg only",
@@ -976,9 +931,9 @@ export default function NewProperty() {
                             foodPreference: opt,
                           })
                         }
-                        className={`px-4 py-2 rounded-full text-xs font-medium border cursor-pointer transition-all ${propertyDetails.foodPreference === opt
-                          ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                          : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${propertyDetails.foodPreference === opt
+                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
                           }`}
                       >
                         {opt}
@@ -991,10 +946,10 @@ export default function NewProperty() {
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Amenities and nearby places
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {[
                       { key: "lift", label: "Lift" },
-                      { key: "water247", label: "24x7 water supply" },
+                      { key: "water247", label: "24x7 water" },
                       { key: "securityGuard", label: "Security guard" },
                       { key: "schoolsNearby", label: "Schools nearby" },
                       { key: "hospitalNearby", label: "Hospital nearby" },
@@ -1002,7 +957,7 @@ export default function NewProperty() {
                     ].map((item) => (
                       <label
                         key={item.key}
-                        className="flex items-center gap-2 text-xs cursor-pointer"
+                        className="flex items-center gap-2 text-xs cursor-pointer p-2 bg-[#F8F5EE] rounded-xl border border-[#E3D9CC]"
                       >
                         <input
                           type="checkbox"
@@ -1016,16 +971,16 @@ export default function NewProperty() {
                               },
                             })
                           }
-                          className="rounded border-[#E3D9CC] text-[#C5924E] focus:ring-0"
+                          className="rounded border-[#E3D9CC] text-[#C5924E] focus:ring-0 w-4 h-4 flex-shrink-0"
                         />
-                        <span>{item.label}</span>
+                        <span className="truncate">{item.label}</span>
                       </label>
                     ))}
                   </div>
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <input
                       type="text"
-                      placeholder="Add another option, e.g. Metro station nearby"
+                      placeholder="e.g. Metro station nearby"
                       value={propertyDetails.newAmenityInput}
                       onChange={(e) =>
                         setPropertyDetails({
@@ -1033,7 +988,7 @@ export default function NewProperty() {
                           newAmenityInput: e.target.value,
                         })
                       }
-                      className="flex-1 px-3 py-2 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                      className="flex-1 px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                     />
                     <button
                       type="button"
@@ -1048,7 +1003,7 @@ export default function NewProperty() {
                           newAmenityInput: "",
                         }));
                       }}
-                      className="px-4 py-2 bg-white border border-[#C5924E] text-[#2D1F1A] rounded-xl text-xs font-bold hover:bg-[#C5924E]/10 transition-all cursor-pointer"
+                      className="px-4 py-3 bg-white border border-[#C5924E] text-[#2D1F1A] rounded-xl text-xs font-bold hover:bg-[#C5924E]/10 transition-all cursor-pointer whitespace-nowrap"
                     >
                       Add option
                     </button>
@@ -1058,7 +1013,7 @@ export default function NewProperty() {
                       {propertyDetails.customAmenities.map((custom, cIdx) => (
                         <span
                           key={cIdx}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#C5924E]/10 border border-[#C5924E]/40 rounded-full text-xs text-[#2D1F1A]"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#C5924E]/10 border border-[#C5924E]/45 rounded-full text-xs text-[#2D1F1A] max-w-full break-words"
                         >
                           ✓ {custom}
                         </span>
@@ -1074,12 +1029,12 @@ export default function NewProperty() {
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-serif font-bold text-[#2D1F1A]">
+                <h3 className="text-base sm:text-lg font-serif font-bold text-[#2D1F1A]">
                   Select visit dates & time slots
                 </h3>
-                <p className="text-xs text-[#6E5D53] mt-0.5">
-                  Pick a date from the calendar and tap multiple time blocks to
-                  add them all at once to your available showing schedule.
+                <p className="text-xs text-[#6E5D53] mt-0.5 leading-relaxed">
+                  Pick a date from the calendar and tap time blocks to build your
+                  schedule.
                 </p>
               </div>
 
@@ -1088,42 +1043,42 @@ export default function NewProperty() {
                   <div
                     onClick={() => setBookingMode("manual")}
                     className={`p-4 rounded-2xl border cursor-pointer transition-all ${bookingMode === "manual"
-                      ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
-                      : "border-[#E3D9CC] bg-[#F8F5EE]/50"
+                        ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
+                        : "border-[#E3D9CC] bg-[#F8F5EE]/50"
                       }`}
                   >
                     <strong className="block text-xs font-bold text-[#2D1F1A]">
                       I'll confirm each one
                     </strong>
-                    <span className="text-[11px] text-[#6E5D53]">
-                      You approve or decline every visit request yourself.
+                    <span className="text-[11px] text-[#6E5D53] leading-relaxed block mt-0.5">
+                      You approve or decline every request yourself.
                     </span>
                   </div>
 
                   <div
                     onClick={() => setBookingMode("auto")}
                     className={`p-4 rounded-2xl border cursor-pointer transition-all ${bookingMode === "auto"
-                      ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
-                      : "border-[#E3D9CC] bg-[#F8F5EE]/50"
+                        ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
+                        : "border-[#E3D9CC] bg-[#F8F5EE]/50"
                       }`}
                   >
                     <strong className="block text-xs font-bold text-[#2D1F1A]">
                       Auto-accept requests
                     </strong>
-                    <span className="text-[11px] text-[#6E5D53]">
-                      Any request inside your open slots is confirmed instantly.
+                    <span className="text-[11px] text-[#6E5D53] leading-relaxed block mt-0.5">
+                      Requests inside your open slots are confirmed instantly.
                     </span>
                   </div>
                 </div>
 
                 {/* VISUAL CALENDAR BUILDER CARD */}
-                <div className="bg-[#F8F5EE] border border-[#E3D9CC] p-6 rounded-3xl space-y-5">
-                  <h4 className="font-serif font-bold text-sm text-[#2D1F1A] flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4 text-[#C5924E]" />{" "}
-                    Interactive Calendar Slot Builder
+                <div className="bg-[#F8F5EE] border border-[#E3D9CC] p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4 box-border">
+                  <h4 className="font-serif font-bold text-xs sm:text-sm text-[#2D1F1A] flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-[#C5924E]" /> 
+                    Calendar for tenant booking
                   </h4>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="block text-xs font-bold text-[#2D1F1A]">
                         1. Select Date
@@ -1135,7 +1090,7 @@ export default function NewProperty() {
                         onChange={(e) =>
                           setSelectedCalendarDate(e.target.value)
                         }
-                        className="w-full px-4 py-3 bg-white border border-[#E3D9CC] rounded-2xl text-sm font-bold text-[#2D1F1A] shadow-2xs focus:outline-none focus:border-[#C5924E]"
+                        className="w-full px-4 py-3 bg-white border border-[#E3D9CC] rounded-xl text-xs sm:text-sm font-bold text-[#2D1F1A] shadow-2xs focus:outline-none focus:border-[#C5924E] box-border"
                       />
                       <p className="text-[11px] text-[#6E5D53]">
                         Chosen Date:{" "}
@@ -1149,7 +1104,7 @@ export default function NewProperty() {
                       <label className="block text-xs font-bold text-[#2D1F1A]">
                         2. Pick Time Blocks (Select multiple)
                       </label>
-                      <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
                         {presetTimeSlots.map((slotTime) => {
                           const isSelected =
                             selectedTimeBlocks.includes(slotTime);
@@ -1158,14 +1113,14 @@ export default function NewProperty() {
                               key={slotTime}
                               type="button"
                               onClick={() => handleToggleTimeBlock(slotTime)}
-                              className={`px-3 py-2 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer flex items-center justify-between ${isSelected
-                                ? "bg-[#2D1F1A] text-white border-[#2D1F1A] font-bold shadow-xs"
-                                : "bg-white text-[#6E5D53] border-[#E3D9CC] hover:bg-[#F2ECE1]"
+                              className={`px-3 py-2.5 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer flex items-center justify-between ${isSelected
+                                  ? "bg-[#2D1F1A] text-white border-[#2D1F1A] font-bold shadow-xs"
+                                  : "bg-white text-[#6E5D53] border-[#E3D9CC]"
                                 }`}
                             >
-                              <span>{slotTime}</span>
+                              <span className="truncate">{slotTime}</span>
                               {isSelected && (
-                                <Check className="w-3 h-3 text-[#C5924E]" />
+                                <Check className="w-3.5 h-3.5 text-[#C5924E] flex-shrink-0 ml-1" />
                               )}
                             </button>
                           );
@@ -1174,14 +1129,14 @@ export default function NewProperty() {
                     </div>
                   </div>
 
-                  <div className="pt-2 flex items-center justify-between border-t border-[#E3D9CC]">
-                    <span className="text-xs text-[#6E5D53]">
-                      Ready to add these time blocks to your listing?
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-[#E3D9CC]">
+                    <span className="text-xs text-[#6E5D53] text-center sm:text-left">
+                      Ready to add these slots to your schedule?
                     </span>
                     <button
                       type="button"
                       onClick={handleAddSlotFromCalendar}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#C5924E] text-[#2D1F1A] hover:bg-[#b07f3e] rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-[#C5924E] text-[#2D1F1A] hover:bg-[#b07f3e] rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
                     >
                       <Plus className="w-4 h-4" /> Add Slot to Schedule
                     </button>
@@ -1206,15 +1161,15 @@ export default function NewProperty() {
                           key={index}
                           className="flex items-center justify-between p-3 bg-white border border-[#E3D9CC] rounded-2xl shadow-2xs"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-xl bg-[#C5924E]/10 flex items-center justify-center text-[#C5924E]">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-[#C5924E]/10 flex items-center justify-center text-[#C5924E] flex-shrink-0">
                               <Clock className="w-4 h-4" />
                             </div>
-                            <div>
-                              <strong className="block text-xs font-bold text-[#2D1F1A]">
+                            <div className="min-w-0">
+                              <strong className="block text-xs font-bold text-[#2D1F1A] truncate">
                                 {slot.date}
                               </strong>
-                              <span className="text-[11px] text-[#6E5D53]">
+                              <span className="text-[11px] text-[#6E5D53] truncate block">
                                 {slot.time_slot}
                               </span>
                             </div>
@@ -1222,7 +1177,7 @@ export default function NewProperty() {
                           <button
                             type="button"
                             onClick={() => handleRemoveSlot(index)}
-                            className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all cursor-pointer flex-shrink-0"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -1239,7 +1194,7 @@ export default function NewProperty() {
                   <select
                     value={visitorsPerSlot}
                     onChange={(e) => setVisitorsPerSlot(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs text-[#2D1F1A] focus:outline-none focus:border-[#C5924E]"
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                   >
                     <option>1 (private visit)</option>
                     <option>Up to 3 (group showing)</option>
@@ -1254,12 +1209,12 @@ export default function NewProperty() {
           {currentStep === 4 && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-serif font-bold text-[#2D1F1A]">
+                <h3 className="text-base sm:text-lg font-serif font-bold text-[#2D1F1A]">
                   Confirm the location address
                 </h3>
-                <p className="text-xs text-[#6E5D53] mt-0.5">
+                <p className="text-xs text-[#6E5D53] mt-0.5 leading-relaxed">
                   Type or search your property address. The map updates
-                  automatically, and you can drag the marker to fine-tune.
+                  automatically.
                 </p>
               </div>
 
@@ -1284,7 +1239,7 @@ export default function NewProperty() {
                   />
                 </div>
 
-                <div className="relative z-10 w-full h-64 rounded-2xl overflow-hidden border border-[#E3D9CC] shadow-xs">
+                <div className="relative z-10 w-full h-72 sm:h-80 rounded-2xl overflow-hidden border border-[#E3D9CC] shadow-xs box-border">
                   {!isLoaded ? (
                     <div className="w-full h-full flex items-center justify-center bg-[#F8F5EE] text-xs text-[#6E5D53]">
                       Loading Google Maps...
@@ -1318,14 +1273,14 @@ export default function NewProperty() {
           )}
 
           {/* NAVIGATION FOOTER BUTTONS */}
-          <div className="flex items-center justify-between pt-8 border-t border-[#E3D9CC] mt-8">
+          <div className="flex items-center justify-between pt-6 sm:pt-8 border-t border-[#E3D9CC] mt-8 gap-3">
             <button
               type="button"
               onClick={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
               disabled={currentStep === 1 || isSubmitting}
-              className={`px-6 py-2.5 rounded-xl text-xs font-bold border transition-all ${currentStep === 1
-                ? "opacity-40 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400"
-                : "bg-white border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#F8F5EE] cursor-pointer"
+              className={`px-5 sm:px-6 py-3 rounded-xl text-xs sm:text-sm font-bold border transition-all ${currentStep === 1
+                  ? "opacity-40 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400"
+                  : "bg-white border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#F8F5EE] cursor-pointer"
                 }`}
             >
               Back
@@ -1378,7 +1333,7 @@ export default function NewProperty() {
                 }
               }}
               disabled={isSubmitting}
-              className="px-6 py-2.5 bg-[#C5924E] text-[#2D1F1A] hover:bg-[#b07f3e] rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+              className="flex-1 sm:flex-none px-6 py-3 bg-[#C5924E] text-[#2D1F1A] hover:bg-[#b07f3e] rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
             >
               {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
               {currentStep === totalSteps ? "Review and publish" : "Continue"}
