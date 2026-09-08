@@ -191,10 +191,12 @@ export default function OwnerPropertyDetails() {
         </p>
       </div>
 
-      {/* Single Mobile-Optimized Unified Stream Layout */}
-      <div className="max-w-2xl mx-auto space-y-4">
+      {/* ========================================================= */}
+      {/* MOBILE VIEW: Unchanged Single-Stream Layout (< lg breakpoint) */}
+      {/* ========================================================= */}
+      <div className="max-w-2xl mx-auto space-y-4 lg:hidden">
         
-        {/* 1. Image Slider Showcase with Navigation Arrows */}
+        {/* 1. Image Slider Showcase */}
         <div className="space-y-2.5">
           <div className="relative h-[260px] sm:h-[400px] w-full bg-[#FAF7F2] rounded-2xl overflow-hidden border border-[#EADBCE] shadow-xs group">
             <span className="absolute top-3 left-3 px-2.5 py-0.5 bg-white/90 backdrop-blur-md text-[#2D1F1A] border border-[#EADBCE] rounded-full text-[9px] font-bold shadow-xs uppercase tracking-wider z-10">
@@ -207,7 +209,6 @@ export default function OwnerPropertyDetails() {
               className="w-full h-full object-cover transition-all duration-300"
             />
 
-            {/* Slider Navigation Arrows */}
             {images.length > 1 && (
               <>
                 <button
@@ -283,7 +284,6 @@ export default function OwnerPropertyDetails() {
             </div>
           </div>
 
-          {/* Quick Spec Badges */}
           <div className="grid grid-cols-2 gap-2 text-xs text-[#6E5D53]">
             <div className="flex items-center gap-2 p-2.5 bg-[#FAF7F2] rounded-xl border border-[#EADBCE]">
               <BedDouble className="w-4 h-4 text-[#C5924E] flex-shrink-0" />
@@ -313,7 +313,6 @@ export default function OwnerPropertyDetails() {
             </div>
           </div>
 
-          {/* Owner Management Buttons */}
           <div className="space-y-2 pt-1">
             <button
               onClick={() => navigate(`/owner/properties/edit/${property.id}`)}
@@ -346,7 +345,6 @@ export default function OwnerPropertyDetails() {
 
           <div className="border-t border-[#F2ECE4] pt-3"></div>
 
-          {/* Preferred Tenants & Cooking Preferences Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <span className="text-[10px] font-bold text-[#6E5D53] uppercase tracking-wider flex items-center gap-1.5">
@@ -371,7 +369,6 @@ export default function OwnerPropertyDetails() {
 
           <div className="border-t border-[#F2ECE4] pt-1"></div>
 
-          {/* Amenities & Nearby Places */}
           <div className="space-y-2.5">
             <span className="text-[10px] font-bold text-[#6E5D53] uppercase tracking-wider block">
               Amenities & Nearby Places
@@ -455,6 +452,276 @@ export default function OwnerPropertyDetails() {
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+
+      </div>
+
+
+      {/* ========================================================= */}
+      {/* DESKTOP VIEW: Custom 12-Column Layout (Hidden on Mobile) */}
+      {/* ========================================================= */}
+      <div className="hidden lg:grid grid-cols-12 gap-8 items-start">
+        
+        {/* LEFT COLUMN: Gallery, About, Amenities & Specs Table (8 Cols) */}
+        <div className="col-span-8 space-y-6">
+          
+          {/* Image Gallery Showcase */}
+          <div className="bg-white p-6 rounded-2xl border border-[#EADBCE] shadow-xs space-y-4">
+            <div className="relative h-[460px] w-full bg-[#FAF7F2] rounded-xl overflow-hidden border border-[#EADBCE] group">
+              <span className="absolute top-4 left-4 px-3 py-1 bg-white/90 backdrop-blur-md text-[#2D1F1A] border border-[#EADBCE] rounded-full text-xs font-bold shadow-xs uppercase tracking-wider z-10">
+                Active Listing
+              </span>
+
+              <img
+                src={images[activeImage]}
+                alt={property.title}
+                className="w-full h-full object-cover transition-all duration-300"
+              />
+
+              {images.length > 1 && (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePrevImage();
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 hover:bg-white text-[#2D1F1A] flex items-center justify-center shadow-md transition-all cursor-pointer opacity-80 group-hover:opacity-100"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNextImage();
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 hover:bg-white text-[#2D1F1A] flex items-center justify-center shadow-md transition-all cursor-pointer opacity-80 group-hover:opacity-100"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </>
+              )}
+
+              <span className="absolute bottom-4 left-4 px-3 py-1 bg-black/60 backdrop-blur-md text-white rounded-lg text-xs font-bold">
+                {activeImage + 1} / {images.length}
+              </span>
+            </div>
+
+            {images.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-1">
+                {images.map((img, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setActiveImage(index)}
+                    className={`w-20 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all cursor-pointer ${
+                      activeImage === index
+                        ? "border-[#C5924E] shadow-md scale-105"
+                        : "border-[#EADBCE] opacity-70 hover:opacity-100"
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`Thumbnail ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* About This Property */}
+          <div className="bg-white p-6 rounded-2xl border border-[#EADBCE] shadow-xs space-y-5">
+            <h2 className="text-xl font-serif font-bold text-[#2D1F1A]">
+              About This Property
+            </h2>
+
+            <p className="text-sm text-[#6E5D53] leading-relaxed">
+              {property.description ||
+                "Well-maintained property with great features and connectivity."}
+            </p>
+
+            <div className="border-t border-[#F2ECE4] pt-2"></div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-[#6E5D53] uppercase tracking-wider flex items-center gap-2">
+                  <Users className="w-4 h-4 text-[#C5924E]" /> Preferred Tenants
+                </span>
+                <div className="px-4 py-3 bg-[#FAF7F2] rounded-xl border border-[#EADBCE] text-xs font-bold text-[#2D1F1A]">
+                  {property.preferred_tenants ||
+                    property.tenant_preference ||
+                    "Family"}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-[#6E5D53] uppercase tracking-wider flex items-center gap-2">
+                  <Utensils className="w-4 h-4 text-[#C5924E]" /> Food Preference
+                </span>
+                <div className="px-4 py-3 bg-[#FAF7F2] rounded-xl border border-[#EADBCE] text-xs font-bold text-[#2D1F1A]">
+                  {property.food_preference || "Veg and non-veg both allowed"}
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-[#F2ECE4] pt-2"></div>
+
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-[#6E5D53] uppercase tracking-wider block">
+                Amenities & Nearby Places
+              </span>
+              <div className="grid grid-cols-2 gap-3">
+                {amenitiesList.map((amenity, idx) => (
+                  <div
+                    key={idx}
+                    className="px-4 py-3 bg-[#FAF7F2] border border-[#EADBCE] rounded-xl text-xs font-bold text-[#2D1F1A] flex items-center gap-2.5"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-[#C5924E] flex-shrink-0" />
+                    <span className="truncate">{amenity}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Property Specifications Table */}
+          <div className="bg-white p-6 rounded-2xl border border-[#EADBCE] shadow-xs space-y-4">
+            <h3 className="text-lg font-serif font-bold text-[#2D1F1A] pb-3 border-b border-[#F2ECE4]">
+              Property Specifications
+            </h3>
+
+            <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-xs">
+              {[
+                {
+                  label: "Property Type",
+                  val:
+                    property.type ||
+                    property.property_type ||
+                    "Independent house",
+                },
+                {
+                  label: "Configuration",
+                  val: property.bedrooms
+                    ? `${property.bedrooms} BHK`
+                    : property.configuration || "2 BHK",
+                },
+                {
+                  label: "Built-up Area",
+                  val: property.area || property.built_up_area || "500 sq. ft.",
+                },
+                { label: "Floor", val: property.floor || "2" },
+                {
+                  label: "Furnishing",
+                  val: property.furnishing || "Fully furnished",
+                },
+                {
+                  label: "Parking",
+                  val: property.parking || "Two + four-wheeler",
+                },
+                { label: "Bathrooms", val: property.bathrooms || "2" },
+                {
+                  label: "Water Supply",
+                  val: property.water_supply || "Tank water",
+                },
+                {
+                  label: "Facing (Vastu)",
+                  val: property.facing || "South facing",
+                },
+                {
+                  label: "Listed On",
+                  val: property.created_at
+                    ? new Date(property.created_at).toLocaleDateString(
+                        "en-IN",
+                        { day: "numeric", month: "short", year: "numeric" },
+                      )
+                    : "18 Aug 2026",
+                },
+              ].map((row, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between py-2 border-b border-[#F8F5EE] gap-4"
+                >
+                  <span className="text-[#6E5D53] font-medium">
+                    {row.label}
+                  </span>
+                  <span className="font-bold text-[#2D1F1A] text-right truncate">
+                    {row.val}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+
+        {/* RIGHT COLUMN: Sticky Pricing, Quick Specs & Actions Sidebar (4 Cols) */}
+        <div className="col-span-4 sticky top-6 space-y-6">
+          <div className="bg-white p-6 rounded-2xl border border-[#EADBCE] shadow-md space-y-6">
+            <div className="pb-4 border-b border-[#F2ECE4]">
+              <div className="flex items-center text-[#C5924E] text-3xl font-serif font-bold">
+                <IndianRupee className="w-6 h-6" />
+                <span>
+                  {property.price?.toLocaleString("en-IN") || "15,000"}
+                </span>
+                <span className="text-xs font-normal text-[#6E5D53] ml-1.5">
+                  /month
+                </span>
+              </div>
+              <p className="text-xs text-[#6E5D53] mt-1.5">
+                Security Deposit: ₹
+                {property.security_deposit
+                  ? property.security_deposit.toLocaleString("en-IN")
+                  : "3,00,000"}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs text-[#6E5D53]">
+              <div className="flex items-center gap-2.5 p-3.5 bg-[#FAF7F2] rounded-xl border border-[#EADBCE]">
+                <BedDouble className="w-4 h-4 text-[#C5924E] flex-shrink-0" />
+                <span className="font-bold text-[#2D1F1A] truncate">
+                  {property.bedrooms
+                    ? `${property.bedrooms} BHK`
+                    : property.configuration || "2 BHK"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5 p-3.5 bg-[#FAF7F2] rounded-xl border border-[#EADBCE]">
+                <Bath className="w-4 h-4 text-[#C5924E] flex-shrink-0" />
+                <span className="font-bold text-[#2D1F1A] truncate">
+                  {property.bathrooms || "2"} Baths
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5 p-3.5 bg-[#FAF7F2] rounded-xl border border-[#EADBCE]">
+                <Maximize2 className="w-4 h-4 text-[#C5924E] flex-shrink-0" />
+                <span className="font-bold text-[#2D1F1A] truncate">
+                  {property.area || property.built_up_area || "500 sq. ft"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5 p-3.5 bg-[#FAF7F2] rounded-xl border border-[#EADBCE]">
+                <Building2 className="w-4 h-4 text-[#C5924E] flex-shrink-0" />
+                <span className="font-bold text-[#2D1F1A] truncate">
+                  {property.furnishing || "Fully furnished"}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <button
+                onClick={() => navigate(`/owner/properties/edit/${property.id}`)}
+                className="w-full py-3.5 bg-[#C5924E] hover:bg-[#b08043] text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Edit3 className="w-4 h-4" />
+                <span>Edit Property Details</span>
+              </button>
+
+              <button
+                onClick={() => navigate("/owner-properties")}
+                className="w-full py-3.5 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Building2 className="w-4 h-4 text-[#C5924E]" />
+                <span>Manage All Properties</span>
+              </button>
+            </div>
           </div>
         </div>
 
