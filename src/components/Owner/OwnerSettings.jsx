@@ -44,6 +44,7 @@ export function AppProvider({ children }) {
   });
 
   const [toastMessage, setToastMessage] = useState("");
+  
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -76,9 +77,9 @@ export function AppProvider({ children }) {
 
     const createdAt = user.created_at
       ? new Date(user.created_at).toLocaleDateString("en-US", {
-          month: "long",
-          year: "numeric",
-        })
+        month: "long",
+        year: "numeric",
+      })
       : "N/A";
 
     const rawPhone =
@@ -247,50 +248,47 @@ export default function AccountSettings() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) throw new Error("No active session");
+      if (!session) throw new Error("Not authenticated");
       const userId = session.user.id;
 
-      // 1. Update public.profiles table
-      const { error: profileError } = await supabase
+      // 1. Update Supabase Auth user metadata
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
+          full_name: tempProfile.fullName,
+          avatar_url: tempProfile.avatarUrl,
+          phone: tempProfile.phone,
+          business_name: tempProfile.businessName,
+        },
+      });
+      if (authError) throw authError;
+
+      // 2. Update your custom database table ('profiles')
+      const { error: dbError } = await supabase
         .from("profiles")
         .update({
           full_name: tempProfile.fullName,
-          phone: tempProfile.phone,
           avatar_url: tempProfile.avatarUrl,
-          updated_at: new Date(),
+          phone: tempProfile.phone,
+          business_name: tempProfile.businessName,
         })
         .eq("id", userId);
 
-      if (profileError) throw profileError;
+      if (dbError) throw dbError;
 
-      // 2. Also update Supabase auth user_metadata so headers/sessions sync everywhere instantly
-      const { error: authUpdateError } = await supabase.auth.updateUser({
-        data: {
-          full_name: tempProfile.fullName,
-          phone: tempProfile.phone,
-          avatar_url: tempProfile.avatarUrl,
-        },
-      });
-
-      if (authUpdateError) {
-        console.error("Auth metadata update warning:", authUpdateError.message);
-      }
-
-      // 3. Update global AppContext state immediately so all components rerender
+      // 3. Update local context state so UI updates immediately
       setUserInfo((prev) => ({
         ...prev,
         fullName: tempProfile.fullName,
         phone: tempProfile.phone,
         businessName: tempProfile.businessName,
-        location: tempProfile.location,
         avatarUrl: tempProfile.avatarUrl,
       }));
 
-      setModalType(null);
       showToast("Profile updated successfully!");
+      setModalType(null);
     } catch (err) {
       console.error("Error updating profile:", err.message);
-      showToast(`Update failed: ${err.message}`);
+      showToast("Failed to update profile: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -402,16 +400,14 @@ export default function AccountSettings() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-2.5 py-3 px-6 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                isSelected
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-2.5 py-3 px-6 rounded-xl text-xs font-semibold transition-all cursor-pointer ${isSelected
                   ? "bg-white text-[#2D1F1A] shadow-md shadow-[#2D1F1A]/5 border border-[#EADBCE]/50 scale-[1.02]"
                   : "text-[#6E5D53] hover:text-[#2D1F1A]"
-              }`}
+                }`}
             >
               <Icon
-                className={`w-4 h-4 ${
-                  isSelected ? "text-[#C5924E]" : "text-[#6E5D53]"
-                }`}
+                className={`w-4 h-4 ${isSelected ? "text-[#C5924E]" : "text-[#6E5D53]"
+                  }`}
               />
               <span>{tab.label}</span>
             </button>
@@ -425,7 +421,7 @@ export default function AccountSettings() {
           <div className="lg:col-span-4">
             <div className="bg-white rounded-3xl p-8 border border-[#EADBCE]/80 shadow-sm flex flex-col items-center text-center space-y-5 relative overflow-hidden group">
               <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-[#C5924E] via-[#dfb175] to-[#2D1F1A]" />
-              
+
               <div className="relative mt-2">
                 <div className="w-24 h-24 rounded-3xl bg-[#FAF7F2] border-2 border-[#EADBCE] text-[#2D1F1A] flex items-center justify-center text-3xl font-serif font-bold shadow-md overflow-hidden relative group-hover:border-[#C5924E] transition-all">
                   {userInfo.avatarUrl ? (
@@ -685,7 +681,7 @@ export default function AccountSettings() {
                     className="w-full px-4 py-3 rounded-xl border text-xs font-semibold outline-none focus:border-[#C5924E] border-[#EADBCE] bg-[#FAF7F2] text-[#2D1F1A] transition-all"
                   />
                 </div>
-                
+
                 <div className="space-y-1">
                   <label className="text-[11px] font-semibold text-[#6E5D53]">
                     Email Address <span className="text-[10px] italic text-[#6E5D53] font-normal">(Read-only)</span>
