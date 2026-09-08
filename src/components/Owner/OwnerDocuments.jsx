@@ -14,7 +14,6 @@ import {
   Loader2,
   Trash2,
   Sparkles,
-  AlertCircle,
   FileCheck2,
 } from "lucide-react";
 
@@ -28,7 +27,6 @@ export default function OwnerDocument() {
   const [statusFilter, setStatusFilter] = useState("All Documents");
   const fileInputRef = useRef(null);
 
-  // Fetch current user details & documents
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -195,85 +193,85 @@ export default function OwnerDocument() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-[#2D1F1A] px-4 md:px-10 py-8 space-y-8 selection:bg-[#C5924E]/20 selection:text-[#2D1F1A]">
+    <div className="min-h-screen bg-[#FAF7F2] text-[#2D1F1A] px-3 sm:px-6 md:px-10 py-4 sm:py-8 space-y-4 sm:space-y-8 selection:bg-[#C5924E]/20 selection:text-[#2D1F1A]">
       {/* Modern Glassmorphic Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white/75 border border-[#EADBCE]/80 backdrop-blur-xl p-6 md:p-8 rounded-3xl shadow-xl relative overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-6 bg-white/75 border border-[#EADBCE]/80 backdrop-blur-xl p-5 sm:p-8 rounded-2xl sm:rounded-3xl shadow-xl relative overflow-hidden">
         <div className="absolute -right-10 -top-10 w-48 h-48 bg-[#C5924E]/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="space-y-2 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#C5924E]/10 border border-[#C5924E]/20 text-[#C5924E] text-xs font-mono tracking-wide">
-            <Sparkles className="w-3.5 h-3.5" /> SECURE VAULT
+        <div className="space-y-1.5 sm:space-y-2 relative z-10">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-[#C5924E]/10 border border-[#C5924E]/20 text-[#C5924E] text-[10px] sm:text-xs font-mono tracking-wide">
+            <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> SECURE VAULT
           </div>
-          <h1 className="text-2xl md:text-4xl font-serif font-bold tracking-tight text-[#2D1F1A]">
+          <h1 className="text-xl sm:text-2xl md:text-4xl font-serif font-bold tracking-tight text-[#2D1F1A]">
             Owner Documents
           </h1>
-          <p className="text-xs md:text-sm text-[#6E5D53] max-w-xl font-normal">
+          <p className="text-xs sm:text-sm text-[#6E5D53] max-w-xl font-normal">
             Store and manage property records, titles, tax receipts, and legal documents with enterprise-grade encryption.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 bg-white/80 border border-[#EADBCE] px-4 py-2.5 rounded-2xl shadow-xs relative z-10">
-          <div className="w-8 h-8 rounded-xl bg-[#C5924E]/15 text-[#C5924E] flex items-center justify-center font-bold">
-            <ShieldCheck className="w-4 h-4" />
+        <div className="flex items-center gap-3 bg-white/80 border border-[#EADBCE] px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl shadow-xs relative z-10 w-full md:w-auto justify-start">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-[#C5924E]/15 text-[#C5924E] flex items-center justify-center font-bold shrink-0">
+            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </div>
           <div>
-            <p className="text-[10px] font-mono text-[#8A7568] uppercase tracking-wider">Security Status</p>
-            <p className="text-xs font-serif font-bold text-[#2D1F1A]">Encrypted & Verified</p>
+            <p className="text-[9px] sm:text-[10px] font-mono text-[#8A7568] uppercase tracking-wider">Security Status</p>
+            <p className="text-[11px] sm:text-xs font-serif font-bold text-[#2D1F1A]">Encrypted & Verified</p>
           </div>
         </div>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white/80 border border-[#EADBCE]/85 p-6 rounded-2xl shadow-xs space-y-3 hover:border-[#C5924E] transition-all">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white/80 border border-[#EADBCE]/85 p-4 sm:p-6 rounded-2xl shadow-xs space-y-2 sm:space-y-3 hover:border-[#C5924E] transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono text-[#8A7568] uppercase tracking-wider">Total Documents</span>
-            <div className="w-8 h-8 rounded-xl bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center text-[#C5924E] shadow-inner">
-              <Folder className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-mono text-[#8A7568] uppercase tracking-wider truncate">Total Documents</span>
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center text-[#C5924E] shadow-inner shrink-0">
+              <Folder className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <p className="text-2xl font-serif font-bold text-[#2D1F1A]">{totalDocs}</p>
-          <p className="text-xs text-[#8A7568] font-mono">Files uploaded</p>
+          <p className="text-xl sm:text-2xl font-serif font-bold text-[#2D1F1A]">{totalDocs}</p>
+          <p className="text-[10px] sm:text-xs text-[#8A7568] font-mono">Files uploaded</p>
         </div>
 
-        <div className="bg-white/80 border border-[#EADBCE]/85 p-6 rounded-2xl shadow-xs space-y-3 hover:border-[#C5924E] transition-all">
+        <div className="bg-white/80 border border-[#EADBCE]/85 p-4 sm:p-6 rounded-2xl shadow-xs space-y-2 sm:space-y-3 hover:border-[#C5924E] transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono text-[#8A7568] uppercase tracking-wider">Verified Records</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-inner">
-              <CheckCircle2 className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-mono text-[#8A7568] uppercase tracking-wider truncate">Verified Records</span>
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-inner shrink-0">
+              <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <p className="text-2xl font-serif font-bold text-[#2D1F1A]">{verifiedDocs}</p>
-          <p className="text-xs text-emerald-600 font-mono font-bold">Verified & approved</p>
+          <p className="text-xl sm:text-2xl font-serif font-bold text-[#2D1F1A]">{verifiedDocs}</p>
+          <p className="text-[10px] sm:text-xs text-emerald-600 font-mono font-bold">Verified & approved</p>
         </div>
 
-        <div className="bg-white/80 border border-[#EADBCE]/85 p-6 rounded-2xl shadow-xs space-y-3 hover:border-[#C5924E] transition-all">
+        <div className="bg-white/80 border border-[#EADBCE]/85 p-4 sm:p-6 rounded-2xl shadow-xs space-y-2 sm:space-y-3 hover:border-[#C5924E] transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono text-[#8A7568] uppercase tracking-wider">Pending Review</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-inner">
-              <Clock className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-mono text-[#8A7568] uppercase tracking-wider truncate">Pending Review</span>
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shadow-inner shrink-0">
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <p className="text-2xl font-serif font-bold text-[#2D1F1A]">{pendingDocs}</p>
-          <p className="text-xs text-amber-600 font-mono font-bold">Awaiting verification</p>
+          <p className="text-xl sm:text-2xl font-serif font-bold text-[#2D1F1A]">{pendingDocs}</p>
+          <p className="text-[10px] sm:text-xs text-amber-600 font-mono font-bold">Awaiting verification</p>
         </div>
 
-        <div className="bg-white/80 border border-[#EADBCE]/85 p-6 rounded-2xl shadow-xs space-y-3 hover:border-[#C5924E] transition-all">
+        <div className="bg-white/80 border border-[#EADBCE]/85 p-4 sm:p-6 rounded-2xl shadow-xs space-y-2 sm:space-y-3 hover:border-[#C5924E] transition-all">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono text-[#8A7568] uppercase tracking-wider">Storage Used</span>
-            <div className="w-8 h-8 rounded-xl bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center text-[#C5924E] shadow-inner">
-              <HardDrive className="w-4 h-4" />
+            <span className="text-[10px] sm:text-xs font-mono text-[#8A7568] uppercase tracking-wider truncate">Storage Used</span>
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center text-[#C5924E] shadow-inner shrink-0">
+              <HardDrive className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
           </div>
-          <p className="text-2xl font-serif font-bold text-[#2D1F1A]">{totalMB} MB</p>
-          <p className="text-xs text-[#8A7568] font-mono">of {maxMB} MB limit</p>
+          <p className="text-xl sm:text-2xl font-serif font-bold text-[#2D1F1A]">{totalMB} MB</p>
+          <p className="text-[10px] sm:text-xs text-[#8A7568] font-mono">of {maxMB} MB limit</p>
         </div>
       </div>
 
       {/* Main Upload + Storage Gauge Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Upload Box */}
-        <div className="lg:col-span-2 bg-white/80 border border-dashed border-[#C5924E]/50 p-8 rounded-3xl shadow-xs flex flex-col items-center justify-center text-center relative hover:border-[#C5924E] transition-all group">
+        <div className="lg:col-span-2 bg-white/80 border border-dashed border-[#C5924E]/50 p-5 sm:p-8 rounded-2xl sm:rounded-3xl shadow-xs flex flex-col items-center justify-center text-center relative hover:border-[#C5924E] transition-all group">
           <input
             type="file"
             ref={fileInputRef}
@@ -282,25 +280,25 @@ export default function OwnerDocument() {
             accept=".pdf,.png,.jpg,.jpeg"
           />
 
-          <div className="w-16 h-16 bg-[#C5924E]/10 border border-[#C5924E]/20 rounded-2xl flex items-center justify-center text-[#C5924E] mb-4 group-hover:scale-105 transition-transform shadow-inner">
-            <Upload className="w-7 h-7" />
+          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#C5924E]/10 border border-[#C5924E]/20 rounded-2xl flex items-center justify-center text-[#C5924E] mb-3 sm:mb-4 group-hover:scale-105 transition-transform shadow-inner">
+            <Upload className="w-6 h-6 sm:w-7 sm:h-7" />
           </div>
 
-          <h2 className="text-xl font-serif font-bold text-[#2D1F1A]">
+          <h2 className="text-lg sm:text-xl font-serif font-bold text-[#2D1F1A]">
             Upload Property Document
           </h2>
-          <p className="text-xs text-[#6E5D53] mt-1 mb-6 max-w-md">
+          <p className="text-xs text-[#6E5D53] mt-1 mb-4 sm:mb-6 max-w-md px-2">
             Drag & drop your files securely or select a category below to begin the upload process.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 mb-6 w-full max-w-md justify-center">
-            <span className="text-xs font-mono font-bold text-[#8A7568] uppercase">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 mb-4 sm:mb-6 w-full max-w-md justify-center px-2">
+            <span className="text-[11px] sm:text-xs font-mono font-bold text-[#8A7568] uppercase self-start sm:self-center">
               Doc Type:
             </span>
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="px-4 py-2 text-xs bg-white border border-[#EADBCE] rounded-xl text-[#2D1F1A] font-mono focus:outline-none focus:border-[#C5924E] shadow-xs flex-1"
+              className="w-full sm:flex-1 px-3.5 py-2 text-xs bg-white border border-[#EADBCE] rounded-xl text-[#2D1F1A] font-mono focus:outline-none focus:border-[#C5924E] shadow-xs"
             >
               <option value="Property Ownership Proof">Property Ownership Proof</option>
               <option value="Tax Receipt">Tax Receipt</option>
@@ -313,7 +311,7 @@ export default function OwnerDocument() {
           <button
             disabled={uploading}
             onClick={() => fileInputRef.current?.click()}
-            className="px-8 py-3 bg-[#2D1F1A] hover:bg-[#C5924E] text-white text-xs font-mono font-bold uppercase tracking-wider rounded-2xl transition-all flex items-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
+            className="w-full sm:w-auto px-6 sm:px-8 py-3 bg-[#2D1F1A] hover:bg-[#C5924E] text-white text-xs font-mono font-bold uppercase tracking-wider rounded-xl sm:rounded-2xl transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50 cursor-pointer"
           >
             {uploading ? (
               <>
@@ -327,20 +325,20 @@ export default function OwnerDocument() {
             )}
           </button>
 
-          <p className="text-[10px] text-[#8A7568] font-mono mt-4">
+          <p className="text-[10px] text-[#8A7568] font-mono mt-3 sm:mt-4">
             Supported formats: PDF, JPG, PNG · Max file size: 10MB
           </p>
         </div>
 
         {/* Storage Gauge Card */}
-        <div className="bg-white/80 border border-[#EADBCE]/85 p-6 rounded-3xl shadow-xs flex flex-col justify-between">
+        <div className="bg-white/80 border border-[#EADBCE]/85 p-5 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-serif font-bold text-[#2D1F1A]">Storage Capacity</h3>
             <span className="text-xs font-mono text-[#C5924E] font-bold">{storagePercent}% Used</span>
           </div>
 
-          <div className="flex flex-col items-center justify-center my-6">
-            <div className="relative w-36 h-36 flex items-center justify-center">
+          <div className="flex flex-col items-center justify-center my-4 sm:my-6">
+            <div className="relative w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90">
                 <circle
                   cx="72"
@@ -364,7 +362,7 @@ export default function OwnerDocument() {
                 />
               </svg>
               <div className="absolute flex flex-col items-center">
-                <span className="text-2xl font-serif font-bold text-[#2D1F1A]">
+                <span className="text-xl sm:text-2xl font-serif font-bold text-[#2D1F1A]">
                   {storagePercent}%
                 </span>
                 <span className="text-[10px] font-mono text-[#8A7568]">
@@ -381,7 +379,7 @@ export default function OwnerDocument() {
                 style={{ width: `${storagePercent}%` }}
               />
             </div>
-            <button className="w-full py-2.5 bg-[#FAF7F2] border border-[#EADBCE] rounded-xl text-xs font-mono font-bold text-[#2D1F1A] hover:bg-[#C5924E] hover:text-white transition-all flex items-center justify-center gap-2">
+            <button className="w-full py-2.5 bg-[#FAF7F2] border border-[#EADBCE] rounded-xl text-xs font-mono font-bold text-[#2D1F1A] hover:bg-[#C5924E] hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer">
               <HardDrive className="w-4 h-4 text-[#C5924E] group-hover:text-white" /> Manage Storage Tier
             </button>
           </div>
@@ -389,10 +387,10 @@ export default function OwnerDocument() {
       </div>
 
       {/* Documents Table & Tips Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Table Container */}
-        <div className="lg:col-span-2 bg-white/80 border border-[#EADBCE]/85 rounded-3xl p-6 shadow-xs">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 pb-4 border-b border-[#EADBCE]/60">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Table / Mobile Cards Container */}
+        <div className="lg:col-span-2 bg-white/80 border border-[#EADBCE]/85 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b border-[#EADBCE]/60">
             <div>
               <h2 className="text-base font-serif font-bold text-[#2D1F1A]">Uploaded Records</h2>
               <p className="text-xs text-[#8A7568] font-mono">View, inspect, or remove your legal files</p>
@@ -400,7 +398,7 @@ export default function OwnerDocument() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs bg-[#FAF7F2] border border-[#EADBCE] rounded-xl text-[#6E5D53] font-mono focus:outline-none"
+              className="w-full sm:w-auto px-3 py-1.5 text-xs bg-[#FAF7F2] border border-[#EADBCE] rounded-xl text-[#6E5D53] font-mono focus:outline-none"
             >
               <option value="All Documents">All Documents</option>
               <option value="Verified">Verified</option>
@@ -420,94 +418,168 @@ export default function OwnerDocument() {
               <p className="text-xs font-mono text-[#6E5D53]">No documents found matching this filter.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[550px]">
-                <thead>
-                  <tr className="border-b border-[#EADBCE]/60 text-[10px] font-mono text-[#8A7568] uppercase tracking-wider">
-                    <th className="pb-3">Document Name</th>
-                    <th className="pb-3">Category</th>
-                    <th className="pb-3">Status</th>
-                    <th className="pb-3">Uploaded</th>
-                    <th className="pb-3">Size</th>
-                    <th className="pb-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#EADBCE]/40 text-xs">
-                  {filteredDocuments.map((doc) => {
-                    const ext = doc.document_name.split(".").pop().toUpperCase();
-                    return (
-                      <tr key={doc.id} className="hover:bg-white/60 transition-colors">
-                        <td className="py-4 font-bold text-[#2D1F1A] flex items-center gap-3">
-                          <div className="w-8 h-8 bg-[#C5924E]/10 border border-[#C5924E]/20 text-[#C5924E] rounded-xl flex items-center justify-center text-[10px] font-mono font-bold shrink-0">
+            <>
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[550px]">
+                  <thead>
+                    <tr className="border-b border-[#EADBCE]/60 text-[10px] font-mono text-[#8A7568] uppercase tracking-wider">
+                      <th className="pb-3">Document Name</th>
+                      <th className="pb-3">Category</th>
+                      <th className="pb-3">Status</th>
+                      <th className="pb-3">Uploaded</th>
+                      <th className="pb-3">Size</th>
+                      <th className="pb-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#EADBCE]/40 text-xs">
+                    {filteredDocuments.map((doc) => {
+                      const ext = doc.document_name.split(".").pop().toUpperCase();
+                      return (
+                        <tr key={doc.id} className="hover:bg-white/60 transition-colors">
+                          <td className="py-4 font-bold text-[#2D1F1A] flex items-center gap-3">
+                            <div className="w-8 h-8 bg-[#C5924E]/10 border border-[#C5924E]/20 text-[#C5924E] rounded-xl flex items-center justify-center text-[10px] font-mono font-bold shrink-0">
+                              {ext}
+                            </div>
+                            <span className="truncate max-w-[160px]" title={doc.document_name}>
+                              {doc.document_name}
+                            </span>
+                          </td>
+                          <td className="py-4 text-[#6E5D53] font-medium">{doc.document_type}</td>
+                          <td className="py-4">
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider ${
+                                doc.status === "Verified"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  : doc.status === "Rejected"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                  : "bg-amber-50 text-amber-700 border border-amber-200"
+                              }`}
+                            >
+                              {doc.status === "Verified" && "✓ Verified"}
+                              {doc.status === "Pending" && "🕒 Pending"}
+                              {doc.status === "Rejected" && "✕ Rejected"}
+                            </span>
+                          </td>
+                          <td className="py-4 text-[#6E5D53] font-mono">{formatDate(doc.uploaded_at)}</td>
+                          <td className="py-4 text-[#6E5D53] font-mono">{formatFileSize(doc.file_size_bytes)}</td>
+                          <td className="py-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <a
+                                href={doc.file_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="p-2 bg-white border border-[#EADBCE] rounded-lg hover:border-[#C5924E] hover:text-[#C5924E] transition-all shadow-xs"
+                                title="View Document"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </a>
+                              <a
+                                href={doc.file_url}
+                                download
+                                className="p-2 bg-white border border-[#EADBCE] rounded-lg hover:border-[#C5924E] hover:text-[#C5924E] transition-all shadow-xs"
+                                title="Download"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </a>
+                              <button
+                                onClick={() => handleDelete(doc)}
+                                className="p-2 bg-white border border-[#EADBCE] rounded-lg hover:border-rose-300 hover:text-rose-600 transition-all shadow-xs cursor-pointer"
+                                title="Delete Record"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card List View */}
+              <div className="md:hidden space-y-3">
+                {filteredDocuments.map((doc) => {
+                  const ext = doc.document_name.split(".").pop().toUpperCase();
+                  return (
+                    <div
+                      key={doc.id}
+                      className="bg-[#FAF7F2] border border-[#EADBCE] rounded-xl p-3.5 space-y-3 shadow-2xs"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 bg-[#C5924E]/10 border border-[#C5924E]/20 text-[#C5924E] rounded-lg flex items-center justify-center text-[10px] font-mono font-bold shrink-0">
                             {ext}
                           </div>
-                          <span className="truncate max-w-[160px]" title={doc.document_name}>
-                            {doc.document_name}
-                          </span>
-                        </td>
-                        <td className="py-4 text-[#6E5D53] font-medium">{doc.document_type}</td>
-                        <td className="py-4">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider ${
-                              doc.status === "Verified"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                : doc.status === "Rejected"
-                                ? "bg-rose-50 text-rose-700 border border-rose-200"
-                                : "bg-amber-50 text-amber-700 border border-amber-200"
-                            }`}
-                          >
-                            {doc.status === "Verified" && "✓ Verified"}
-                            {doc.status === "Pending" && "🕒 Pending"}
-                            {doc.status === "Rejected" && "✕ Rejected"}
-                          </span>
-                        </td>
-                        <td className="py-4 text-[#6E5D53] font-mono">{formatDate(doc.uploaded_at)}</td>
-                        <td className="py-4 text-[#6E5D53] font-mono">{formatFileSize(doc.file_size_bytes)}</td>
-                        <td className="py-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <a
-                              href={doc.file_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-2 bg-white border border-[#EADBCE] rounded-lg hover:border-[#C5924E] hover:text-[#C5924E] transition-all shadow-xs"
-                              title="View Document"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                            </a>
-                            <a
-                              href={doc.file_url}
-                              download
-                              className="p-2 bg-white border border-[#EADBCE] rounded-lg hover:border-[#C5924E] hover:text-[#C5924E] transition-all shadow-xs"
-                              title="Download"
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                            </a>
-                            <button
-                              onClick={() => handleDelete(doc)}
-                              className="p-2 bg-white border border-[#EADBCE] rounded-lg hover:border-rose-300 hover:text-rose-600 transition-all shadow-xs cursor-pointer"
-                              title="Delete Record"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-[#2D1F1A] truncate" title={doc.document_name}>
+                              {doc.document_name}
+                            </p>
+                            <p className="text-[11px] text-[#6E5D53] truncate">{doc.document_type}</p>
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-mono font-bold uppercase tracking-wider shrink-0 ${
+                            doc.status === "Verified"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : doc.status === "Rejected"
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                              : "bg-amber-50 text-amber-700 border border-amber-200"
+                          }`}
+                        >
+                          {doc.status === "Verified" && "✓ Verified"}
+                          {doc.status === "Pending" && "🕒 Pending"}
+                          {doc.status === "Rejected" && "✕ Rejected"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] font-mono text-[#8A7568] pt-2 border-t border-[#EADBCE]/60">
+                        <span>{formatDate(doc.uploaded_at)}</span>
+                        <span>{formatFileSize(doc.file_size_bytes)}</span>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <a
+                          href={doc.file_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex-1 py-2 bg-white border border-[#EADBCE] rounded-lg text-xs font-mono font-bold text-[#2D1F1A] flex items-center justify-center gap-1.5 hover:border-[#C5924E] hover:text-[#C5924E] transition-all shadow-2xs"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> View
+                        </a>
+                        <a
+                          href={doc.file_url}
+                          download
+                          className="flex-1 py-2 bg-white border border-[#EADBCE] rounded-lg text-xs font-mono font-bold text-[#2D1F1A] flex items-center justify-center gap-1.5 hover:border-[#C5924E] hover:text-[#C5924E] transition-all shadow-2xs"
+                        >
+                          <Download className="w-3.5 h-3.5" /> Download
+                        </a>
+                        <button
+                          onClick={() => handleDelete(doc)}
+                          className="p-2 bg-white border border-[#EADBCE] rounded-lg text-rose-600 flex items-center justify-center hover:border-rose-300 hover:bg-rose-50 transition-all shadow-2xs cursor-pointer"
+                          title="Delete Record"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
 
         {/* Document Tips Sidebar */}
-        <div className="bg-white/80 border border-[#EADBCE]/85 rounded-3xl p-6 shadow-xs flex flex-col justify-between space-y-6">
+        <div className="bg-white/80 border border-[#EADBCE]/85 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs flex flex-col justify-between space-y-6">
           <div>
-            <h3 className="text-base font-serif font-bold text-[#2D1F1A] mb-4">Security & Guidelines</h3>
-            <p className="text-xs text-[#8A7568] font-mono mb-6">Important recommendations for submitting valid property ownership credentials.</p>
+            <h3 className="text-base font-serif font-bold text-[#2D1F1A] mb-2 sm:mb-4">Security & Guidelines</h3>
+            <p className="text-xs text-[#8A7568] font-mono mb-4 sm:mb-6">Important recommendations for submitting valid property ownership credentials.</p>
 
-            <div className="space-y-4 text-xs text-[#6E5D53]">
-              <div className="flex gap-3 items-start p-3 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE]/60">
+            <div className="space-y-3 sm:space-y-4 text-xs text-[#6E5D53]">
+              <div className="flex gap-3 items-start p-3 rounded-xl sm:rounded-2xl bg-[#FAF7F2] border border-[#EADBCE]/60">
                 <div className="p-2 bg-[#C5924E]/10 text-[#C5924E] rounded-xl shrink-0">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
@@ -517,7 +589,7 @@ export default function OwnerDocument() {
                 </div>
               </div>
 
-              <div className="flex gap-3 items-start p-3 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE]/60">
+              <div className="flex gap-3 items-start p-3 rounded-xl sm:rounded-2xl bg-[#FAF7F2] border border-[#EADBCE]/60">
                 <div className="p-2 bg-[#C5924E]/10 text-[#C5924E] rounded-xl shrink-0">
                   <Lock className="w-4 h-4" />
                 </div>
@@ -527,7 +599,7 @@ export default function OwnerDocument() {
                 </div>
               </div>
 
-              <div className="flex gap-3 items-start p-3 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE]/60">
+              <div className="flex gap-3 items-start p-3 rounded-xl sm:rounded-2xl bg-[#FAF7F2] border border-[#EADBCE]/60">
                 <div className="p-2 bg-[#C5924E]/10 text-[#C5924E] rounded-xl shrink-0">
                   <Clock className="w-4 h-4" />
                 </div>
