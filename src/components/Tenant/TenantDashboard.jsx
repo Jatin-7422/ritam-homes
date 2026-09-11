@@ -19,18 +19,15 @@ import {
   Loader2,
   Menu,
   X,
-  Building2,
-  ChevronDown
+  Building2
 } from "lucide-react";
 
 export default function TenantDashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   const notificationRef = useRef(null);
-  const profileRef = useRef(null);
 
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
   const [hasActiveBookingsUpdate, setHasActiveBookingsUpdate] = useState(false);
@@ -109,9 +106,6 @@ export default function TenantDashboard() {
     const handleClickOutside = (event) => {
       if (notificationRef.current && !notificationRef.current.contains(event.target)) {
         setIsNotificationsOpen(false);
-      }
-      if (profileRef.current && !profileRef.current.contains(event.target)) {
-        setIsProfileOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -193,28 +187,45 @@ export default function TenantDashboard() {
           isDarkTheme ? "bg-[#221A17] border-b border-neutral-800" : "bg-white border-b border-[#E3D9CC]"
         }`}
       >
-        <div className="px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-          {/* Mobile Menu & Logo */}
-          <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 relative flex items-center justify-between gap-4">
+          
+          {/* 1. LEFT SECTION: Mobile Hamburger Menu & Left-aligned content helpers */}
+          <div className="flex items-center gap-3 z-10 shrink-0 md:hidden">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className={`md:hidden p-2 rounded-xl transition-colors ${
+              className={`p-2 rounded-xl transition-colors ${
                 isDarkTheme ? "text-white hover:bg-neutral-800" : "text-[#2D1F1A] hover:bg-[#F8F5EE]"
               }`}
+              aria-label="Toggle Menu"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
+          </div>
+
+          {/* Desktop Left Logo */}
+          <div className="hidden md:flex items-center gap-3 shrink-0">
             <Link to="/tenant-dashboard" className="flex items-center">
               <img
                 src={isDarkTheme ? logoWhite : (logoDark || logoWhite)} 
                 alt="Ritam Homes"
-                className="h-10 sm:h-12 w-auto object-contain"
+                className="h-14 lg:h-16 w-auto object-contain max-w-[200px]"
               />
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1 mx-6 flex-1 justify-center">
+          {/* Mobile Absolute Centered Big Logo */}
+          <div className="absolute left-1/2 -translate-x-1/2 md:hidden flex items-center justify-center pointer-events-auto">
+            <Link to="/tenant-dashboard" className="flex items-center">
+              <img
+                src={isDarkTheme ? logoWhite : (logoDark || logoWhite)} 
+                alt="Ritam Homes"
+                className="h-14 sm:h-16 w-auto object-contain max-w-[210px]"
+              />
+            </Link>
+          </div>
+
+          {/* 2. CENTER SECTION: Desktop Navigation Links */}
+          <nav className="hidden lg:flex items-center justify-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = item.path === "/tenant-dashboard"
@@ -225,7 +236,7 @@ export default function TenantDashboard() {
                 <Link
                   key={item.name}
                   to={item.path}
-                  className={`relative flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  className={`relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
                     isActive
                       ? "bg-[#C5924E] text-white shadow-md"
                       : isDarkTheme 
@@ -233,7 +244,7 @@ export default function TenantDashboard() {
                         : "text-[#6E5D53] hover:bg-[#F8F5EE] hover:text-[#2D1F1A]"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-4 h-4 shrink-0" />
                   <span>{item.name}</span>
                   {item.hasNotification && (
                     <span className="absolute top-1 right-1.5 w-2 h-2 bg-rose-500 rounded-full animate-pulse shadow-sm border border-white/50"></span>
@@ -243,15 +254,16 @@ export default function TenantDashboard() {
             })}
           </nav>
 
-          {/* Right Actions: Notifications & Profile */}
-          <div className="flex items-center gap-3">
-            {/* Notifications */}
+          {/* 3. RIGHT SECTION: Notifications, Host Action, & Profile Dropdown/Logout */}
+          <div className="flex items-center gap-3 z-10 shrink-0">
+            {/* Notification Bell */}
             <div className="relative" ref={notificationRef}>
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                 className={`relative p-2.5 rounded-full transition-colors ${
                   isDarkTheme ? "bg-neutral-800 hover:bg-neutral-700 text-white" : "bg-[#F8F5EE] hover:bg-[#EADBCE] text-[#2D1F1A]"
                 }`}
+                title="Notifications"
               >
                 <Bell className="w-4 h-4" />
                 {(hasUnreadMessages || hasActiveBookingsUpdate) && (
@@ -265,67 +277,130 @@ export default function TenantDashboard() {
               )}
             </div>
 
-            {/* User Profile Dropdown */}
-            <div className="relative" ref={profileRef}>
-              <button
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className={`flex items-center gap-2.5 p-1.5 pr-3 rounded-full border transition-all ${
-                  isDarkTheme ? "border-neutral-800 hover:bg-neutral-800/50" : "border-[#E3D9CC] hover:bg-[#F8F5EE]"
-                }`}
-              >
+            {/* Desktop Switch to Hosting Button */}
+            <Link
+              to="/owner-dashboard"
+              className={`hidden md:flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-colors border ${
+                isDarkTheme 
+                  ? "border-neutral-700 hover:bg-neutral-800 text-[#C5924E]" 
+                  : "border-[#E3D9CC] hover:bg-[#F8F5EE] text-[#C5924E]"
+              }`}
+            >
+              <Building2 className="w-3.5 h-3.5" /> Switch to Hosting
+            </Link>
+
+            {/* Desktop Profile Pill */}
+            <div className={`hidden md:flex items-center gap-2 pl-3 border-l ${
+              isDarkTheme ? "border-neutral-800" : "border-[#E3D9CC]"
+            }`}>
+              <div className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-2xl border ${
+                isDarkTheme ? "bg-neutral-900 border-neutral-800" : "bg-[#FAF7F2] border-[#EFEBE4]"
+              }`}>
                 {userInfo?.avatar ? (
-                  <img src={userInfo.avatar} alt="Profile" className="w-8 h-8 rounded-full object-cover border border-[#C5924E]/50" />
+                  <img src={userInfo.avatar} alt="Profile" className="w-7 h-7 rounded-full object-cover border border-[#C5924E]/50 shrink-0" />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-[#C5924E] flex items-center justify-center text-white font-bold text-sm">
+                  <div className="w-7 h-7 rounded-full bg-[#C5924E] flex items-center justify-center text-white font-bold text-xs shrink-0">
                     {userInfo?.fullName ? userInfo.fullName.charAt(0).toUpperCase() : "T"}
                   </div>
                 )}
-                <div className="hidden sm:block text-left">
-                  <p className="text-xs font-bold truncate max-w-[100px]">{userInfo?.fullName || "Tenant"}</p>
+                <div className="text-left hidden xl:block max-w-[110px]">
+                  <p className="text-xs font-bold truncate leading-tight">{userInfo?.fullName || "Tenant User"}</p>
+                  <p className="text-[10px] text-gray-400 truncate leading-tight">{userInfo?.email}</p>
                 </div>
-                <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-gray-500" />
-              </button>
+              </div>
 
-              {isProfileOpen && (
-                <div className={`absolute right-0 mt-3 w-56 rounded-2xl shadow-xl border py-2 z-50 ${
-                  isDarkTheme ? "bg-[#221A17] border-neutral-800" : "bg-white border-[#E3D9CC]"
-                }`}>
-                  <div className="px-4 py-3 border-b border-gray-200/20 mb-2">
-                    <p className="text-sm font-bold truncate">{userInfo?.fullName}</p>
-                    <p className="text-xs text-gray-500 truncate">{userInfo?.email}</p>
-                    <div className="flex items-center gap-1 mt-2 text-[10px] text-green-500 font-medium">
-                      <ShieldCheck className="w-3 h-3" /> Verified Tenant
-                    </div>
-                  </div>
-                  
-                  <Link
-                    to="/owner-dashboard"
-                    onClick={() => setIsProfileOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-                      isDarkTheme ? "hover:bg-white/5 text-[#C5924E]" : "hover:bg-[#F8F5EE] text-[#C5924E]"
-                    }`}
-                  >
-                    <Building2 className="w-4 h-4" /> Switch to Hosting
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-red-500 ${
-                      isDarkTheme ? "hover:bg-white/5" : "hover:bg-red-50"
-                    }`}
-                  >
-                    <LogOut className="w-4 h-4" /> Logout Account
-                  </button>
-                </div>
-              )}
+              <button
+                onClick={handleLogout}
+                title="Logout Account"
+                className={`p-2.5 rounded-xl transition-colors text-rose-500 ${
+                  isDarkTheme ? "bg-neutral-800 hover:bg-neutral-700" : "bg-[#F8F5EE] hover:bg-[#EADBCE]"
+                }`}
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
-        
-        {/* Mobile Navigation Dropdown */}
-        {isMobileMenuOpen && (
-          <div className={`md:hidden border-top px-4 py-4 space-y-1 shadow-inner ${
-            isDarkTheme ? "bg-[#1A120B] border-neutral-800" : "bg-[#F8F5EE] border-[#E3D9CC]"
+
+        {/* Medium-screen (MD to LG) Row for Nav Items to Avoid Crowding */}
+        <div className={`hidden md:flex lg:hidden items-center justify-center gap-1 px-4 py-2 border-t ${
+          isDarkTheme ? "border-neutral-800 bg-[#1A120B]" : "border-[#E3D9CC] bg-[#FAF7F2]"
+        }`}>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = item.path === "/tenant-dashboard"
+              ? location.pathname === "/tenant-dashboard"
+              : location.pathname.startsWith(item.path);
+
+            return (
+              <Link
+                key={item.name}
+                to={item.path}
+                className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                  isActive
+                    ? "bg-[#C5924E] text-white shadow-md"
+                    : isDarkTheme 
+                      ? "text-[#D1C4B9] hover:bg-white/5 hover:text-white" 
+                      : "text-[#6E5D53] hover:bg-white hover:text-[#2D1F1A]"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <span>{item.name}</span>
+                {item.hasNotification && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full animate-pulse shadow-sm"></span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+      </header>
+
+      {/* MOBILE SLIDE-OVER NAVIGATION DRAWER & BACKDROP */}
+      <div 
+        className={`fixed inset-0 z-50 md:hidden flex transition-all duration-300 ease-in-out ${
+          isMobileMenuOpen ? "pointer-events-auto" : "pointer-events-none"
+        }`}
+      >
+        <div 
+          className={`fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity duration-300 ease-in-out ${
+            isMobileMenuOpen ? "opacity-100" : "opacity-0"
+          }`}
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+
+        <div className={`relative w-72 max-w-full flex flex-col h-full shadow-2xl z-10 transition-transform duration-300 ease-in-out ${
+          isDarkTheme ? "bg-[#221A17] text-white border-r border-neutral-800" : "bg-white text-[#2D1F1A] border-r border-[#E3D9CC]"
+        } ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          <div className={`p-4 flex items-center justify-between border-b ${
+            isDarkTheme ? "border-neutral-800" : "border-[#E3D9CC]"
           }`}>
+            <div className="flex items-center gap-3">
+              {userInfo?.avatar ? (
+                <img src={userInfo.avatar} alt="Profile" className="w-10 h-10 rounded-full object-cover border border-[#C5924E]/50" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-[#C5924E] flex items-center justify-center text-white font-bold text-base">
+                  {userInfo?.fullName ? userInfo.fullName.charAt(0).toUpperCase() : "T"}
+                </div>
+              )}
+              <div className="overflow-hidden">
+                <p className="text-sm font-bold truncate">{userInfo?.fullName || "Tenant User"}</p>
+                <p className="text-xs text-gray-400 truncate">{userInfo?.email}</p>
+                <div className="flex items-center gap-1 mt-0.5 text-[10px] text-green-500 font-medium">
+                  <ShieldCheck className="w-3 h-3" /> Verified Tenant
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`p-2 rounded-xl transition-colors ${
+                isDarkTheme ? "hover:bg-neutral-800 text-white" : "hover:bg-[#F8F5EE] text-[#2D1F1A]"
+              }`}
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = item.path === "/tenant-dashboard"
@@ -341,8 +416,8 @@ export default function TenantDashboard() {
                     isActive
                       ? "bg-[#C5924E] text-white shadow-md"
                       : isDarkTheme 
-                        ? "text-[#D1C4B9] hover:bg-[#221A17]" 
-                        : "text-[#6E5D53] hover:bg-white"
+                        ? "text-[#D1C4B9] hover:bg-neutral-800/60 hover:text-white" 
+                        : "text-[#6E5D53] hover:bg-[#F8F5EE] hover:text-[#2D1F1A]"
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -356,12 +431,37 @@ export default function TenantDashboard() {
               );
             })}
           </div>
-        )}
-      </header>
 
-      {/* MAIN DYNAMIC CONTENT OUTLET */}
-      <main className="flex-1 overflow-y-auto w-full">
-        <div className="max-w-7xl mx-auto w-full h-full">
+          <div className={`p-4 border-t space-y-2 ${
+            isDarkTheme ? "border-neutral-800 bg-[#1A120B]" : "border-[#E3D9CC] bg-[#F8F5EE]"
+          }`}>
+            <Link
+              to="/owner-dashboard"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+                isDarkTheme ? "hover:bg-neutral-800 text-[#C5924E]" : "hover:bg-white text-[#C5924E]"
+              }`}
+            >
+              <Building2 className="w-4 h-4" /> Switch to Hosting
+            </Link>
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                handleLogout();
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors text-rose-500 ${
+                isDarkTheme ? "hover:bg-neutral-800" : "hover:bg-white"
+              }`}
+            >
+              <LogOut className="w-4 h-4" /> Logout Account
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* MAIN CONTENT OUTLET */}
+      <main className="flex-1 overflow-y-auto w-full flex justify-center px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto w-full h-full flex flex-col items-center">
           <Outlet />
         </div>
       </main>
