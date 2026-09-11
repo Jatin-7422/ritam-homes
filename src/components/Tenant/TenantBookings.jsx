@@ -18,6 +18,8 @@ import {
   Phone,
   Mail,
   X,
+  Home,
+  ExternalLink,
 } from "lucide-react";
 
 // Fix Leaflet default marker icon issue in React
@@ -43,15 +45,13 @@ export default function TenantBookings() {
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
-    // 1. Automatically reset expired slots in the database first, then fetch
     resetExpiredSlots().then(() => {
       fetchTenantBookings();
     });
   }, []);
 
-  // Helper to free up expired slots in Supabase
   const resetExpiredSlots = async () => {
-    const today = new Date().toISOString().split("T")[0]; // "YYYY-MM-DD"
+    const today = new Date().toISOString().split("T")[0];
     try {
       await supabase
         .from("property_visit_slots")
@@ -60,8 +60,8 @@ export default function TenantBookings() {
           is_booked: false,
           tenant_id: null,
         })
-        .lt("date", today) // If date is in the past
-        .neq("status", "available"); // Only update if not already available
+        .lt("date", today)
+        .neq("status", "available");
     } catch (err) {
       console.error("Error clearing expired slots:", err);
     }
@@ -70,8 +70,6 @@ export default function TenantBookings() {
   const fetchTenantBookings = async () => {
     try {
       setLoading(true);
-
-      // 1. Get current logged-in tenant session
       const {
         data: { session },
         error: sessionError,
@@ -82,7 +80,6 @@ export default function TenantBookings() {
         return;
       }
 
-      // 2. Fetch all slots booked or requested by this tenant using correct schema columns
       const { data, error } = await supabase
         .from("property_visit_slots")
         .select(
@@ -108,7 +105,6 @@ export default function TenantBookings() {
 
       if (error) throw error;
 
-      // 3. Frontend double-check: filter out any past dates instantly
       const today = new Date().toISOString().split("T")[0];
       const activeBookings = (data || []).filter((slot) => slot.date >= today);
 
@@ -120,7 +116,6 @@ export default function TenantBookings() {
     }
   };
 
-  // Fetch owner details securely when confirmed visit is clicked
   const handleOpenDetails = async (slot) => {
     if (slot.status !== "confirmed") return;
 
@@ -147,7 +142,6 @@ export default function TenantBookings() {
     }
   };
 
-  // Filter bookings based on the tab and search query
   const filteredBookings = bookings.filter((item) => {
     const title = item.properties?.title?.toLowerCase() || "";
     const location = item.properties?.location?.toLowerCase() || "";
@@ -167,65 +161,91 @@ export default function TenantBookings() {
 
   if (loading) {
     return (
-      <div className="min-h-[70vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#C5924E]" />
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3 w-full">
+        <Loader2 className="w-9 h-9 animate-spin text-[#C5924E]" />
+        <p className="text-xs font-semibold text-[#8A7568] tracking-wider uppercase animate-pulse">
+          Loading your visits...
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 text-[#2D1F1A]">
+    <div className="p-4 sm:p-6 lg:p-8 w-full space-y-6 sm:space-y-8 text-[#2D1F1A]">
       {/* Header & Search Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-serif font-bold text-[#2D1F1A]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/60 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-[#EADBCE]/70 shadow-xs w-full">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF7F2] border border-[#EADBCE] text-[#C5924E] text-[10px] font-bold tracking-widest uppercase">
+            <Home className="w-3 h-3" /> Tenant Portal
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#2D1F1A]">
             My Property Bookings 🏡
           </h1>
-          <p className="text-xs text-[#6E5D53] mt-1">
-            Track your scheduled property visits, check request statuses, and
-            view owner details upon confirmation.
+          <p className="text-xs text-[#6E5D53] max-w-2xl">
+            Track your scheduled property visits, check approval statuses, and connect directly with owners upon confirmation.
           </p>
         </div>
 
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A7568]" />
+        <div className="relative w-full md:w-80">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A7568]" />
           <input
             type="text"
             placeholder="Search property or location..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#EADBCE] rounded-2xl text-xs focus:outline-none focus:border-[#C5924E] shadow-sm"
+            className="w-full pl-10 pr-4 py-3 bg-[#FAF7F2]/80 border border-[#EADBCE] rounded-2xl text-xs font-medium text-[#2D1F1A] placeholder-[#8A7568] focus:outline-none focus:border-[#C5924E] focus:bg-white transition-all shadow-2xs"
           />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A7568] hover:text-[#2D1F1A]"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2">
-        {["All", "Pending", "Confirmed", "Rejected"].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setFilter(tab)}
-            className={`px-5 py-2 rounded-full text-xs font-bold transition-all shadow-sm ${
-              filter === tab
-                ? "bg-[#2D1F1A] text-white"
-                : "bg-white text-[#6E5D53] border border-[#EADBCE] hover:bg-[#FAF7F2]"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none w-full">
+        {["All", "Pending", "Confirmed", "Rejected"].map((tab) => {
+          const count = 
+            tab === "All" ? bookings.length : 
+            bookings.filter(b => (b.status || "pending") === tab.toLowerCase()).length;
+            
+          return (
+            <button
+              key={tab}
+              onClick={() => setFilter(tab)}
+              className={`px-4 sm:px-5 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-2xs flex items-center gap-2 shrink-0 cursor-pointer ${
+                filter === tab
+                  ? "bg-[#2D1F1A] text-white shadow-md scale-102"
+                  : "bg-white text-[#6E5D53] border border-[#EADBCE] hover:bg-[#FAF7F2] hover:border-[#C5924E]/50"
+              }`}
+            >
+              <span>{tab}</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                filter === tab ? "bg-white/20 text-white" : "bg-[#FAF7F2] text-[#8A7568] border border-[#EADBCE]"
+              }`}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Bookings List Cards */}
-      <div className="space-y-4">
+      <div className="space-y-4 w-full">
         {filteredBookings.length === 0 ? (
-          <div className="bg-white border border-[#EADBCE] rounded-3xl p-12 text-center space-y-3">
-            <Calendar className="w-10 h-10 text-[#C5924E] mx-auto opacity-60" />
+          <div className="bg-white border border-[#EADBCE] rounded-3xl p-12 text-center space-y-3 shadow-xs w-full">
+            <div className="w-14 h-14 bg-[#FAF7F2] border border-[#EADBCE] rounded-2xl flex items-center justify-center mx-auto text-[#C5924E]">
+              <Calendar className="w-6 h-6" />
+            </div>
             <h3 className="text-sm font-bold text-[#2D1F1A]">
               No Bookings Found
             </h3>
-            <p className="text-xs text-[#6E5D53]">
-              You haven't requested any property visit slots yet.
+            <p className="text-xs text-[#6E5D53] max-w-sm mx-auto">
+              {searchQuery ? "No matches found for your search query." : "You haven't requested any property visit slots yet, or your past visits have expired."}
             </p>
           </div>
         ) : (
@@ -244,31 +264,31 @@ export default function TenantBookings() {
             return (
               <div
                 key={slot.id}
-                className="bg-white border border-[#EADBCE] rounded-3xl p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-[#C5924E]"
+                className="bg-white border border-[#EADBCE] rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-5 transition-all duration-300 hover:border-[#C5924E] hover:shadow-md hover:-translate-y-0.5 group w-full"
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-start sm:items-center gap-4">
                   {/* Property Image or Placeholder */}
-                  <div className="w-16 h-16 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
                     {propertyImage ? (
                       <img
                         src={propertyImage}
                         alt={property?.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
                       <Building className="w-6 h-6 text-[#C5924E]" />
                     )}
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-[#2D1F1A]">
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <span className="text-xs sm:text-sm font-bold text-[#2D1F1A] font-serif">
                         {property?.title || "Property Visit"}
                       </span>
 
                       {/* Status Badge */}
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border uppercase flex items-center gap-1 ${
+                        className={`px-3 py-1 rounded-full text-[10px] font-bold border tracking-wider uppercase flex items-center gap-1.5 shadow-2xs ${
                           status === "confirmed"
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                             : status === "rejected"
@@ -277,52 +297,52 @@ export default function TenantBookings() {
                         }`}
                       >
                         {status === "confirmed" && (
-                          <CheckCircle2 className="w-3 h-3" />
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                         )}
-                        {status === "pending" && <Clock3 className="w-3 h-3" />}
+                        {status === "pending" && <Clock3 className="w-3 h-3 text-amber-600" />}
                         {status === "rejected" && (
-                          <XCircle className="w-3 h-3" />
+                          <XCircle className="w-3 h-3 text-rose-600" />
                         )}
-                        {status}
+                        <span>{status}</span>
                       </span>
                     </div>
 
-                    <p className="text-xs text-[#6E5D53] flex items-center gap-1">
+                    <p className="text-xs text-[#6E5D53] flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
-                      <span>
+                      <span className="truncate max-w-md sm:max-w-xl">
                         {property?.location || "Location not specified"}
                       </span>
                     </p>
 
-                    <p className="text-[11px] text-[#8A7568] flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
-                      <span>
-                        Visit Scheduled:{" "}
-                        <strong className="text-[#2D1F1A]">{slot.date}</strong>{" "}
-                        at{" "}
-                        <strong className="text-[#2D1F1A]">
-                          {slot.time_slot}
-                        </strong>
+                    <div className="flex items-center gap-3 pt-0.5 text-[11px] text-[#8A7568] flex-wrap">
+                      <span className="inline-flex items-center gap-1 bg-[#FAF7F2] px-2.5 py-1 rounded-xl border border-[#EADBCE]">
+                        <Calendar className="w-3 h-3 text-[#C5924E]" />
+                        <strong className="text-[#2D1F1A]">{slot.date}</strong>
                       </span>
-                    </p>
+                      <span className="inline-flex items-center gap-1 bg-[#FAF7F2] px-2.5 py-1 rounded-xl border border-[#EADBCE]">
+                        <Clock className="w-3 h-3 text-[#C5924E]" />
+                        <strong className="text-[#2D1F1A]">{slot.time_slot}</strong>
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Right Action / Price Section */}
-                <div className="flex flex-col md:flex-end items-end justify-between md:justify-center gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-[#F0E6D8]">
-                  <div className="text-right">
+                <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-[#FAF7F2]">
+                  <div className="text-left md:text-right">
                     <span className="block text-[10px] font-bold uppercase tracking-wider text-[#8A7568]">
                       Monthly Rent
                     </span>
-                    <span className="text-xs font-bold text-[#2D1F1A]">
-                      ₹{Number(property?.price || 0).toLocaleString()}/mo
+                    <span className="text-xs sm:text-sm font-bold text-[#2D1F1A]">
+                      ₹{Number(property?.price || 0).toLocaleString()}
+                      <span className="text-[10px] text-[#8A7568] font-normal">/mo</span>
                     </span>
                   </div>
 
                   {isConfirmed && (
                     <button
                       onClick={() => handleOpenDetails(slot)}
-                      className="px-4 py-2 bg-[#C5924E] hover:bg-[#b07d3e] text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2.5 bg-[#C5924E] hover:bg-[#b07d3e] text-white rounded-2xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
                     >
                       <Navigation className="w-3.5 h-3.5" /> View Owner & Map
                     </button>
@@ -334,18 +354,18 @@ export default function TenantBookings() {
         )}
       </div>
 
-      {/* CONFIRMED VISIT DETAILS MODAL (Owner Info & Leaflet Map) */}
+      {/* CONFIRMED VISIT DETAILS MODAL */}
       {selectedVisit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-3xl border border-[#EADBCE] shadow-xl max-w-lg w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl border border-[#EADBCE] shadow-2xl max-w-lg w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-[#FAF7F2] pb-4">
               <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#C5924E]">
+                  Confirmed Appointment
+                </span>
                 <h3 className="text-lg font-serif font-bold text-[#2D1F1A]">
-                  Confirmed Visit & Owner Details
+                  Owner & Property Details
                 </h3>
-                <p className="text-xs text-[#6E5D53]">
-                  Property owner contact info and interactive map location.
-                </p>
               </div>
               <button
                 onClick={() => setSelectedVisit(null)}
@@ -356,56 +376,54 @@ export default function TenantBookings() {
             </div>
 
             {loadingDetails ? (
-              <div className="py-12 text-center text-xs text-[#6E5D53]">
-                Loading owner and location information...
+              <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs text-[#6E5D53]">
+                <Loader2 className="w-6 h-6 animate-spin text-[#C5924E]" />
+                <p>Loading owner and map coordinates...</p>
               </div>
             ) : ownerDetails ? (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {/* Owner Info Box */}
-                <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#C5924E]">
-                    Property Owner Contact
+                <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] space-y-3 shadow-2xs">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#C5924E]">
+                    Contact Credentials
                   </h4>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white border border-[#EADBCE] flex items-center justify-center text-[#C5924E]">
-                      <User className="w-4 h-4" />
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-[#EADBCE]/60">
+                      <div className="w-8 h-8 rounded-lg bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center text-[#C5924E] shrink-0">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <div className="overflow-hidden">
+                        <span className="text-[10px] text-[#8A7568] block">Owner Name</span>
+                        <strong className="text-xs text-[#2D1F1A] truncate block">
+                          {ownerDetails.owner_name}
+                        </strong>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-[#8A7568] block">
-                        Name
-                      </span>
-                      <strong className="text-xs text-[#2D1F1A]">
-                        {ownerDetails.owner_name}
-                      </strong>
+
+                    <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-[#EADBCE]/60">
+                      <div className="w-8 h-8 rounded-lg bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center text-[#C5924E] shrink-0">
+                        <Phone className="w-4 h-4" />
+                      </div>
+                      <div className="overflow-hidden">
+                        <span className="text-[10px] text-[#8A7568] block">Phone Number</span>
+                        <a
+                          href={`tel:${ownerDetails.owner_phone}`}
+                          className="text-xs font-bold text-blue-600 hover:underline truncate block"
+                        >
+                          {ownerDetails.owner_phone}
+                        </a>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white border border-[#EADBCE] flex items-center justify-center text-[#C5924E]">
-                      <Phone className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-[#8A7568] block">
-                        Phone Number
-                      </span>
-                      <a
-                        href={`tel:${ownerDetails.owner_phone}`}
-                        className="text-xs font-bold text-blue-600 underline"
-                      >
-                        {ownerDetails.owner_phone}
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-white border border-[#EADBCE] flex items-center justify-center text-[#C5924E]">
+                  <div className="flex items-center gap-3 bg-white p-3 rounded-xl border border-[#EADBCE]/60">
+                    <div className="w-8 h-8 rounded-lg bg-[#FAF7F2] border border-[#EADBCE] flex items-center justify-center text-[#C5924E] shrink-0">
                       <Mail className="w-4 h-4" />
                     </div>
-                    <div>
-                      <span className="text-[10px] text-[#8A7568] block">
-                        Email Address
-                      </span>
-                      <span className="text-xs text-[#2D1F1A]">
+                    <div className="overflow-hidden">
+                      <span className="text-[10px] text-[#8A7568] block">Email Address</span>
+                      <span className="text-xs text-[#2D1F1A] truncate block">
                         {ownerDetails.owner_email}
                       </span>
                     </div>
@@ -415,7 +433,7 @@ export default function TenantBookings() {
                 {/* Leaflet Map Integration */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#C5924E]">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#C5924E]">
                       Property Location Map
                     </h4>
                     {(() => {
@@ -435,15 +453,15 @@ export default function TenantBookings() {
                           href={directionsUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[11px] font-bold text-[#C5924E] hover:underline flex items-center gap-1"
+                          className="text-[11px] font-bold text-[#C5924E] hover:underline flex items-center gap-1 bg-[#FAF7F2] px-2.5 py-1 rounded-xl border border-[#EADBCE]"
                         >
-                          <Navigation className="w-3 h-3" /> Get Directions
+                          <ExternalLink className="w-3 h-3" /> Get Directions
                         </a>
                       );
                     })()}
                   </div>
 
-                  <div className="w-full h-48 rounded-2xl overflow-hidden border border-[#EADBCE] z-0 relative">
+                  <div className="w-full h-48 rounded-2xl overflow-hidden border border-[#EADBCE] z-0 relative shadow-inner">
                     {(() => {
                       const lat = Number(
                         selectedVisit.properties?.latitude ||
@@ -469,7 +487,7 @@ export default function TenantBookings() {
                           />
                           <Marker position={[lat, lng]}>
                             <Popup>
-                              <div className="text-xs font-bold">
+                              <div className="text-xs font-bold text-[#2D1F1A]">
                                 {selectedVisit.properties?.title ||
                                   "Property Location"}
                               </div>
@@ -479,25 +497,25 @@ export default function TenantBookings() {
                       );
                     })()}
                   </div>
-                  <p className="text-[11px] text-[#6E5D53] flex items-center gap-1">
+                  <p className="text-[11px] text-[#6E5D53] flex items-center gap-1.5 px-1">
                     <MapPin className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
-                    <span>
+                    <span className="truncate">
                       {ownerDetails.property_location ||
                         selectedVisit.properties?.location ||
-                        "Location coordinates pinned"}
+                        "Coordinates pinned accurately"}
                     </span>
                   </p>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-rose-500 text-center py-6">
-                Could not load details for this booking slot.
+              <p className="text-xs text-rose-500 text-center py-6 font-medium">
+                Could not load confirmed contact details for this booking slot.
               </p>
             )}
 
             <button
               onClick={() => setSelectedVisit(null)}
-              className="w-full py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white text-xs font-bold rounded-2xl transition-all shadow-sm cursor-pointer"
+              className="w-full py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white text-xs font-bold rounded-2xl transition-all shadow-sm cursor-pointer active:scale-98"
             >
               Close Details
             </button>
