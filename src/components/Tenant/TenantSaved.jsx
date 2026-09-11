@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import { Heart, MapPin, Loader2, Compass, Trash2, Home } from "lucide-react";
 
@@ -7,6 +7,7 @@ export default function TenantSaved() {
   const [savedProperties, setSavedProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [removingId, setRemovingId] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchSaved();
@@ -67,8 +68,7 @@ export default function TenantSaved() {
             Saved Properties ❤️
           </h1>
           <p className="text-sm text-[#6E5D53] max-w-xl">
-            Quickly access the homes you have bookmarked for later
-            consideration.
+            Quickly access the homes you have bookmarked for later consideration.
           </p>
         </div>
       </div>
@@ -89,7 +89,8 @@ export default function TenantSaved() {
             return (
               <div
                 key={item.id}
-                className="bg-white rounded-3xl border border-[#E3D9CC] overflow-hidden shadow-xs flex flex-col justify-between group transition-all hover:shadow-md"
+                onClick={() => navigate(`/tenant-dashboard/property/${prop.id}`)}
+                className="bg-white rounded-3xl border border-[#E3D9CC] overflow-hidden shadow-xs flex flex-col justify-between group transition-all hover:shadow-md cursor-pointer"
               >
                 <div>
                   {/* Image Header */}
@@ -155,12 +156,9 @@ export default function TenantSaved() {
                       ₹{Number(prop.price || 0).toLocaleString()}
                     </span>
                   </div>
-                  <Link
-                    to={`/tenant-dashboard/property/${prop.id}`}
-                    className="px-4 py-2 bg-[#2D1F1A] hover:bg-[#1a110e] text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
-                  >
+                  <span className="px-4 py-2 bg-[#2D1F1A] group-hover:bg-[#1a110e] text-white text-xs font-bold rounded-xl transition-colors shadow-xs inline-block">
                     View Details
-                  </Link>
+                  </span>
                 </div>
               </div>
             );
