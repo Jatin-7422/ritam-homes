@@ -22,6 +22,8 @@ import {
   X,
   Armchair,
   Navigation,
+  Sparkles,
+  Sliders
 } from "lucide-react";
 
 // Fix Leaflet default marker icon issue in React
@@ -267,50 +269,52 @@ export default function ExploreProperty() {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#C5924E]" />
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-16 h-16 rounded-3xl bg-[#C5924E]/10 flex items-center justify-center text-[#C5924E] animate-pulse">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+        <p className="text-xs font-serif font-medium tracking-wide text-[#6E5D53]">Curating available properties...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto w-full">
+    <div className="px-4 sm:px-6 lg:px-8 py-8 space-y-8 max-w-7xl mx-auto w-full bg-[#FAF7F2]/50 min-h-screen">
       {/* Top Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 mb-2 rounded-full bg-[#FAF7F2] border border-[#EADBCE] text-xs font-semibold text-[#6E5D53]">
-            <Compass className="w-3.5 h-3.5 text-[#C5924E]" />
-            <span>Property Marketplace</span>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-[#EADBCE]/60">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#EADBCE] text-xs font-semibold text-[#2D1F1A] shadow-xs">
+            <Sparkles className="w-3.5 h-3.5 text-[#C5924E]" />
+            <span>Verified Living Spaces</span>
           </div>
-          <h1 className="text-3xl font-serif font-bold text-[#2D1F1A]">
+          <h1 className="text-3xl sm:text-4xl font-serif font-bold text-[#2D1F1A] tracking-tight">
             Explore Properties
           </h1>
-          <p className="text-xs text-[#6E5D53] mt-1">
-            Find verified homes for rent loaded straight from our backend
-            database.
+          <p className="text-sm text-[#6E5D53] max-w-xl font-normal">
+            Discover handpicked homes loaded straight from our secure backend database, tailored for your next ideal move.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 self-start md:self-auto">
           <button
             onClick={() => setIsMapView(!isMapView)}
-            className={`px-4 py-2.5 border rounded-2xl text-xs font-bold shadow-sm flex items-center gap-2 transition-all ${
-              isMapView
-                ? "bg-[#2D1F1A] text-white border-[#2D1F1A]"
-                : "bg-white hover:bg-[#FAF7F2] border-[#EADBCE] text-[#2D1F1A]"
-            }`}
+            className={`px-5 py-3 rounded-2xl text-xs font-bold shadow-sm flex items-center gap-2.5 transition-all duration-300 transform active:scale-95 ${isMapView
+                ? "bg-[#2D1F1A] text-white shadow-md shadow-[#2D1F1A]/20"
+                : "bg-white hover:bg-[#FAF7F2] border border-[#EADBCE] text-[#2D1F1A]"
+              }`}
           >
-            <Map className="w-4 h-4 text-[#C5924E]" />
-            <span>{isMapView ? "Grid View" : "Map View"}</span>
+            <Map className={`w-4 h-4 ${isMapView ? "text-[#C5924E]" : "text-[#C5924E]"}`} />
+            <span>{isMapView ? "Switch to Grid View" : "Explore on Map"}</span>
           </button>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-white rounded-3xl p-5 border border-[#EADBCE] shadow-sm grid grid-cols-1 md:grid-cols-5 gap-4">
+      {/* Filter Bar */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-[#EADBCE]/80 shadow-xs backdrop-blur-md grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Interactive Searchable Location Input with Suggestions */}
-        <div className="space-y-1 relative" ref={locationRef}>
-          <label className="text-[10px] font-bold text-[#8A7568] uppercase">
+        <div className="space-y-1 relative col-span-2 sm:col-span-1" ref={locationRef}>
+          <label className="text-[10px] sm:text-[11px] font-bold text-[#8A7568] tracking-wider uppercase">
             Location
           </label>
           <div className="relative">
@@ -322,28 +326,28 @@ export default function ExploreProperty() {
                 setShowLocationSuggestions(true);
               }}
               onFocus={() => setShowLocationSuggestions(true)}
-              placeholder="Type or select location..."
-              className="w-full px-3 py-2.5 bg-[#FAF7F2] border border-[#EADBCE] rounded-xl text-xs text-[#2D1F1A] font-medium focus:outline-none focus:border-[#C5924E]"
+              placeholder="Search area..."
+              className="w-full px-3 py-2.5 sm:px-3.5 sm:py-3 bg-[#FAF7F2]/70 border border-[#EADBCE] rounded-xl sm:rounded-2xl text-xs text-[#2D1F1A] font-medium focus:outline-none focus:border-[#C5924E] focus:bg-white transition-all shadow-2xs"
             />
             {locationInput && (
               <button
                 onClick={() => setLocationInput("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#2D1F1A]"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#2D1F1A] p-1"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               </button>
             )}
           </div>
 
           {/* Suggestions Dropdown */}
           {showLocationSuggestions && (
-            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#EADBCE] rounded-xl shadow-lg max-h-48 overflow-y-auto z-50">
+            <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-[#EADBCE] rounded-2xl shadow-xl max-h-52 overflow-y-auto z-50 divide-y divide-[#FAF7F2]">
               <div
                 onClick={() => {
                   setLocationInput("");
                   setShowLocationSuggestions(false);
                 }}
-                className="px-3 py-2 text-xs text-[#6E5D53] hover:bg-[#FAF7F2] cursor-pointer font-medium border-b border-[#F0E6D8]"
+                className="px-4 py-2.5 text-xs text-[#6E5D53] hover:bg-[#FAF7F2] cursor-pointer font-semibold transition-colors"
               >
                 All Locations
               </div>
@@ -355,15 +359,15 @@ export default function ExploreProperty() {
                       setLocationInput(loc);
                       setShowLocationSuggestions(false);
                     }}
-                    className="px-3 py-2 text-xs text-[#2D1F1A] hover:bg-[#FAF7F2] cursor-pointer font-medium truncate flex items-center gap-1.5"
+                    className="px-4 py-2.5 text-xs text-[#2D1F1A] hover:bg-[#FAF7F2] cursor-pointer font-medium truncate flex items-center gap-2 transition-colors"
                   >
-                    <MapPin className="w-3 h-3 text-[#C5924E] shrink-0" />
+                    <MapPin className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
                     <span className="truncate">{loc}</span>
                   </div>
                 ))
               ) : (
-                <div className="px-3 py-2 text-xs text-slate-400 italic">
-                  No matching locations found (type custom search)
+                <div className="px-4 py-3 text-xs text-slate-400 italic">
+                  No matching locations found
                 </div>
               )}
             </div>
@@ -371,14 +375,14 @@ export default function ExploreProperty() {
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-[#8A7568] uppercase">
+          <label className="text-[10px] sm:text-[11px] font-bold text-[#8A7568] tracking-wider uppercase">
             Property Type
           </label>
           <div className="relative">
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="w-full appearance-none px-3 py-2.5 bg-[#FAF7F2] border border-[#EADBCE] rounded-xl text-xs text-[#2D1F1A] font-medium focus:outline-none focus:border-[#C5924E] cursor-pointer"
+              className="w-full appearance-none px-3 py-2.5 sm:px-3.5 sm:py-3 bg-[#FAF7F2]/70 border border-[#EADBCE] rounded-xl sm:rounded-2xl text-xs text-[#2D1F1A] font-medium focus:outline-none focus:border-[#C5924E] focus:bg-white transition-all cursor-pointer shadow-2xs truncate"
             >
               <option value="All">All Types</option>
               <option value="Apartment">Apartment</option>
@@ -387,38 +391,38 @@ export default function ExploreProperty() {
               <option value="Studio">Studio</option>
               <option value="PG/Co-living">PG/Co-living</option>
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#C5924E] pointer-events-none" />
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C5924E] pointer-events-none" />
           </div>
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-[#8A7568] uppercase">
+          <label className="text-[10px] sm:text-[11px] font-bold text-[#8A7568] tracking-wider uppercase">
             Budget
           </label>
           <div className="relative">
             <select
               value={selectedBudget}
               onChange={(e) => setSelectedBudget(e.target.value)}
-              className="w-full appearance-none px-3 py-2.5 bg-[#FAF7F2] border border-[#EADBCE] rounded-xl text-xs text-[#2D1F1A] font-medium focus:outline-none focus:border-[#C5924E] cursor-pointer"
+              className="w-full appearance-none px-3 py-2.5 sm:px-3.5 sm:py-3 bg-[#FAF7F2]/70 border border-[#EADBCE] rounded-xl sm:rounded-2xl text-xs text-[#2D1F1A] font-medium focus:outline-none focus:border-[#C5924E] focus:bg-white transition-all cursor-pointer shadow-2xs truncate"
             >
               <option value="All">Any Budget</option>
               <option value="Under ₹15,000">Under ₹15,000</option>
               <option value="₹15,000 - ₹30,000">₹15,000 - ₹30,000</option>
               <option value="Above ₹30,000">Above ₹30,000</option>
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#C5924E] pointer-events-none" />
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C5924E] pointer-events-none" />
           </div>
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-[#8A7568] uppercase">
+          <label className="text-[10px] sm:text-[11px] font-bold text-[#8A7568] tracking-wider uppercase">
             BHK
           </label>
           <div className="relative">
             <select
               value={selectedBhk}
               onChange={(e) => setSelectedBhk(e.target.value)}
-              className="w-full appearance-none px-3 py-2.5 bg-[#FAF7F2] border border-[#EADBCE] rounded-xl text-xs text-[#2D1F1A] font-medium focus:outline-none focus:border-[#C5924E] cursor-pointer"
+              className="w-full appearance-none px-3 py-2.5 sm:px-3.5 sm:py-3 bg-[#FAF7F2]/70 border border-[#EADBCE] rounded-xl sm:rounded-2xl text-xs text-[#2D1F1A] font-medium focus:outline-none focus:border-[#C5924E] focus:bg-white transition-all cursor-pointer shadow-2xs truncate"
             >
               <option value="All">Any BHK</option>
               <option value="1 BHK">1 BHK</option>
@@ -426,49 +430,48 @@ export default function ExploreProperty() {
               <option value="3 BHK">3 BHK</option>
               <option value="4+ BHK">4+ BHK</option>
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#C5924E] pointer-events-none" />
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C5924E] pointer-events-none" />
           </div>
         </div>
 
-        <div className="flex items-end">
+        <div className="flex items-end col-span-2 sm:col-span-2 lg:col-span-1">
           <button
             onClick={resetFilters}
-            className="w-full h-[38px] bg-[#FAF7F2] hover:bg-[#F0E6D8] border border-[#EADBCE] text-[#2D1F1A] rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2"
+            className="w-full h-[38px] sm:h-[42px] bg-[#FAF7F2] hover:bg-[#F0E6D8] border border-[#EADBCE] text-[#2D1F1A] rounded-xl sm:rounded-2xl text-xs font-bold transition-all duration-200 shadow-2xs flex items-center justify-center gap-2 group active:scale-95"
           >
-            <X className="w-3.5 h-3.5 text-[#C5924E]" />
+            <X className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#C5924E] group-hover:rotate-90 transition-transform duration-300" />
             <span>Reset Filters</span>
           </button>
         </div>
       </div>
 
       {/* Category Chips & Sorting */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
           {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all shrink-0 ${
-                selectedCategory === cat
-                  ? "bg-[#2D1F1A] text-white shadow-sm"
+              className={`px-5 py-2.5 rounded-2xl text-xs font-bold transition-all duration-200 shrink-0 shadow-2xs ${selectedCategory === cat
+                  ? "bg-[#2D1F1A] text-white shadow-md shadow-[#2D1F1A]/10 scale-[1.02]"
                   : "bg-white hover:bg-[#FAF7F2] text-[#6E5D53] border border-[#EADBCE]"
-              }`}
+                }`}
             >
               {cat}
             </button>
           ))}
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="text-xs text-[#6E5D53]">
-            Showing {filteredProperties.length} properties
+        <div className="flex items-center justify-between lg:justify-end gap-4 shrink-0">
+          <span className="text-xs font-medium text-[#6E5D53]">
+            Showing <strong className="text-[#2D1F1A] font-bold">{filteredProperties.length}</strong> properties
           </span>
-          <div className="flex items-center gap-2 bg-white border border-[#EADBCE] px-3 py-1.5 rounded-xl text-xs text-[#2D1F1A]">
-            <span className="text-[#8A7568]">Sort by:</span>
+          <div className="flex items-center gap-2 bg-white border border-[#EADBCE] px-3.5 py-2 rounded-2xl text-xs text-[#2D1F1A] shadow-2xs">
+            <span className="text-[#8A7568] font-medium">Sort by:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="bg-transparent font-bold focus:outline-none cursor-pointer"
+              className="bg-transparent font-bold text-[#2D1F1A] focus:outline-none cursor-pointer"
             >
               <option value="Relevance">Relevance</option>
               <option value="PriceLow">Price: Low to High</option>
@@ -480,7 +483,7 @@ export default function ExploreProperty() {
 
       {/* Map View Integration */}
       {isMapView ? (
-        <div className="w-full h-[550px] rounded-3xl overflow-hidden border border-[#EADBCE] shadow-sm relative z-0">
+        <div className="w-full h-[600px] rounded-3xl overflow-hidden border border-[#EADBCE] shadow-md relative z-0">
           <MapContainer
             key={`${mapCenter[0]}-${mapCenter[1]}`}
             center={mapCenter}
@@ -497,21 +500,22 @@ export default function ExploreProperty() {
               return (
                 <Marker key={prop.id} position={[prop.lat, prop.lng]}>
                   <Popup>
-                    <div className="p-1 space-y-2 max-w-[210px]">
-                      <p className="font-bold text-xs text-[#2D1F1A]">
+                    <div className="p-2 space-y-2.5 max-w-[220px] font-sans">
+                      <p className="font-serif font-bold text-xs text-[#2D1F1A] leading-snug">
                         {prop.title}
                       </p>
-                      <p className="text-[11px] text-[#C5924E] font-bold">
+                      <p className="text-xs text-[#C5924E] font-bold">
                         ₹{Number(prop.price || prop.rent || 0).toLocaleString()}
-                        /mo
+                        <span className="text-[10px] text-slate-500 font-normal">/mo</span>
                       </p>
-                      <p className="text-[10px] text-slate-500 truncate">
+                      <p className="text-[11px] text-slate-500 truncate flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-[#C5924E] shrink-0" />
                         {prop.location || prop.city || prop.address}
                       </p>
-                      <div className="flex gap-1 pt-1">
+                      <div className="flex gap-1.5 pt-1">
                         <Link
                           to={`/tenant-dashboard/property/${prop.id}`}
-                          className="flex-1 text-center bg-[#2D1F1A] text-white text-[10px] py-1.5 rounded-lg font-bold"
+                          className="flex-1 text-center bg-[#2D1F1A] hover:bg-black text-white text-[11px] py-2 rounded-xl font-bold transition-all shadow-xs"
                         >
                           View Details
                         </Link>
@@ -519,7 +523,7 @@ export default function ExploreProperty() {
                           href={directionsUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-2 bg-[#C5924E] text-[#2D1F1A] text-[10px] py-1.5 rounded-lg font-bold flex items-center justify-center"
+                          className="px-2.5 bg-[#FAF7F2] hover:bg-[#F0E6D8] border border-[#EADBCE] text-[#C5924E] text-[11px] py-2 rounded-xl font-bold flex items-center justify-center transition-all shadow-xs"
                           title="Get Directions"
                         >
                           <Navigation className="w-3.5 h-3.5" />
@@ -533,28 +537,27 @@ export default function ExploreProperty() {
           </MapContainer>
         </div>
       ) : filteredProperties.length === 0 ? (
-        <div className="py-20 text-center bg-white rounded-3xl border border-[#EADBCE] space-y-4">
-          <div className="w-16 h-16 bg-[#FAF7F2] border border-[#EADBCE] rounded-2xl flex items-center justify-center mx-auto text-[#8C7A6B]">
-            <Home className="w-8 h-8" />
+        <div className="py-24 text-center bg-white rounded-3xl border border-[#EADBCE] space-y-5 shadow-xs max-w-2xl mx-auto my-12">
+          <div className="w-20 h-20 bg-[#FAF7F2] border border-[#EADBCE] rounded-3xl flex items-center justify-center mx-auto text-[#C5924E] shadow-inner">
+            <Home className="w-10 h-10" />
           </div>
-          <div className="space-y-1">
-            <h3 className="text-lg font-serif font-bold text-[#2D1F1A]">
+          <div className="space-y-1.5 px-6">
+            <h3 className="text-xl font-serif font-bold text-[#2D1F1A]">
               No properties match your filters
             </h3>
-            <p className="text-xs text-[#6E5D53]">
-              Try resetting your filter selections to view all available
-              listings.
+            <p className="text-xs text-[#6E5D53] max-w-md mx-auto">
+              Try adjusting or resetting your filter selections to view all available active listings in our database.
             </p>
           </div>
           <button
             onClick={resetFilters}
-            className="px-5 py-2.5 bg-[#2D1F1A] text-white text-xs font-bold rounded-xl shadow-sm hover:bg-[#3E2E27] transition-all"
+            className="px-6 py-3 bg-[#2D1F1A] hover:bg-black text-white text-xs font-bold rounded-2xl shadow-md transition-all active:scale-95"
           >
             Clear All Filters
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {filteredProperties.map((property) => {
             let imageUrl =
               property.image_url ||
@@ -581,35 +584,36 @@ export default function ExploreProperty() {
             return (
               <div
                 key={property.id}
-                className="bg-white rounded-3xl overflow-hidden border border-[#EADBCE] shadow-sm flex flex-col justify-between group hover:shadow-md transition-all"
+                className="bg-white rounded-3xl overflow-hidden border border-[#EADBCE]/80 shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between group transform hover:-translate-y-1"
               >
-                <div className="relative h-52 overflow-hidden bg-slate-100">
+                <div className="relative h-56 overflow-hidden bg-slate-100">
                   <img
                     src={imageUrl}
                     alt={property.title || "Property"}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60" />
 
-                  <span className="absolute top-3 left-3 px-3 py-1 bg-white/90 backdrop-blur-md rounded-lg text-[9px] font-bold text-[#2D1F1A] uppercase tracking-wider shadow-sm border border-[#EADBCE]">
+                  <span className="absolute top-3.5 left-3.5 px-3.5 py-1.5 bg-white/95 backdrop-blur-md rounded-xl text-[10px] font-bold text-[#2D1F1A] uppercase tracking-wider shadow-sm border border-[#EADBCE]/50">
                     {property.type || property.property_type || "Apartment"}
                   </span>
 
                   <button
                     onClick={() => toggleSave(property.id)}
-                    className="absolute top-3 right-3 p-2 bg-white/80 backdrop-blur-md rounded-full text-rose-600 hover:bg-white shadow-md transition-all"
+                    className="absolute top-3.5 right-3.5 p-2.5 bg-white/90 backdrop-blur-md rounded-full text-rose-600 hover:bg-white shadow-md transition-all duration-200 hover:scale-110 active:scale-95"
                   >
                     <Heart
-                      className={`w-4 h-4 ${property.isSaved ? "fill-rose-600 text-rose-600" : "text-[#2D1F1A]"}`}
+                      className={`w-4 h-4 transition-colors ${property.isSaved ? "fill-rose-600 text-rose-600" : "text-[#2D1F1A]"}`}
                     />
                   </button>
                 </div>
 
                 <div className="p-5 space-y-4 flex-1 flex flex-col justify-between">
                   <div className="space-y-1.5">
-                    <h3 className="font-serif font-bold text-[#2D1F1A] text-base leading-snug line-clamp-1">
+                    <h3 className="font-serif font-bold text-[#2D1F1A] text-base leading-snug line-clamp-1 group-hover:text-[#C5924E] transition-colors">
                       {property.title}
                     </h3>
-                    <p className="text-xs text-[#6E5D53] flex items-center gap-1">
+                    <p className="text-xs text-[#6E5D53] flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
                       <span className="truncate">
                         {property.location ||
@@ -621,67 +625,67 @@ export default function ExploreProperty() {
                   </div>
 
                   {/* Schema-Matched Display for BHK, Built-up Area, and Furnishing status */}
-                  <div className="grid grid-cols-3 gap-1 text-[11px] text-[#6E5D53] border-t border-b border-[#F0E6D8] py-2.5 text-center">
-                    <div className="flex flex-col items-center justify-center border-r border-[#F0E6D8] pr-1">
-                      <span className="flex items-center gap-0.5 font-bold text-[#2D1F1A] truncate">
-                        <Bed className="w-3 h-3 text-[#C5924E]" />
+                  <div className="grid grid-cols-3 gap-1 text-[11px] text-[#6E5D53] bg-[#FAF7F2]/60 rounded-2xl border border-[#EADBCE]/50 p-2.5 text-center">
+                    <div className="flex flex-col items-center justify-center border-r border-[#EADBCE]/60 pr-1">
+                      <span className="flex items-center gap-1 font-bold text-[#2D1F1A] truncate">
+                        <Bed className="w-3.5 h-3.5 text-[#C5924E]" />
                         {property.configuration || property.bhk || "-"}
                       </span>
-                      <span className="text-[9px] text-[#8A7568]">BHK</span>
+                      <span className="text-[9px] font-medium text-[#8A7568] uppercase tracking-wider">BHK</span>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center border-r border-[#F0E6D8] px-1">
-                      <span className="flex items-center gap-0.5 font-bold text-[#2D1F1A] truncate">
-                        <Maximize2 className="w-3 h-3 text-[#C5924E]" />
+                    <div className="flex flex-col items-center justify-center border-r border-[#EADBCE]/60 px-1">
+                      <span className="flex items-center gap-1 font-bold text-[#2D1F1A] truncate">
+                        <Maximize2 className="w-3.5 h-3.5 text-[#C5924E]" />
                         {property.built_up_area || property.sqft || "-"}
                       </span>
-                      <span className="text-[9px] text-[#8A7568]">Sq.Ft</span>
+                      <span className="text-[9px] font-medium text-[#8A7568] uppercase tracking-wider">Sq.Ft</span>
                     </div>
 
                     <div className="flex flex-col items-center justify-center pl-1">
-                      <span className="flex items-center gap-0.5 font-bold text-[#2D1F1A] truncate">
-                        <Armchair className="w-3 h-3 text-[#C5924E]" />
+                      <span className="flex items-center gap-1 font-bold text-[#2D1F1A] truncate">
+                        <Armchair className="w-3.5 h-3.5 text-[#C5924E]" />
                         {property.furnishing || "Unfurnished"}
                       </span>
-                      <span className="text-[9px] text-[#8A7568]">Status</span>
+                      <span className="text-[9px] font-medium text-[#8A7568] uppercase tracking-wider">Status</span>
                     </div>
                   </div>
 
                   <div className="space-y-3 pt-1">
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="text-xs text-[#8A7568]">Rent</span>
-                        <p className="font-serif font-bold text-base text-[#C5924E]">
+                        <span className="text-[10px] font-semibold text-[#8A7568] uppercase tracking-wider">Rent</span>
+                        <p className="font-serif font-bold text-lg text-[#C5924E] leading-tight">
                           ₹
                           {Number(
                             property.price || property.rent || 0,
                           ).toLocaleString()}
-                          <span className="text-[10px] font-sans text-[#8A7568]">
+                          <span className="text-[10px] font-sans font-normal text-[#8A7568]">
                             /mo
                           </span>
                         </p>
                       </div>
-                      <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-[10px] font-bold flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> Available
+                      <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200/60 rounded-xl text-[10px] font-bold flex items-center gap-1 shadow-2xs">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Available
                       </span>
                     </div>
 
-                    <div className="pt-1 flex gap-2">
+                    <div className="pt-2 flex gap-2">
                       <Link
                         to={`/tenant-dashboard/property/${property.id}`}
-                        className="flex-1 py-2.5 bg-[#FAF7F2] hover:bg-[#F0E6D8] border border-[#EADBCE] text-[#2D1F1A] font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1 text-center shadow-sm"
+                        className="flex-1 py-3 bg-[#FAF7F2] hover:bg-[#2D1F1A] hover:text-white border border-[#EADBCE] text-[#2D1F1A] font-bold text-xs rounded-2xl transition-all duration-300 flex items-center justify-center gap-1.5 text-center shadow-2xs group/btn"
                       >
                         <span>View Details</span>
-                        <ArrowRight className="w-3.5 h-3.5 text-[#C5924E]" />
+                        <ArrowRight className="w-3.5 h-3.5 text-[#C5924E] group-hover/btn:translate-x-0.5 transition-transform" />
                       </Link>
                       <a
                         href={directionsUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="py-2.5 px-3 bg-[#FAF7F2] hover:bg-[#F0E6D8] border border-[#EADBCE] text-[#C5924E] font-bold text-xs rounded-xl transition-all flex items-center justify-center shadow-sm"
+                        className="py-3 px-3.5 bg-[#FAF7F2] hover:bg-[#F0E6D8] border border-[#EADBCE] text-[#C5924E] font-bold text-xs rounded-2xl transition-all flex items-center justify-center shadow-2xs"
                         title="Get Directions"
                       >
-                        <Navigation className="w-3.5 h-3.5" />
+                        <Navigation className="w-4 h-4" />
                       </a>
                     </div>
                   </div>
