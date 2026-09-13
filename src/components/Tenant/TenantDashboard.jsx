@@ -5,6 +5,7 @@ import logoWhite from "../../assets/whitelogo.png";
 import logoDark from "../../assets/newlogo.png";
 import { AppContext } from "../../App";
 import TenantNotifications from "./TenantNotifications";
+import SettingsComponent from "../../components/Settings"; // Shared Settings component import
 import {
   LayoutDashboard,
   Search,
@@ -19,7 +20,8 @@ import {
   Loader2,
   Menu,
   X,
-  Building2
+  Building2,
+  ArrowLeftRight
 } from "lucide-react";
 
 export default function TenantDashboard() {
@@ -41,6 +43,20 @@ export default function TenantDashboard() {
   const isDarkTheme = preferences?.theme === "Dark Mode" || preferences?.theme === "Dark";
   const useNavigateInstance = useNavigate();
   const location = useLocation();
+
+  // Only show the settings tab if the current route belongs to the tenant section
+  const isTenantSection = location.pathname.startsWith("/tenant-dashboard");
+
+  const navItems = [
+    { name: "Dashboard", icon: LayoutDashboard, path: "/tenant-dashboard" },
+    { name: "Explore", icon: Search, path: "/tenant-dashboard/explore" },
+    { name: "Messages", icon: MessageSquare, path: "/tenant-dashboard/messages", hasNotification: hasUnreadMessages },
+    { name: "Bookings", icon: Calendar, path: "/tenant-dashboard/bookings", hasNotification: hasActiveBookingsUpdate },
+    { name: "Saved", icon: Heart, path: "/tenant-dashboard/saved" },
+    { name: "Documents", icon: FileText, path: "/tenant-dashboard/documents" },
+    // Dynamically include Settings only when in tenant views
+    ...(isTenantSection ? [{ name: "Settings", icon: Settings, path: "/tenant-dashboard/settings" }] : []),
+  ];
 
   useEffect(() => {
     const fetchTenantNotifications = async () => {
@@ -157,16 +173,6 @@ export default function TenantDashboard() {
       useNavigateInstance("/login", { replace: true });
     }, 600);
   };
-
-  const navItems = [
-    { name: "Dashboard", icon: LayoutDashboard, path: "/tenant-dashboard" },
-    { name: "Explore", icon: Search, path: "/tenant-dashboard/explore" },
-    { name: "Messages", icon: MessageSquare, path: "/tenant-dashboard/messages", hasNotification: hasUnreadMessages },
-    { name: "Bookings", icon: Calendar, path: "/tenant-dashboard/bookings", hasNotification: hasActiveBookingsUpdate },
-    { name: "Saved", icon: Heart, path: "/tenant-dashboard/saved" },
-    { name: "Documents", icon: FileText, path: "/tenant-dashboard/documents" },
-    { name: "Settings", icon: Settings, path: "/tenant-dashboard/settings" },
-  ];
 
   return (
     <div

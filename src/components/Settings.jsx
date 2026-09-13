@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { supabase } from "../../supabaseClient";
+import { supabase } from "../supabaseClient";
 import {
   User,
   Shield,
@@ -293,6 +293,37 @@ export default function AccountSettings() {
       setLoading(false);
     }
   };
+
+  // Example inside your Email Sign-Up component
+const handleEmailSignUp = async (email, password, fullName, phone, role) => {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+        phone: phone,
+        role: role,
+      }
+    }
+  });
+
+  if (error) throw error;
+
+  if (data?.user) {
+    // Automatically store credentials/info into your database table
+    await supabase.from("profiles").insert([
+      {
+        id: data.user.id,
+        full_name: fullName,
+        email: email,
+        phone: phone,
+        role: role,
+        created_at: new Date(),
+      }
+    ]);
+  }
+};
 
   const handleSavePassword = async (e) => {
     e.preventDefault();

@@ -9,13 +9,13 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { supabase } from "./supabaseClient";
-import { Loader2, ShieldAlert, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Loader2, ShieldAlert, ArrowLeft, CheckCircle2, User, Phone, Building } from "lucide-react";
 
 // Layout Components
 import Navbar from "./components/Landing-Page/Navbar";
 import Footer from "./components/Landing-Page/Footer";
 
-// Landing Page Components
+// Landing Page & Auth Components
 import Hero from "./components/Landing-Page/Hero";
 import SearchBar from "./components/Landing-Page/SearchBar";
 import FeaturedProperties from "./components/Landing-Page/FeaturedProperties";
@@ -24,21 +24,22 @@ import HowItWorks from "./components/Landing-Page/HowItWorks";
 import AboutUs from "./components/Landing-Page/AboutUs";
 import Login from "./components/Login/Login";
 import Option from "./components/Login/Option";
+import PasswordResetFlow from "./components/Login/CompleteProfileModal"; // 📥 Password Reset Flow Import
 import ContactUs from "./components/ContactUs/ContactUs";
+
+// Dashboards & Sub-components
 import TenantDashboard from "./components/Tenant/TenantDashboard";
 import OwnerDashboard from "./components/Owner/OwnerDashboard";
 import OwnerOverview from "./components/Owner/OwnerOverview";
-
 import NewProperty from "./components/Owner/NewProperty";
 import OwnerProperties from "./components/Owner/owner_properties";
 import OwnerPropertyDetails from "./components/Owner/OwnerPropertyDetails";
 import OwnerEditProperty from "./components/Owner/EditProperty";
 import OwnerBookings from "./components/Owner/OwnerBookings";
 import OwnerEarnings from "./components/Owner/OwnerEarnings";
-import OwnerSettings from "./components/Owner/OwnerSettings";
+import Settings from './components/Settings';
 import OwnerTenants from "./components/Owner/OwnerTenants";
 
-// 📥 UPDATED MESSAGE IMPORTS FOR OWNER & TENANT
 import OwnerMessages from "./components/Owner/OwnerMessages";
 import TenantMessages from "./components/Tenant/TenantMessages";
 
@@ -59,7 +60,6 @@ import TenantPropertyDetails from "./components/Tenant/TenantPropertyDetails";
 import SavedProperties from "./components/Tenant/TenantSaved";
 import TenantDocuments from "./components/Tenant/TenantDocument";
 import TenantBookings from "./components/Tenant/TenantBookings";
-import TenantSettings from "./components/Tenant/TenantSettings";
 
 // Analytics & Logo
 import { Analytics } from "@vercel/analytics/react";
@@ -165,6 +165,154 @@ export function AppProvider({ children }) {
 }
 
 // ==========================================
+// 🛠️ COMPLETE PROFILE MODAL (Google OAuth Popup)
+// ==========================================
+function CompleteProfileModal({ sessionUser, onComplete }) {
+  const [fullName, setFullName] = useState(
+    sessionUser?.user_metadata?.full_name || sessionUser?.user_metadata?.name || ""
+  );
+  const [phone, setPhone] = useState("");
+  const [role, setRole] = useState("tenant");
+  const [businessName, setBusinessName] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      // 1. Update Supabase Auth metadata
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
+          full_name: fullName,
+          phone: phone,
+          role: role,
+          business_name: businessName,
+        },
+      });
+      if (authError) throw authError;
+
+      // 2. Upsert info into public 'profiles' table
+      const { error: dbError } = await supabase.from("profiles").upsert({
+        id: sessionUser.id,
+        full_name: fullName,
+        email: sessionUser.email,
+        phone: phone,
+        role: role,
+        business_name: businessName,
+        updated_at: new Date(),
+      });
+
+      if (dbError) console.error("Database sync warning:", dbError.message);
+
+      onComplete({ fullName, phone, role, businessName });
+    } catch (err) {
+      console.error("Failed to complete profile:", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white dark:bg-[#221A17] rounded-3xl p-8 shadow-2xl border border-[#EADBCE] dark:border-neutral-800 space-y-6">
+        <div>
+          <h2 className="text-2xl font-serif font-bold text-[#2D1F1A] dark:text-white">Complete Your Profile</h2>
+          <p className="text-xs text-[#6E5D53] dark:text-gray-400 mt-1">
+            Please provide a few extra details to finish setting up your account.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-[#6E5D53] dark:text-gray-300 mb-1">Full Name</label>
+            <div className="relative flex items-center">
+              <User className="absolute left-3.5 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#EADBCE] dark:border-neutral-700 bg-[#FAF7F2] dark:bg-neutral-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#C5924E]"
+                placeholder="Enter your name"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#6E5D53] dark:text-gray-300 mb-1">Phone Number</label>
+            <div className="relative flex items-center">
+              <Phone className="absolute left-3.5 w-4 h-4 text-gray-400" />
+              <input
+                type="tel"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#EADBCE] dark:border-neutral-700 bg-[#FAF7F2] dark:bg-neutral-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#C5924E]"
+                placeholder="Enter your phone number"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[#6E5D53] dark:text-gray-300 mb-1">I want to join as a:</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setRole("tenant")}
+                className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                  role === "tenant"
+                    ? "bg-[#C5924E] text-white border-[#C5924E]"
+                    : "bg-[#FAF7F2] dark:bg-neutral-900 text-[#6E5D53] dark:text-gray-300 border-[#EADBCE] dark:border-neutral-700"
+                }`}
+              >
+                Tenant
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole("owner")}
+                className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                  role === "owner"
+                    ? "bg-[#C5924E] text-white border-[#C5924E]"
+                    : "bg-[#FAF7F2] dark:bg-neutral-900 text-[#6E5D53] dark:text-gray-300 border-[#EADBCE] dark:border-neutral-700"
+                }`}
+              >
+                Property Owner
+              </button>
+            </div>
+          </div>
+
+          {role === "owner" && (
+            <div>
+              <label className="block text-xs font-semibold text-[#6E5D53] dark:text-gray-300 mb-1">Business / Agency Name</label>
+              <div className="relative flex items-center">
+                <Building className="absolute left-3.5 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#EADBCE] dark:border-neutral-700 bg-[#FAF7F2] dark:bg-neutral-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#C5924E]"
+                  placeholder="Enter business name"
+                />
+              </div>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full mt-4 py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" /> : <CheckCircle2 className="w-4 h-4 text-[#C5924E]" />}
+            <span>Save & Continue</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
 // 🔄 DEDICATED OAUTH / AUTH CALLBACK HANDLER
 // ==========================================
 function AuthCallback() {
@@ -223,7 +371,7 @@ function AuthCallback() {
 }
 
 // ==========================================
-// 🛡️ PROTECTED ROUTE (Updated for Dual Owner/Tenant Access)
+// 🛡️ PROTECTED ROUTE
 // ==========================================
 function ProtectedRoute({ children, allowedRole }) {
   const [loading, setLoading] = useState(true);
@@ -271,7 +419,6 @@ function ProtectedRoute({ children, allowedRole }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Dual-access logic: Allow owners to view tenant portals & vice versa, unless restricted to admin
   let isAuthorized = false;
 
   if (!allowedRole) {
@@ -281,7 +428,6 @@ function ProtectedRoute({ children, allowedRole }) {
   } else if (Array.isArray(allowedRole)) {
     isAuthorized = allowedRole.includes(userRole) || userRole === "owner";
   } else {
-    // If the route requests 'tenant' or 'owner', let both interchange seamlessly
     isAuthorized = userRole === allowedRole || userRole === "owner" || allowedRole === "tenant";
   }
 
@@ -356,8 +502,10 @@ function AppLayout() {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
+  const [sessionUser, setSessionUser] = useState(null);
+  const [showIncompleteModal, setShowIncompleteModal] = useState(false);
 
-  const { preferences, toastMessage } = useContext(AppContext);
+  const { preferences, toastMessage, setUserInfo } = useContext(AppContext);
   const isDarkTheme =
     preferences.theme === "Dark Mode" || preferences.theme === "Dark";
 
@@ -373,9 +521,36 @@ function AppLayout() {
     return () => clearTimeout(timer);
   }, [location.pathname]);
 
+  // Check if session user lacks phone or role metadata (typically Google Sign-in users)
+  useEffect(() => {
+    const checkIncompleteProfile = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user) {
+        const meta = session.user.user_metadata || {};
+        if (!meta.phone && !meta.phone_number) {
+          setSessionUser(session.user);
+          setShowIncompleteModal(true);
+        }
+      }
+    };
+    checkIncompleteProfile();
+  }, []);
+
+  const handleProfileComplete = (updatedData) => {
+    setUserInfo((prev) => ({
+      ...prev,
+      fullName: updatedData.fullName,
+      phone: updatedData.phone,
+      role: updatedData.role,
+      businessName: updatedData.businessName || prev.businessName,
+    }));
+    setShowIncompleteModal(false);
+  };
+
   const isDashboardRoute =
     location.pathname === "/login" ||
     location.pathname === "/option" ||
+    location.pathname === "/forgot-password" ||
     location.pathname === "/auth/callback" ||
     location.pathname === "/owner-dashboard" ||
     location.pathname.startsWith("/owner-dashboard/") ||
@@ -399,6 +574,14 @@ function AppLayout() {
         isDarkTheme ? "bg-[#1A120B] text-white" : "bg-[#F8F5EE] text-[#1E293B]"
       }`}
     >
+      {/* Dynamic Profile Completion Modal Trigger */}
+      {showIncompleteModal && sessionUser && (
+        <CompleteProfileModal
+          sessionUser={sessionUser}
+          onComplete={handleProfileComplete}
+        />
+      )}
+
       {toastMessage && (
         <div className="fixed top-6 right-6 z-50 bg-[#2D1F1A] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#C5924E] text-xs font-bold flex items-center gap-3 animate-bounce">
           <CheckCircle2 className="w-4 h-4 text-[#C5924E]" />
@@ -444,6 +627,7 @@ function AppLayout() {
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/login" element={<Login />} />
           <Route path="/option" element={<Option />} />
+          <Route path="/forgot-password" element={<PasswordResetFlow />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* Admin Dashboard & Sub-routes */}
@@ -490,9 +674,8 @@ function AppLayout() {
             <Route path="/add-property" element={<NewProperty />} />
             <Route path="/owner-bookings" element={<OwnerBookings />} />
             <Route path="/owner-earnings" element={<OwnerEarnings />} />
-            <Route path="/owner-settings" element={<OwnerSettings />} />
+            <Route path="/owner-settings" element={<Settings />} />
             
-            {/* Owner Messages Integrated Here */}
             <Route path="/messages" element={<OwnerMessages />} />
             <Route path="/owner-dashboard/messages" element={<OwnerMessages />} />
           </Route>
@@ -508,15 +691,12 @@ function AppLayout() {
           >
             <Route index element={<TenantOverview />} />
             <Route path="explore" element={<ExploreProperty />} />
-            
-            {/* Tenant Messages Integrated Here */}
             <Route path="messages" element={<TenantMessages />} />
-            
             <Route path="bookings" element={<TenantBookings />} />
             <Route path="saved-properties" element={<SavedProperties />} />
             <Route path="saved" element={<SavedProperties />} />
             <Route path="documents" element={<TenantDocuments />} />
-            <Route path="settings" element={<TenantSettings />} />
+            <Route path="settings" element={<Settings />} />
             <Route path="property/:id" element={<TenantPropertyDetails />} />
           </Route>
         </Routes>
