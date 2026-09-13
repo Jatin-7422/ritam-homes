@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 
@@ -13,26 +13,39 @@ import {
   Image,
   FileText,
 } from "lucide-react";
-import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+
+// Leaflet components and styles for free map rendering
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 import AddressAutocomplete from "./AddressAutocomplete";
 
-// Google Maps libraries configuration
-const libraries = ["places"];
-const mapContainerStyle = {
-  width: "100%",
-  height: "100%",
-};
+// Fix for default marker icons missing in React-Leaflet
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
+// Helper component to smoothly center Leaflet when coordinates change programmatically
+function MapController({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView(center, map.getZoom());
+    }
+  }, [center, map]);
+  return null;
+}
 
 export default function NewProperty() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
-
-  // Load Google Maps JavaScript API
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
-    libraries,
-  });
 
   // Request browser notification permission on component mount
   useEffect(() => {
@@ -78,19 +91,17 @@ export default function NewProperty() {
     newAmenityInput: "",
   });
 
-  // Step 3: Slot Booking state (Interactive Calendar State)
+  // Step 3: Slot Booking state
   const [bookingMode, setBookingMode] = useState("manual");
   const [visitorsPerSlot, setVisitorsPerSlot] = useState("1 (private visit)");
   const [notifyEveryRequest, setNotifyEveryRequest] = useState(true);
   const [allowOtherDay, setAllowOtherDay] = useState(true);
 
-  // Calendar picker helper states
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(
     new Date().toISOString().split("T")[0],
   );
   const [selectedTimeBlocks, setSelectedTimeBlocks] = useState([]);
 
-  // Quick pre-set time slots that owners can tap to add instantly
   const presetTimeSlots = [
     "09:00 AM - 10:00 AM",
     "10:00 AM - 11:00 AM",
@@ -101,7 +112,6 @@ export default function NewProperty() {
     "05:00 PM - 06:00 PM",
   ];
 
-  // Owner-defined explicit date & time slots array
   const [ownerSlots, setOwnerSlots] = useState([
     {
       date: new Date().toISOString().split("T")[0],
@@ -109,7 +119,6 @@ export default function NewProperty() {
     },
   ]);
 
-  // Toggle multiple time blocks selection
   const handleToggleTimeBlock = (slotTime) => {
     if (selectedTimeBlocks.includes(slotTime)) {
       setSelectedTimeBlocks(
@@ -153,32 +162,30 @@ export default function NewProperty() {
     setOwnerSlots(ownerSlots.filter((_, i) => i !== index));
   };
 
-  // Step 4: Location State & Google Maps Ref
+  // Step 4: Location State & Leaflet Map Handler
   const [locationAddress, setLocationAddress] = useState(
     "Bengaluru, Karnataka",
   );
   const [latitude, setLatitude] = useState(12.9716);
   const [longitude, setLongitude] = useState(77.5946);
-  const mapRef = useRef(null);
-
-  const onMapLoad = useCallback((map) => {
-    mapRef.current = map;
-  }, []);
 
   // Handle Marker drag to update coordinates and reverse geocode if needed
-  const handleMarkerDragEnd = (event) => {
-    const lat = event.latLng.lat();
-    const lng = event.latLng.lng();
-    setLatitude(lat);
-    setLongitude(lng);
+  const handleMarkerDragEnd = async (e) => {
+    const marker = e.target;
+    const position = marker.getLatLng();
+    setLatitude(position.lat);
+    setLongitude(position.lng);
 
-    if (window.google && window.google.maps) {
-      const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode({ location: { lat, lng } }, (results, status) => {
-        if (status === "OK" && results[0]) {
-          setLocationAddress(results[0].formatted_address);
-        }
-      });
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${position.lat}&lon=${position.lng}`
+      );
+      const data = await response.json();
+      if (data && data.display_name) {
+        setLocationAddress(data.display_name);
+      }
+    } catch (err) {
+      console.error("Reverse geocoding error:", err);
     }
   };
 
@@ -358,8 +365,9 @@ export default function NewProperty() {
 
   return (
     <div
-      className={`flex flex-col w-full min-h-screen relative transition-opacity duration-500 overflow-x-hidden box-border pb-12 ${isSubmitting ? "opacity-90" : "opacity-100"
-        }`}
+      className={`flex flex-col w-full min-h-screen relative transition-opacity duration-500 overflow-x-hidden box-border pb-12 ${
+        isSubmitting ? "opacity-90" : "opacity-100"
+      }`}
     >
       {/* LOADING OVERLAY */}
       {isSubmitting && (
@@ -384,9 +392,8 @@ export default function NewProperty() {
         </p>
       </div>
 
-      {/* REDESIGNED STEPPER NAVIGATION BAR */}
+      {/* STEPPER NAVIGATION BAR */}
       <div className="px-3 sm:px-10 py-3 sm:py-4 w-full box-border">
-        {/* Desktop View Stepper */}
         <div className="hidden md:grid md:grid-cols-4 gap-3">
           {[
             { step: 1, label: "Photos", sub: "Show your home" },
@@ -412,34 +419,39 @@ export default function NewProperty() {
                     setCurrentStep(item.step);
                   }
                 }}
-                className={`flex items-center gap-3 p-3.5 rounded-2xl text-left transition-all border ${item.step < currentStep ? "cursor-pointer" : "cursor-default"
-                  } ${isSelected
+                className={`flex items-center gap-3 p-3.5 rounded-2xl text-left transition-all border ${
+                  item.step < currentStep ? "cursor-pointer" : "cursor-default"
+                } ${
+                  isSelected
                     ? "bg-[#2D1F1A] text-white border-[#2D1F1A] shadow-md ring-2 ring-[#C5924E]/30"
                     : isCompleted
-                      ? "bg-white text-[#2D1F1A] border-[#C5924E]/40 hover:bg-[#F2ECE1]/50"
-                      : "bg-white text-[#6E5D53] border-[#E3D9CC] hover:bg-[#F2ECE1]/50"
-                  }`}
+                    ? "bg-white text-[#2D1F1A] border-[#C5924E]/40 hover:bg-[#F2ECE1]/50"
+                    : "bg-white text-[#6E5D53] border-[#E3D9CC] hover:bg-[#F2ECE1]/50"
+                }`}
               >
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 transition-all ${isSelected
+                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 transition-all ${
+                    isSelected
                       ? "bg-[#C5924E] text-[#2D1F1A]"
                       : isCompleted
-                        ? "bg-[#C5924E] text-[#2D1F1A]"
-                        : "bg-[#F8F5EE] text-[#6E5D53] border border-[#E3D9CC]"
-                    }`}
+                      ? "bg-[#C5924E] text-[#2D1F1A]"
+                      : "bg-[#F8F5EE] text-[#6E5D53] border border-[#E3D9CC]"
+                  }`}
                 >
                   {isCompleted ? "✓" : item.step}
                 </div>
                 <div className="min-w-0 flex-1">
                   <strong
-                    className={`block text-xs font-bold truncate ${isSelected ? "text-white" : "text-[#2D1F1A]"
-                      }`}
+                    className={`block text-xs font-bold truncate ${
+                      isSelected ? "text-white" : "text-[#2D1F1A]"
+                    }`}
                   >
                     {item.label}
                   </strong>
                   <span
-                    className={`block text-[10px] truncate ${isSelected ? "text-[#C6B6A8]" : "text-[#6E5D53]"
-                      }`}
+                    className={`block text-[10px] truncate ${
+                      isSelected ? "text-[#C6B6A8]" : "text-[#6E5D53]"
+                    }`}
                   >
                     {item.sub}
                   </span>
@@ -449,23 +461,32 @@ export default function NewProperty() {
           })}
         </div>
 
-        {/* Redesigned Mobile / Tablet Responsive Stepper with Icons */}
+        {/* Mobile Stepper */}
         <div className="block md:hidden w-full bg-white border border-[#E3D9CC] rounded-2xl p-4 shadow-xs box-border overflow-hidden">
           <div className="flex items-center justify-between relative px-4">
-            {/* Background track line properly inset */}
             <div className="absolute left-10 right-10 top-4 h-1 bg-[#F2ECE1] rounded-full z-0" />
-
-            {/* Active progress fill */}
             <div
               className="absolute left-10 top-4 h-1 bg-[#C5924E] rounded-full transition-all duration-300 z-0"
               style={{ width: `${((currentStep - 1) / 3) * 68}%` }}
             />
 
             {[
-              { step: 1, label: "Photos", icon: <Image className="w-3.5 h-3.5" /> },
-              { step: 2, label: "Details", icon: <FileText className="w-3.5 h-3.5" /> },
+              {
+                step: 1,
+                label: "Photos",
+                icon: <Image className="w-3.5 h-3.5" />,
+              },
+              {
+                step: 2,
+                label: "Details",
+                icon: <FileText className="w-3.5 h-3.5" />,
+              },
               { step: 3, label: "Slots", icon: <Clock className="w-3.5 h-3.5" /> },
-              { step: 4, label: "Location", icon: <MapPin className="w-3.5 h-3.5" /> },
+              {
+                step: 4,
+                label: "Location",
+                icon: <MapPin className="w-3.5 h-3.5" />,
+              },
             ].map((item) => {
               const isCompleted = item.step < currentStep;
               const isSelected = item.step === currentStep;
@@ -476,22 +497,25 @@ export default function NewProperty() {
                   onClick={() => {
                     if (item.step < currentStep) setCurrentStep(item.step);
                   }}
-                  className={`flex flex-col items-center relative z-10 ${item.step < currentStep ? "cursor-pointer" : ""
-                    }`}
+                  className={`flex flex-col items-center relative z-10 ${
+                    item.step < currentStep ? "cursor-pointer" : ""
+                  }`}
                 >
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-xs ${isSelected
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-xs ${
+                      isSelected
                         ? "bg-[#2D1F1A] text-[#C5924E] ring-4 ring-[#C5924E]/25"
                         : isCompleted
-                          ? "bg-[#C5924E] text-[#2D1F1A]"
-                          : "bg-white text-[#6E5D53] border-2 border-[#E3D9CC]"
-                      }`}
+                        ? "bg-[#C5924E] text-[#2D1F1A]"
+                        : "bg-white text-[#6E5D53] border-2 border-[#E3D9CC]"
+                    }`}
                   >
                     {isCompleted ? <Check className="w-3.5 h-3.5" /> : item.icon}
                   </div>
                   <span
-                    className={`text-[10px] mt-1.5 font-medium whitespace-nowrap ${isSelected ? "text-[#2D1F1A] font-bold" : "text-[#6E5D53]"
-                      }`}
+                    className={`text-[10px] mt-1.5 font-medium whitespace-nowrap ${
+                      isSelected ? "text-[#2D1F1A] font-bold" : "text-[#6E5D53]"
+                    }`}
                   >
                     {item.label}
                   </span>
@@ -505,7 +529,6 @@ export default function NewProperty() {
       {/* FORM BODY PANEL */}
       <div className="px-3 sm:px-10 pb-16 max-w-7xl w-full mx-auto space-y-6 flex-1 box-border">
         <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#E3D9CC] p-4 sm:p-10 shadow-xs box-border">
-
           {/* STEP 1: PHOTOS */}
           {currentStep === 1 && (
             <div className="space-y-6">
@@ -752,57 +775,61 @@ export default function NewProperty() {
                   />
                 </div>
 
-                {/* Furnishing */}
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Furnishing
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {["Unfurnished", "Semi-furnished", "Fully furnished"].map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() =>
-                          setPropertyDetails({
-                            ...propertyDetails,
-                            furnishing: opt,
-                          })
-                        }
-                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${propertyDetails.furnishing === opt
-                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                    {["Unfurnished", "Semi-furnished", "Fully furnished"].map(
+                      (opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() =>
+                            setPropertyDetails({
+                              ...propertyDetails,
+                              furnishing: opt,
+                            })
+                          }
+                          className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                            propertyDetails.furnishing === opt
+                              ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                              : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
                           }`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
+                        >
+                          {opt}
+                        </button>
+                      ),
+                    )}
                   </div>
                 </div>
 
-                {/* Preferred tenants */}
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Preferred tenants
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {["Any", "Family", "Bachelors", "Working professionals"].map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() =>
-                          setPropertyDetails({
-                            ...propertyDetails,
-                            preferredTenant: opt,
-                          })
-                        }
-                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${propertyDetails.preferredTenant === opt
-                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                    {["Any", "Family", "Bachelors", "Working professionals"].map(
+                      (opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() =>
+                            setPropertyDetails({
+                              ...propertyDetails,
+                              preferredTenant: opt,
+                            })
+                          }
+                          className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                            propertyDetails.preferredTenant === opt
+                              ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                              : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
                           }`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
+                        >
+                          {opt}
+                        </button>
+                      ),
+                    )}
                   </div>
                 </div>
 
@@ -822,10 +849,11 @@ export default function NewProperty() {
                               parking: opt,
                             })
                           }
-                          className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${propertyDetails.parking === opt
+                          className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                            propertyDetails.parking === opt
                               ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
                               : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                            }`}
+                          }`}
                         >
                           {opt}
                         </button>
@@ -870,10 +898,11 @@ export default function NewProperty() {
                             waterSupply: opt,
                           })
                         }
-                        className={`px-1 py-2.5 rounded-xl text-[10px] sm:text-xs font-medium border cursor-pointer transition-all text-center truncate ${propertyDetails.waterSupply === opt
+                        className={`px-1 py-2.5 rounded-xl text-[10px] sm:text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                          propertyDetails.waterSupply === opt
                             ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
                             : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                          }`}
+                        }`}
                       >
                         {opt}
                       </button>
@@ -901,10 +930,11 @@ export default function NewProperty() {
                             facing: opt,
                           })
                         }
-                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${propertyDetails.facing === opt
+                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                          propertyDetails.facing === opt
                             ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
                             : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                          }`}
+                        }`}
                       >
                         {opt}
                       </button>
@@ -931,10 +961,11 @@ export default function NewProperty() {
                             foodPreference: opt,
                           })
                         }
-                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${propertyDetails.foodPreference === opt
+                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                          propertyDetails.foodPreference === opt
                             ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
                             : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                          }`}
+                        }`}
                       >
                         {opt}
                       </button>
@@ -1042,10 +1073,11 @@ export default function NewProperty() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
                   <div
                     onClick={() => setBookingMode("manual")}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${bookingMode === "manual"
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                      bookingMode === "manual"
                         ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
                         : "border-[#E3D9CC] bg-[#F8F5EE]/50"
-                      }`}
+                    }`}
                   >
                     <strong className="block text-xs font-bold text-[#2D1F1A]">
                       I'll confirm each one
@@ -1057,10 +1089,11 @@ export default function NewProperty() {
 
                   <div
                     onClick={() => setBookingMode("auto")}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${bookingMode === "auto"
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                      bookingMode === "auto"
                         ? "border-[#C5924E] bg-[#C5924E]/5 shadow-xs"
                         : "border-[#E3D9CC] bg-[#F8F5EE]/50"
-                      }`}
+                    }`}
                   >
                     <strong className="block text-xs font-bold text-[#2D1F1A]">
                       Auto-accept requests
@@ -1071,10 +1104,9 @@ export default function NewProperty() {
                   </div>
                 </div>
 
-                {/* VISUAL CALENDAR BUILDER CARD */}
                 <div className="bg-[#F8F5EE] border border-[#E3D9CC] p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4 box-border">
                   <h4 className="font-serif font-bold text-xs sm:text-sm text-[#2D1F1A] flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4 text-[#C5924E]" /> 
+                    <CalendarIcon className="w-4 h-4 text-[#C5924E]" />
                     Calendar for tenant booking
                   </h4>
 
@@ -1113,10 +1145,11 @@ export default function NewProperty() {
                               key={slotTime}
                               type="button"
                               onClick={() => handleToggleTimeBlock(slotTime)}
-                              className={`px-3 py-2.5 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer flex items-center justify-between ${isSelected
+                              className={`px-3 py-2.5 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer flex items-center justify-between ${
+                                isSelected
                                   ? "bg-[#2D1F1A] text-white border-[#2D1F1A] font-bold shadow-xs"
                                   : "bg-white text-[#6E5D53] border-[#E3D9CC]"
-                                }`}
+                              }`}
                             >
                               <span className="truncate">{slotTime}</span>
                               {isSelected && (
@@ -1143,7 +1176,6 @@ export default function NewProperty() {
                   </div>
                 </div>
 
-                {/* CURRENTLY ADDED SLOTS LIST */}
                 <div className="space-y-3 pt-2">
                   <h5 className="text-xs font-bold text-[#2D1F1A] uppercase tracking-wider">
                     Added Slots ({ownerSlots.length})
@@ -1205,7 +1237,7 @@ export default function NewProperty() {
             </div>
           )}
 
-          {/* STEP 4: LOCATION WITH GOOGLE MAPS */}
+          {/* STEP 4: LOCATION WITH LEAFLET MAP */}
           {currentStep === 4 && (
             <div className="space-y-6">
               <div>
@@ -1213,8 +1245,8 @@ export default function NewProperty() {
                   Confirm the location address
                 </h3>
                 <p className="text-xs text-[#6E5D53] mt-0.5 leading-relaxed">
-                  Type or search your property address. The map updates
-                  automatically.
+                  Type or search your property address. Drag the pin on the map
+                  to adjust coordinates precisely.
                 </p>
               </div>
 
@@ -1231,42 +1263,36 @@ export default function NewProperty() {
                       if (lat && lon) {
                         setLatitude(lat);
                         setLongitude(lon);
-                        if (mapRef.current) {
-                          mapRef.current.panTo({ lat, lng: lon });
-                        }
                       }
                     }}
                   />
                 </div>
 
                 <div className="relative z-10 w-full h-72 sm:h-80 rounded-2xl overflow-hidden border border-[#E3D9CC] shadow-xs box-border">
-                  {!isLoaded ? (
-                    <div className="w-full h-full flex items-center justify-center bg-[#F8F5EE] text-xs text-[#6E5D53]">
-                      Loading Google Maps...
-                    </div>
-                  ) : loadError ? (
-                    <div className="w-full h-full flex items-center justify-center bg-red-50 text-xs text-red-500">
-                      Error loading Google Maps script.
-                    </div>
-                  ) : (
-                    <GoogleMap
-                      mapContainerStyle={mapContainerStyle}
-                      center={{ lat: latitude, lng: longitude }}
-                      zoom={15}
-                      onLoad={onMapLoad}
-                      options={{
-                        streetViewControl: false,
-                        mapTypeControl: false,
-                        fullscreenControl: false,
+                  <MapContainer
+                    center={[latitude, longitude]}
+                    zoom={15}
+                    style={{ width: "100%", height: "100%" }}
+                  >
+                    <MapController center={[latitude, longitude]} />
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker
+                      position={[latitude, longitude]}
+                      draggable={true}
+                      eventHandlers={{
+                        dragend: handleMarkerDragEnd,
                       }}
                     >
-                      <Marker
-                        position={{ lat: latitude, lng: longitude }}
-                        draggable={true}
-                        onDragEnd={handleMarkerDragEnd}
-                      />
-                    </GoogleMap>
-                  )}
+                      <Popup>
+                        <span className="font-bold text-[#2D1F1A]">
+                          {locationAddress}
+                        </span>
+                      </Popup>
+                    </Marker>
+                  </MapContainer>
                 </div>
               </div>
             </div>
@@ -1278,10 +1304,11 @@ export default function NewProperty() {
               type="button"
               onClick={() => setCurrentStep((prev) => Math.max(prev - 1, 1))}
               disabled={currentStep === 1 || isSubmitting}
-              className={`px-5 sm:px-6 py-3 rounded-xl text-xs sm:text-sm font-bold border transition-all ${currentStep === 1
+              className={`px-5 sm:px-6 py-3 rounded-xl text-xs sm:text-sm font-bold border transition-all ${
+                currentStep === 1
                   ? "opacity-40 cursor-not-allowed bg-gray-50 border-gray-200 text-gray-400"
                   : "bg-white border-[#E3D9CC] text-[#2D1F1A] hover:bg-[#F8F5EE] cursor-pointer"
-                }`}
+              }`}
             >
               Back
             </button>
