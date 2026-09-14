@@ -15,7 +15,7 @@ import { Loader2, ShieldAlert, ArrowLeft, CheckCircle2, User, Phone, Building } 
 import Navbar from "./components/Landing-Page/Navbar";
 import Footer from "./components/Landing-Page/Footer";
 
-// Landing Page & Auth Components
+// Landing Page Components
 import Hero from "./components/Landing-Page/Hero";
 import SearchBar from "./components/Landing-Page/SearchBar";
 import FeaturedProperties from "./components/Landing-Page/FeaturedProperties";
@@ -23,14 +23,11 @@ import WhyChooseUs from "./components/Landing-Page/WhyChooseUs";
 import HowItWorks from "./components/Landing-Page/HowItWorks";
 import AboutUs from "./components/Landing-Page/AboutUs";
 import Login from "./components/Login/Login";
-import Option from "./components/Login/Option";
-import PasswordResetFlow from "./components/Login/CompleteProfileModal"; // 📥 Password Reset Flow Import
 import ContactUs from "./components/ContactUs/ContactUs";
-
-// Dashboards & Sub-components
 import TenantDashboard from "./components/Tenant/TenantDashboard";
 import OwnerDashboard from "./components/Owner/OwnerDashboard";
 import OwnerOverview from "./components/Owner/OwnerOverview";
+
 import NewProperty from "./components/Owner/NewProperty";
 import OwnerProperties from "./components/Owner/owner_properties";
 import OwnerPropertyDetails from "./components/Owner/OwnerPropertyDetails";
@@ -40,6 +37,7 @@ import OwnerEarnings from "./components/Owner/OwnerEarnings";
 import Settings from './components/Settings';
 import OwnerTenants from "./components/Owner/OwnerTenants";
 
+// Message Imports
 import OwnerMessages from "./components/Owner/OwnerMessages";
 import TenantMessages from "./components/Tenant/TenantMessages";
 
@@ -165,23 +163,39 @@ export function AppProvider({ children }) {
 }
 
 // ==========================================
-// 🛠️ COMPLETE PROFILE MODAL (Google OAuth Popup)
+// 🛠️ COMPLETE PROFILE PAGE VIEW (Standalone)
 // ==========================================
-function CompleteProfileModal({ sessionUser, onComplete }) {
-  const [fullName, setFullName] = useState(
-    sessionUser?.user_metadata?.full_name || sessionUser?.user_metadata?.name || ""
-  );
+function CompleteProfileView() {
+  const [sessionUser, setSessionUser] = useState(null);
+  const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("tenant");
   const [businessName, setBusinessName] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user) {
+        setSessionUser(session.user);
+        const meta = session.user.user_metadata || {};
+        setFullName(meta.full_name || meta.name || "");
+      } else {
+        navigate("/login", { replace: true });
+      }
+      setLoading(false);
+    };
+    fetchUser();
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    if (!sessionUser) return;
+    setSubmitting(true);
 
     try {
-      // 1. Update Supabase Auth metadata
       const { error: authError } = await supabase.auth.updateUser({
         data: {
           full_name: fullName,
@@ -192,7 +206,6 @@ function CompleteProfileModal({ sessionUser, onComplete }) {
       });
       if (authError) throw authError;
 
-      // 2. Upsert info into public 'profiles' table
       const { error: dbError } = await supabase.from("profiles").upsert({
         id: sessionUser.id,
         full_name: fullName,
@@ -205,65 +218,77 @@ function CompleteProfileModal({ sessionUser, onComplete }) {
 
       if (dbError) console.error("Database sync warning:", dbError.message);
 
-      onComplete({ fullName, phone, role, businessName });
+      if (role === "owner") {
+        navigate("/owner-dashboard", { replace: true });
+      } else {
+        navigate("/tenant-dashboard", { replace: true });
+      }
     } catch (err) {
       console.error("Failed to complete profile:", err.message);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#1e1511] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#C5924E]" />
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white dark:bg-[#221A17] rounded-3xl p-8 shadow-2xl border border-[#EADBCE] dark:border-neutral-800 space-y-6">
+    <div className="min-h-screen bg-[#1e1511] flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-[#1e1511] text-[#F8F5EE] rounded-3xl p-8 shadow-2xl border border-[#C5924E]/40 space-y-6">
         <div>
-          <h2 className="text-2xl font-serif font-bold text-[#2D1F1A] dark:text-white">Complete Your Profile</h2>
-          <p className="text-xs text-[#6E5D53] dark:text-gray-400 mt-1">
+          <h2 className="text-2xl font-serif font-bold text-white tracking-wide">Complete Your Profile</h2>
+          <p className="text-xs text-[#D1C2B4] mt-1.5 leading-relaxed">
             Please provide a few extra details to finish setting up your account.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-[#6E5D53] dark:text-gray-300 mb-1">Full Name</label>
+            <label className="block text-xs font-semibold text-[#D1C2B4] mb-1.5">Full Name</label>
             <div className="relative flex items-center">
-              <User className="absolute left-3.5 w-4 h-4 text-gray-400" />
+              <User className="absolute left-3.5 w-4 h-4 text-[#C5924E]" />
               <input
                 type="text"
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#EADBCE] dark:border-neutral-700 bg-[#FAF7F2] dark:bg-neutral-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#C5924E]"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#443128] bg-[#2C201A] text-white text-xs font-medium placeholder-[#8C766B] focus:outline-none focus:ring-2 focus:ring-[#C5924E] focus:border-transparent transition-all"
                 placeholder="Enter your name"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#6E5D53] dark:text-gray-300 mb-1">Phone Number</label>
+            <label className="block text-xs font-semibold text-[#D1C2B4] mb-1.5">Phone Number</label>
             <div className="relative flex items-center">
-              <Phone className="absolute left-3.5 w-4 h-4 text-gray-400" />
+              <Phone className="absolute left-3.5 w-4 h-4 text-[#C5924E]" />
               <input
                 type="tel"
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#EADBCE] dark:border-neutral-700 bg-[#FAF7F2] dark:bg-neutral-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#C5924E]"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#443128] bg-[#2C201A] text-white text-xs font-medium placeholder-[#8C766B] focus:outline-none focus:ring-2 focus:ring-[#C5924E] focus:border-transparent transition-all"
                 placeholder="Enter your phone number"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-[#6E5D53] dark:text-gray-300 mb-1">I want to join as a:</label>
+            <label className="block text-xs font-semibold text-[#D1C2B4] mb-1.5">I want to join as a:</label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setRole("tenant")}
-                className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                className={`py-3 rounded-xl text-xs font-bold border transition-all ${
                   role === "tenant"
-                    ? "bg-[#C5924E] text-white border-[#C5924E]"
-                    : "bg-[#FAF7F2] dark:bg-neutral-900 text-[#6E5D53] dark:text-gray-300 border-[#EADBCE] dark:border-neutral-700"
+                    ? "bg-[#C5924E] text-white border-[#C5924E] shadow-md shadow-[#C5924E]/20"
+                    : "bg-[#2C201A] text-[#D1C2B4] border-[#443128] hover:border-[#C5924E]/50"
                 }`}
               >
                 Tenant
@@ -271,10 +296,10 @@ function CompleteProfileModal({ sessionUser, onComplete }) {
               <button
                 type="button"
                 onClick={() => setRole("owner")}
-                className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                className={`py-3 rounded-xl text-xs font-bold border transition-all ${
                   role === "owner"
-                    ? "bg-[#C5924E] text-white border-[#C5924E]"
-                    : "bg-[#FAF7F2] dark:bg-neutral-900 text-[#6E5D53] dark:text-gray-300 border-[#EADBCE] dark:border-neutral-700"
+                    ? "bg-[#C5924E] text-white border-[#C5924E] shadow-md shadow-[#C5924E]/20"
+                    : "bg-[#2C201A] text-[#D1C2B4] border-[#443128] hover:border-[#C5924E]/50"
                 }`}
               >
                 Property Owner
@@ -284,14 +309,14 @@ function CompleteProfileModal({ sessionUser, onComplete }) {
 
           {role === "owner" && (
             <div>
-              <label className="block text-xs font-semibold text-[#6E5D53] dark:text-gray-300 mb-1">Business / Agency Name</label>
+              <label className="block text-xs font-semibold text-[#D1C2B4] mb-1.5">Business / Agency Name</label>
               <div className="relative flex items-center">
-                <Building className="absolute left-3.5 w-4 h-4 text-gray-400" />
+                <Building className="absolute left-3.5 w-4 h-4 text-[#C5924E]" />
                 <input
                   type="text"
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#EADBCE] dark:border-neutral-700 bg-[#FAF7F2] dark:bg-neutral-900 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#C5924E]"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-[#443128] bg-[#2C201A] text-white text-xs font-medium placeholder-[#8C766B] focus:outline-none focus:ring-2 focus:ring-[#C5924E] focus:border-transparent transition-all"
                   placeholder="Enter business name"
                 />
               </div>
@@ -300,10 +325,10 @@ function CompleteProfileModal({ sessionUser, onComplete }) {
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full mt-4 py-3 bg-[#2D1F1A] hover:bg-[#3E2E27] text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            disabled={submitting}
+            className="w-full mt-2 py-3.5 bg-[#C5924E] hover:bg-[#b07e3d] text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" /> : <CheckCircle2 className="w-4 h-4 text-[#C5924E]" />}
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <CheckCircle2 className="w-4 h-4 text-white" />}
             <span>Save & Continue</span>
           </button>
         </form>
@@ -321,6 +346,20 @@ function AuthCallback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
+        const hash = window.location.hash;
+        if (hash && hash.includes("access_token")) {
+          const params = new URLSearchParams(hash.replace("#", "?"));
+          const access_token = params.get("access_token");
+          const refresh_token = params.get("refresh_token");
+
+          if (access_token && refresh_token) {
+            await supabase.auth.setSession({
+              access_token,
+              refresh_token,
+            });
+          }
+        }
+
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
 
@@ -502,10 +541,8 @@ function AppLayout() {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
-  const [sessionUser, setSessionUser] = useState(null);
-  const [showIncompleteModal, setShowIncompleteModal] = useState(false);
 
-  const { preferences, toastMessage, setUserInfo } = useContext(AppContext);
+  const { preferences, toastMessage } = useContext(AppContext);
   const isDarkTheme =
     preferences.theme === "Dark Mode" || preferences.theme === "Dark";
 
@@ -521,36 +558,9 @@ function AppLayout() {
     return () => clearTimeout(timer);
   }, [location.pathname]);
 
-  // Check if session user lacks phone or role metadata (typically Google Sign-in users)
-  useEffect(() => {
-    const checkIncompleteProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session && session.user) {
-        const meta = session.user.user_metadata || {};
-        if (!meta.phone && !meta.phone_number) {
-          setSessionUser(session.user);
-          setShowIncompleteModal(true);
-        }
-      }
-    };
-    checkIncompleteProfile();
-  }, []);
-
-  const handleProfileComplete = (updatedData) => {
-    setUserInfo((prev) => ({
-      ...prev,
-      fullName: updatedData.fullName,
-      phone: updatedData.phone,
-      role: updatedData.role,
-      businessName: updatedData.businessName || prev.businessName,
-    }));
-    setShowIncompleteModal(false);
-  };
-
   const isDashboardRoute =
     location.pathname === "/login" ||
     location.pathname === "/option" ||
-    location.pathname === "/forgot-password" ||
     location.pathname === "/auth/callback" ||
     location.pathname === "/owner-dashboard" ||
     location.pathname.startsWith("/owner-dashboard/") ||
@@ -574,14 +584,6 @@ function AppLayout() {
         isDarkTheme ? "bg-[#1A120B] text-white" : "bg-[#F8F5EE] text-[#1E293B]"
       }`}
     >
-      {/* Dynamic Profile Completion Modal Trigger */}
-      {showIncompleteModal && sessionUser && (
-        <CompleteProfileModal
-          sessionUser={sessionUser}
-          onComplete={handleProfileComplete}
-        />
-      )}
-
       {toastMessage && (
         <div className="fixed top-6 right-6 z-50 bg-[#2D1F1A] text-white px-5 py-3 rounded-2xl shadow-lg border border-[#C5924E] text-xs font-bold flex items-center gap-3 animate-bounce">
           <CheckCircle2 className="w-4 h-4 text-[#C5924E]" />
@@ -626,8 +628,10 @@ function AppLayout() {
           <Route path="/" element={<Home />} />
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/option" element={<Option />} />
-          <Route path="/forgot-password" element={<PasswordResetFlow />} />
+          
+          {/* Display standalone Complete Profile form directly on /option */}
+          <Route path="/option" element={<CompleteProfileView />} />
+          
           <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* Admin Dashboard & Sub-routes */}
