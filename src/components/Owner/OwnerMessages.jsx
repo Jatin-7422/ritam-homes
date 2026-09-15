@@ -25,14 +25,14 @@ export default function OwnerMessages() {
     getUser();
   }, []);
 
-  // Fetch conversations specifically where the user owns the property
+  // Fetch conversations specifically where the user owns the property using a two-step query approach
   useEffect(() => {
     if (!currentUserId) return;
 
     async function fetchOwnerConversations() {
       setLoadingConversations(true);
       try {
-        // First fetch properties owned by current user
+        // 1. First fetch properties owned by current user
         const { data: myProperties, error: propError } = await supabase
           .from("properties")
           .select("id")
@@ -48,18 +48,53 @@ export default function OwnerMessages() {
           return;
         }
 
-        // Fetch messages related only to properties owned by this user
-        const { data, error } = await supabase
+        // 2. Fetch messages related to properties owned by this user (without nested profile hint crashes)
+        const { data: messagesData, error: msgError } = await supabase
           .from("messages")
           .select(`
             *,
-            properties (title, images, owner_id)
+            properties (
+              title, 
+              images, 
+              owner_id
+            )
           `)
           .in("property_id", propertyIds)
           .order("created_at", { ascending: false });
 
-        if (error) throw error;
-        processConversations(data, currentUserId);
+        if (msgError) throw msgError;
+
+        // 3. Collect unique user IDs (senders and receivers) to batch fetch profile names cleanly
+        const userIds = [
+          ...new Set(
+            (messagesData || []).flatMap((msg) => [msg.sender_id, msg.receiver_id]).filter(Boolean)
+          ),
+        ];
+
+        let profileMap = new Map();
+        if (userIds.length > 0) {
+          const { data: profilesData, error: profError } = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", userIds);
+
+          if (!profError && profilesData) {
+            profileMap = new Map(profilesData.map((p) => [p.id, p.full_name]));
+          }
+        }
+
+        // 4. Attach sender and receiver profile names back into the message structure
+        const enrichedData = (messagesData || []).map((msg) => ({
+          ...msg,
+          sender_profile: {
+            full_name: profileMap.get(msg.sender_id) || null,
+          },
+          receiver_profile: {
+            full_name: profileMap.get(msg.receiver_id) || null,
+          },
+        }));
+
+        processConversations(enrichedData, currentUserId);
       } catch (err) {
         console.error("Error fetching owner conversations:", err.message);
       } finally {
@@ -101,12 +136,21 @@ export default function OwnerMessages() {
       const key = `${msg.property_id}-${partnerId}`;
       const isUnread = msg.receiver_id === userId && !msg.is_read;
 
+      // Extract tenant name dynamically depending on who the partner is
+      let tenantName = "Prospective Tenant";
+      if (partnerId === msg.sender_id && msg.sender_profile?.full_name) {
+        tenantName = msg.sender_profile.full_name;
+      } else if (partnerId === msg.receiver_id && msg.receiver_profile?.full_name) {
+        tenantName = msg.receiver_profile.full_name;
+      }
+
       if (!convoMap.has(key)) {
         convoMap.set(key, {
           property_id: msg.property_id,
           property_title: msg.properties?.title || "My Property Listing",
           property_image: msg.properties?.images?.[0] || "",
           partner_id: partnerId,
+          tenant_name: tenantName,
           last_message: msg.content,
           created_at: msg.created_at,
           hasUnread: isUnread,
@@ -115,6 +159,9 @@ export default function OwnerMessages() {
         const existing = convoMap.get(key);
         existing.last_message = msg.content;
         existing.created_at = msg.created_at;
+        if (tenantName !== "Prospective Tenant") {
+          existing.tenant_name = tenantName;
+        }
         if (isUnread) existing.hasUnread = true;
       }
     });
@@ -353,15 +400,19 @@ export default function OwnerMessages() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">
+                        {/* Display Tenant's Name as the bold title */}
                         <strong className="block text-xs font-bold text-[#2D1F1A] truncate">
-                          {convo.property_title}
+                          {convo.tenant_name}
                         </strong>
                         {convo.hasUnread && (
                           <span className="w-2.5 h-2.5 rounded-full bg-[#C5924E] flex-shrink-0 ml-2 animate-pulse shadow-sm" />
                         )}
                       </div>
+                      <p className="text-[10px] text-[#C5924E] font-medium truncate mt-0.5">
+                        {convo.property_title}
+                      </p>
                       <p
-                        className={`text-[11px] truncate mt-1 ${
+                        className={`text-[11px] truncate mt-0.5 ${
                           convo.hasUnread ? "font-bold text-[#2D1F1A]" : "text-[#6E5D53]"
                         }`}
                       >
@@ -393,13 +444,13 @@ export default function OwnerMessages() {
                     <ArrowLeft className="w-4 h-4" />
                   </button>
                   <div className="min-w-0">
+                    {/* Display Tenant's Name prominently */}
                     <h3 className="font-serif font-bold text-xs sm:text-sm text-[#2D1F1A] truncate">
-                      {activeChat.property_title}
+                      {activeChat.tenant_name}
                     </h3>
-                    <span className="text-[10px] text-[#C5924E] font-medium flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Tenant Inquiry Thread
-                    </span>
+                    <p className="text-[10px] text-[#C5924E] font-medium truncate">
+                      Listing: {activeChat.property_title}
+                    </p>
                   </div>
                 </div>
                 <button
