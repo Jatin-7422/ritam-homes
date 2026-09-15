@@ -25,30 +25,61 @@ export default function TenantMessages() {
     getUser();
   }, []);
 
-  // Fetch conversations where the user is the sender/tenant inquiring about properties
+  // Fetch conversations safely avoiding deep foreign key nesting issues
   useEffect(() => {
     if (!currentUserId) return;
 
     async function fetchTenantConversations() {
       setLoadingConversations(true);
       try {
-        const { data, error } = await supabase
+        // 1. Fetch messages and property details without nested profile hint crashes
+        const { data: messagesData, error: msgError } = await supabase
           .from("messages")
           .select(`
             *,
-            properties (title, images, owner_id)
+            properties (
+              title, 
+              images, 
+              owner_id
+            )
           `)
           .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`)
           .order("created_at", { ascending: false });
 
-        if (error) throw error;
+        if (msgError) throw msgError;
 
         // Filter to only show conversations where the current user is NOT the owner of the property
-        const tenantFilteredData = (data || []).filter(
+        const tenantFilteredData = (messagesData || []).filter(
           (msg) => msg.properties?.owner_id !== currentUserId
         );
 
-        processConversations(tenantFilteredData, currentUserId);
+        // 2. Collect unique owner IDs to batch fetch their profile names cleanly
+        const ownerIds = [...new Set(tenantFilteredData.map((msg) => msg.properties?.owner_id).filter(Boolean))];
+
+        let profileMap = new Map();
+        if (ownerIds.length > 0) {
+          const { data: profilesData, error: profError } = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", ownerIds);
+
+          if (!profError && profilesData) {
+            profileMap = new Map(profilesData.map((p) => [p.id, p.full_name]));
+          }
+        }
+
+        // 3. Attach profile names back into the message properties structure
+        const enrichedData = tenantFilteredData.map((msg) => ({
+          ...msg,
+          properties: msg.properties
+            ? {
+                ...msg.properties,
+                owner_name: profileMap.get(msg.properties.owner_id) || "Property Owner",
+              }
+            : null,
+        }));
+
+        processConversations(enrichedData, currentUserId);
       } catch (err) {
         console.error("Error fetching tenant conversations:", err.message);
       } finally {
@@ -95,6 +126,7 @@ export default function TenantMessages() {
           property_id: msg.property_id,
           property_title: msg.properties?.title || "Property Listing",
           property_image: msg.properties?.images?.[0] || "",
+          owner_name: msg.properties?.owner_name || "Property Owner",
           partner_id: partnerId,
           last_message: msg.content,
           created_at: msg.created_at,
@@ -343,14 +375,17 @@ export default function TenantMessages() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">
                         <strong className="block text-xs font-bold text-[#2D1F1A] truncate">
-                          {convo.property_title}
+                          {convo.owner_name}
                         </strong>
                         {convo.hasUnread && (
                           <span className="w-2.5 h-2.5 rounded-full bg-[#C5924E] flex-shrink-0 ml-2 animate-pulse shadow-sm" />
                         )}
                       </div>
+                      <p className="text-[10px] text-[#C5924E] font-medium truncate mt-0.5">
+                        {convo.property_title}
+                      </p>
                       <p
-                        className={`text-[11px] truncate mt-1 ${
+                        className={`text-[11px] truncate mt-0.5 ${
                           convo.hasUnread ? "font-bold text-[#2D1F1A]" : "text-[#6E5D53]"
                         }`}
                       >
@@ -383,12 +418,11 @@ export default function TenantMessages() {
                   </button>
                   <div className="min-w-0">
                     <h3 className="font-serif font-bold text-xs sm:text-sm text-[#2D1F1A] truncate">
-                      {activeChat.property_title}
+                      {activeChat.owner_name}
                     </h3>
-                    <span className="text-[10px] text-[#C5924E] font-medium flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Direct Owner Chat
-                    </span>
+                    <p className="text-[10px] text-[#C5924E] font-medium truncate">
+                      Property: {activeChat.property_title}
+                    </p>
                   </div>
                 </div>
                 <button
