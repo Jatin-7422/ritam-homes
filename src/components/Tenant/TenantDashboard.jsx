@@ -5,7 +5,7 @@ import logoWhite from "../../assets/whitelogo.png";
 import logoDark from "../../assets/newlogo.png";
 import { AppContext } from "../../App";
 import TenantNotifications from "./TenantNotifications";
-import SettingsComponent from "../../components/Settings"; // Shared Settings component import
+import SettingsComponent from "../../components/Settings"; 
 import {
   LayoutDashboard,
   Search,
@@ -20,8 +20,7 @@ import {
   Loader2,
   Menu,
   X,
-  Building2,
-  ArrowLeftRight
+  Building2
 } from "lucide-react";
 
 export default function TenantDashboard() {
@@ -44,7 +43,6 @@ export default function TenantDashboard() {
   const useNavigateInstance = useNavigate();
   const location = useLocation();
 
-  // Only show the settings tab if the current route belongs to the tenant section
   const isTenantSection = location.pathname.startsWith("/tenant-dashboard");
 
   const navItems = [
@@ -54,7 +52,6 @@ export default function TenantDashboard() {
     { name: "Bookings", icon: Calendar, path: "/tenant-dashboard/bookings", hasNotification: hasActiveBookingsUpdate },
     { name: "Saved", icon: Heart, path: "/tenant-dashboard/saved" },
     { name: "Documents", icon: FileText, path: "/tenant-dashboard/documents" },
-    // Dynamically include Settings only when in tenant views
     ...(isTenantSection ? [{ name: "Settings", icon: Settings, path: "/tenant-dashboard/settings" }] : []),
   ];
 
@@ -65,57 +62,27 @@ export default function TenantDashboard() {
         if (!session || !session.user) return;
         const userId = session.user.id;
 
-        const { count: msgCount, error: msgError } = await supabase
+        const { count: msgCount } = await supabase
           .from("messages")
           .select("*", { count: "exact", head: true })
           .eq("receiver_id", userId)
           .eq("is_read", false);
 
-        if (!msgError) {
-          setHasUnreadMessages(Boolean(msgCount && msgCount > 0));
-        }
+        setHasUnreadMessages(Boolean(msgCount && msgCount > 0));
 
-        const { count: bookingCount, error: bookingError } = await supabase
+        const { count: bookingCount } = await supabase
           .from("property_visit_slots")
           .select("*", { count: "exact", head: true })
           .eq("tenant_id", userId)
           .in("status", ["confirmed", "rescheduled"]);
 
-        if (!bookingError) {
-          setHasActiveBookingsUpdate(Boolean(bookingCount && bookingCount > 0));
-        } else {
-          setHasActiveBookingsUpdate(false);
-        }
+        setHasActiveBookingsUpdate(Boolean(bookingCount && bookingCount > 0));
       } catch (err) {
         console.error("Error fetching tenant notifications:", err);
       }
     };
 
     fetchTenantNotifications();
-
-    const messageSubscription = supabase
-      .channel("tenant-dashboard-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "messages" },
-        async () => {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session || !session.user) return;
-
-          const { count } = await supabase
-            .from("messages")
-            .select("*", { count: "exact", head: true })
-            .eq("receiver_id", session.user.id)
-            .eq("is_read", false);
-
-          setHasUnreadMessages(Boolean(count && count > 0));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(messageSubscription);
-    };
   }, [location.pathname]);
 
   useEffect(() => {
@@ -138,9 +105,6 @@ export default function TenantDashboard() {
             ...prev,
             email: prev.email || user.email,
             fullName: user.user_metadata?.full_name || prev.fullName || "Tenant User",
-            businessName: user.user_metadata?.business_name || prev.businessName,
-            phone: user.user_metadata?.phone || prev.phone,
-            location: user.user_metadata?.location || prev.location,
             avatar: user.user_metadata?.avatar_url || prev.avatar || "",
           }));
         }
@@ -150,15 +114,6 @@ export default function TenantDashboard() {
     };
     fetchSession();
   }, [setUserInfo]);
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT" || !session) {
-        useNavigateInstance("/login", { replace: true });
-      }
-    });
-    return () => subscription?.unsubscribe();
-  }, [useNavigateInstance]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -178,7 +133,7 @@ export default function TenantDashboard() {
     <div
       className={`min-h-screen font-sans flex flex-col relative transition-colors duration-300 ${
         isDarkTheme ? "bg-[#1A120B] text-white" : "bg-[#F8F5EE] text-[#2D1F1A]"
-      } ${isLoggingOut ? "opacity-90" : "opacity-100"}`}
+      }`}
     >
       {isLoggingOut && (
         <div className="fixed inset-0 bg-[#2D1F1A]/80 backdrop-blur-xs z-50 flex flex-col items-center justify-center text-white">
@@ -193,45 +148,44 @@ export default function TenantDashboard() {
           isDarkTheme ? "bg-[#221A17] border-b border-neutral-800" : "bg-white border-b border-[#E3D9CC]"
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 relative flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 h-20 relative flex items-center justify-between gap-2">
           
-          {/* 1. LEFT SECTION: Mobile Hamburger Menu & Left-aligned content helpers */}
-          <div className="flex items-center gap-3 z-10 shrink-0 md:hidden">
+          {/* Mobile Menu Toggle */}
+          <div className="flex items-center gap-1 z-10 shrink-0 md:hidden">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className={`p-2 rounded-xl transition-colors ${
                 isDarkTheme ? "text-white hover:bg-neutral-800" : "text-[#2D1F1A] hover:bg-[#F8F5EE]"
               }`}
-              aria-label="Toggle Menu"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
 
-          {/* Desktop Left Logo */}
-          <div className="hidden md:flex items-center gap-3 shrink-0">
+          {/* Desktop Logo (Compact sizing) */}
+          <div className="hidden md:flex items-center gap-2 shrink-0">
             <Link to="/tenant-dashboard" className="flex items-center">
               <img
                 src={isDarkTheme ? logoWhite : (logoDark || logoWhite)} 
                 alt="Ritam Homes"
-                className="h-14 lg:h-16 w-auto object-contain max-w-[200px]"
+                className="h-10 lg:h-12 w-auto object-contain max-w-[140px]"
               />
             </Link>
           </div>
 
-          {/* Mobile Absolute Centered Big Logo */}
+          {/* Mobile Centered Logo */}
           <div className="absolute left-1/2 -translate-x-1/2 md:hidden flex items-center justify-center pointer-events-auto">
             <Link to="/tenant-dashboard" className="flex items-center">
               <img
                 src={isDarkTheme ? logoWhite : (logoDark || logoWhite)} 
                 alt="Ritam Homes"
-                className="h-14 sm:h-16 w-auto object-contain max-w-[210px]"
+                className="h-12 sm:h-14 w-auto object-contain max-w-[190px]"
               />
             </Link>
           </div>
 
-          {/* 2. CENTER SECTION: Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center justify-center gap-1">
+          {/* DESKTOP NAVIGATION (Tuned spacing & sizing to fit standard screens perfectly) */}
+          <nav className="hidden lg:flex items-center justify-center gap-1 xl:gap-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = item.path === "/tenant-dashboard"
@@ -242,7 +196,7 @@ export default function TenantDashboard() {
                 <Link
                   key={item.name}
                   to={item.path}
-                  className={`relative flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+                  className={`relative flex items-center gap-1.5 px-2.5 xl:px-3 py-2 rounded-xl text-xs xl:text-sm font-semibold transition-all ${
                     isActive
                       ? "bg-[#C5924E] text-white shadow-md"
                       : isDarkTheme 
@@ -251,25 +205,24 @@ export default function TenantDashboard() {
                   }`}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.name}</span>
+                  <span className="truncate">{item.name}</span>
                   {item.hasNotification && (
-                    <span className="absolute top-1 right-1.5 w-2 h-2 bg-rose-500 rounded-full animate-pulse shadow-sm border border-white/50"></span>
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse shadow-sm border border-white/50"></span>
                   )}
                 </Link>
               );
             })}
           </nav>
 
-          {/* 3. RIGHT SECTION: Notifications, Host Action, & Profile Dropdown/Logout */}
-          <div className="flex items-center gap-3 z-10 shrink-0">
+          {/* RIGHT SECTION (Compact & guaranteed visible layout) */}
+          <div className="flex items-center gap-2 z-10 shrink-0">
             {/* Notification Bell */}
             <div className="relative" ref={notificationRef}>
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                className={`relative p-2.5 rounded-full transition-colors ${
+                className={`relative p-2 rounded-full transition-colors ${
                   isDarkTheme ? "bg-neutral-800 hover:bg-neutral-700 text-white" : "bg-[#F8F5EE] hover:bg-[#EADBCE] text-[#2D1F1A]"
                 }`}
-                title="Notifications"
               >
                 <Bell className="w-4 h-4" />
                 {(hasUnreadMessages || hasActiveBookingsUpdate) && (
@@ -283,42 +236,43 @@ export default function TenantDashboard() {
               )}
             </div>
 
-            {/* Desktop Switch to Hosting Button */}
+            {/* Switch to Hosting Button */}
             <Link
               to="/owner-dashboard"
-              className={`hidden md:flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-colors border ${
+              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs xl:text-sm font-semibold transition-colors border shrink-0 ${
                 isDarkTheme 
                   ? "border-neutral-700 hover:bg-neutral-800 text-[#C5924E]" 
                   : "border-[#E3D9CC] hover:bg-[#F8F5EE] text-[#C5924E]"
               }`}
             >
-              <Building2 className="w-3.5 h-3.5" /> Switch to Hosting
+              <Building2 className="w-4 h-4 shrink-0" /> 
+              <span className="hidden xl:inline">Switch to Hosting</span>
+              <span className="xl:hidden">Host</span>
             </Link>
 
-            {/* Desktop Profile Pill */}
-            <div className={`hidden md:flex items-center gap-2 pl-3 border-l ${
+            {/* Profile Pill & Logout */}
+            <div className={`hidden md:flex items-center gap-2 pl-2 border-l shrink-0 ${
               isDarkTheme ? "border-neutral-800" : "border-[#E3D9CC]"
             }`}>
-              <div className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-2xl border ${
+              <div className={`flex items-center gap-2 px-2.5 py-1 rounded-2xl border ${
                 isDarkTheme ? "bg-neutral-900 border-neutral-800" : "bg-[#FAF7F2] border-[#EFEBE4]"
               }`}>
                 {userInfo?.avatar ? (
-                  <img src={userInfo.avatar} alt="Profile" className="w-7 h-7 rounded-full object-cover border border-[#C5924E]/50 shrink-0" />
+                  <img src={userInfo.avatar} alt="Profile" className="w-6 h-6 rounded-full object-cover border border-[#C5924E]/50 shrink-0" />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-[#C5924E] flex items-center justify-center text-white font-bold text-xs shrink-0">
+                  <div className="w-6 h-6 rounded-full bg-[#C5924E] flex items-center justify-center text-white font-bold text-xs shrink-0">
                     {userInfo?.fullName ? userInfo.fullName.charAt(0).toUpperCase() : "T"}
                   </div>
                 )}
-                <div className="text-left hidden xl:block max-w-[110px]">
-                  <p className="text-xs font-bold truncate leading-tight">{userInfo?.fullName || "Tenant User"}</p>
-                  <p className="text-[10px] text-gray-400 truncate leading-tight">{userInfo?.email}</p>
-                </div>
+                <span className="text-xs font-bold truncate max-w-[90px] hidden xl:inline">
+                  {userInfo?.fullName || "Tenant User"}
+                </span>
               </div>
 
               <button
                 onClick={handleLogout}
                 title="Logout Account"
-                className={`p-2.5 rounded-xl transition-colors text-rose-500 ${
+                className={`p-2 rounded-xl transition-colors text-rose-500 shrink-0 ${
                   isDarkTheme ? "bg-neutral-800 hover:bg-neutral-700" : "bg-[#F8F5EE] hover:bg-[#EADBCE]"
                 }`}
               >
@@ -328,7 +282,7 @@ export default function TenantDashboard() {
           </div>
         </div>
 
-        {/* Medium-screen (MD to LG) Row for Nav Items to Avoid Crowding */}
+        {/* Medium-screen (MD to LG) Navigation Row */}
         <div className={`hidden md:flex lg:hidden items-center justify-center gap-1 px-4 py-2 border-t ${
           isDarkTheme ? "border-neutral-800 bg-[#1A120B]" : "border-[#E3D9CC] bg-[#FAF7F2]"
         }`}>
@@ -342,7 +296,7 @@ export default function TenantDashboard() {
               <Link
                 key={item.name}
                 to={item.path}
-                className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
                   isActive
                     ? "bg-[#C5924E] text-white shadow-md"
                     : isDarkTheme 
@@ -353,7 +307,7 @@ export default function TenantDashboard() {
                 <Icon className="w-3.5 h-3.5 shrink-0" />
                 <span>{item.name}</span>
                 {item.hasNotification && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full animate-pulse shadow-sm"></span>
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span>
                 )}
               </Link>
             );
@@ -361,104 +315,56 @@ export default function TenantDashboard() {
         </div>
       </header>
 
-      {/* MOBILE SLIDE-OVER NAVIGATION DRAWER & BACKDROP */}
-      <div 
-        className={`fixed inset-0 z-50 md:hidden flex transition-all duration-300 ease-in-out ${
-          isMobileMenuOpen ? "pointer-events-auto" : "pointer-events-none"
-        }`}
-      >
-        <div 
-          className={`fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity duration-300 ease-in-out ${
-            isMobileMenuOpen ? "opacity-100" : "opacity-0"
-          }`}
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-
-        <div className={`relative w-72 max-w-full flex flex-col h-full shadow-2xl z-10 transition-transform duration-300 ease-in-out ${
-          isDarkTheme ? "bg-[#221A17] text-white border-r border-neutral-800" : "bg-white text-[#2D1F1A] border-r border-[#E3D9CC]"
-        } ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
-          <div className={`p-4 flex items-center justify-between border-b ${
-            isDarkTheme ? "border-neutral-800" : "border-[#E3D9CC]"
-          }`}>
+      {/* MOBILE MENU DRAWER */}
+      <div className={`fixed inset-0 z-50 md:hidden flex transition-all duration-300 ${isMobileMenuOpen ? "pointer-events-auto" : "pointer-events-none"}`}>
+        <div className={`fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity ${isMobileMenuOpen ? "opacity-100" : "opacity-0"}`} onClick={() => setIsMobileMenuOpen(false)} />
+        <div className={`relative w-72 max-w-full flex flex-col h-full shadow-2xl z-10 transition-transform ${isDarkTheme ? "bg-[#221A17] text-white" : "bg-white text-[#2D1F1A]"} ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          <div className="p-4 flex items-center justify-between border-b border-neutral-700/30">
             <div className="flex items-center gap-3">
               {userInfo?.avatar ? (
-                <img src={userInfo.avatar} alt="Profile" className="w-10 h-10 rounded-full object-cover border border-[#C5924E]/50" />
+                <img src={userInfo.avatar} alt="Profile" className="w-10 h-10 rounded-full object-cover border border-[#C5924E]" />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-[#C5924E] flex items-center justify-center text-white font-bold text-base">
                   {userInfo?.fullName ? userInfo.fullName.charAt(0).toUpperCase() : "T"}
                 </div>
               )}
-              <div className="overflow-hidden">
+              <div>
                 <p className="text-sm font-bold truncate">{userInfo?.fullName || "Tenant User"}</p>
                 <p className="text-xs text-gray-400 truncate">{userInfo?.email}</p>
-                <div className="flex items-center gap-1 mt-0.5 text-[10px] text-green-500 font-medium">
-                  <ShieldCheck className="w-3 h-3" /> Verified Tenant
-                </div>
               </div>
             </div>
-            <button
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`p-2 rounded-xl transition-colors ${
-                isDarkTheme ? "hover:bg-neutral-800 text-white" : "hover:bg-[#F8F5EE] text-[#2D1F1A]"
-              }`}
-            >
+            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-xl">
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = item.path === "/tenant-dashboard"
-                ? location.pathname === "/tenant-dashboard"
-                : location.pathname.startsWith(item.path);
-
+              const isActive = location.pathname.startsWith(item.path);
               return (
                 <Link
                   key={item.name}
                   to={item.path}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                    isActive
-                      ? "bg-[#C5924E] text-white shadow-md"
-                      : isDarkTheme 
-                        ? "text-[#D1C4B9] hover:bg-neutral-800/60 hover:text-white" 
-                        : "text-[#6E5D53] hover:bg-[#F8F5EE] hover:text-[#2D1F1A]"
+                    isActive ? "bg-[#C5924E] text-white" : "hover:bg-neutral-800/20"
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <Icon className="w-5 h-5" />
                     <span>{item.name}</span>
                   </div>
-                  {item.hasNotification && (
-                    <span className="w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse shadow-sm"></span>
-                  )}
                 </Link>
               );
             })}
           </div>
 
-          <div className={`p-4 border-t space-y-2 ${
-            isDarkTheme ? "border-neutral-800 bg-[#1A120B]" : "border-[#E3D9CC] bg-[#F8F5EE]"
-          }`}>
-            <Link
-              to="/owner-dashboard"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                isDarkTheme ? "hover:bg-neutral-800 text-[#C5924E]" : "hover:bg-white text-[#C5924E]"
-              }`}
-            >
+          <div className="p-4 border-t space-y-2">
+            <Link to="/owner-dashboard" onClick={() => setIsMobileMenuOpen(false)} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-[#C5924E]">
               <Building2 className="w-4 h-4" /> Switch to Hosting
             </Link>
-            <button
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                handleLogout();
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors text-rose-500 ${
-                isDarkTheme ? "hover:bg-neutral-800" : "hover:bg-white"
-              }`}
-            >
+            <button onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-rose-500">
               <LogOut className="w-4 h-4" /> Logout Account
             </button>
           </div>
