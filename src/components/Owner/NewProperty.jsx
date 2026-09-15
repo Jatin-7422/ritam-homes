@@ -91,71 +91,123 @@ export default function NewProperty() {
     newAmenityInput: "",
   });
 
-  // Step 3: Slot Booking state
+  // Step 3: Weekly Timetable & Slot Booking State
   const [bookingMode, setBookingMode] = useState("manual");
   const [visitorsPerSlot, setVisitorsPerSlot] = useState("1 (private visit)");
   const [notifyEveryRequest, setNotifyEveryRequest] = useState(true);
   const [allowOtherDay, setAllowOtherDay] = useState(true);
 
-  const [selectedCalendarDate, setSelectedCalendarDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
-  const [selectedTimeBlocks, setSelectedTimeBlocks] = useState([]);
+  // Weekly timetable generator configuration
+  const [selectedDays, setSelectedDays] = useState([1, 2, 3, 4, 5]); // Default Mon-Fri (0=Sun, 1=Mon...6=Sat)
+  const [timetableStartDate, setTimetableStartDate] = useState(new Date().toISOString().split("T")[0]);
+  const [timetableEndDate, setTimetableEndDate] = useState("");
+  const [startTime, setStartTime] = useState("10:00");
+  const [endTime, setEndTime] = useState("18:00");
+  const [slotDurationMinutes, setSlotDurationMinutes] = useState(60);
 
-  const presetTimeSlots = [
-    "09:00 AM - 10:00 AM",
-    "10:00 AM - 11:00 AM",
-    "11:00 AM - 12:00 PM",
-    "02:00 PM - 03:00 PM",
-    "03:00 PM - 04:00 PM",
-    "04:00 PM - 05:00 PM",
-    "05:00 PM - 06:00 PM",
+  const daysOfWeek = [
+    { id: 1, label: "Mon" },
+    { id: 2, label: "Tue" },
+    { id: 3, label: "Wed" },
+    { id: 4, label: "Thu" },
+    { id: 5, label: "Fri" },
+    { id: 6, label: "Sat" },
+    { id: 0, label: "Sun" },
   ];
+
+  const toggleDaySelection = (dayId) => {
+    if (selectedDays.includes(dayId)) {
+      if (selectedDays.length === 1) {
+        alert("Please select at least one active day for visits.");
+        return;
+      }
+      setSelectedDays(selectedDays.filter((d) => d !== dayId));
+    } else {
+      setSelectedDays([...selectedDays, dayId]);
+    }
+  };
 
   const [ownerSlots, setOwnerSlots] = useState([
     {
       date: new Date().toISOString().split("T")[0],
-      time_slot: "10:00 AM - 11:00 AM",
+      start_time: "10:00",
+      end_time: "11:00",
+      is_booked: false,
+      status: "available",
     },
   ]);
 
-  const handleToggleTimeBlock = (slotTime) => {
-    if (selectedTimeBlocks.includes(slotTime)) {
-      setSelectedTimeBlocks(
-        selectedTimeBlocks.filter((item) => item !== slotTime),
-      );
-    } else {
-      setSelectedTimeBlocks([...selectedTimeBlocks, slotTime]);
-    }
-  };
-
-  const handleAddSlotFromCalendar = () => {
-    if (!selectedCalendarDate || selectedTimeBlocks.length === 0) {
-      alert("Please select a date and at least one time block.");
+  const handleGenerateWeeklyTimetable = (e) => {
+    e.preventDefault();
+    if (!timetableStartDate || !timetableEndDate || !startTime || !endTime) {
+      alert("Please fill in the timetable start date, end date, and time range.");
       return;
     }
 
-    const newEntries = selectedTimeBlocks.map((time) => ({
-      date: selectedCalendarDate,
-      time_slot: time,
-    }));
+    let current = new Date(timetableStartDate);
+    const last = new Date(timetableEndDate);
+    const slotsToPush = [];
 
-    const filteredNewEntries = newEntries.filter(
+    while (current <= last) {
+      const dayOfWeek = current.getDay(); // 0 for Sunday, 1 for Monday, etc.
+
+      // Check if this day is selected in the weekly timetable structure
+      if (selectedDays.includes(dayOfWeek)) {
+        const dateStr = current.toISOString().split("T")[0];
+
+        let [sHour, sMin] = startTime.split(":").map(Number);
+        let [eHour, eMin] = endTime.split(":").map(Number);
+
+        let currentMinutes = sHour * 60 + sMin;
+        const endMinutes = eHour * 60 + eMin;
+
+        while (currentMinutes + slotDurationMinutes <= endMinutes) {
+          const sh = String(Math.floor(currentMinutes / 60)).padStart(2, "0");
+          const sm = String(currentMinutes % 60).padStart(2, "0");
+
+          const nextMinutes = currentMinutes + slotDurationMinutes;
+          const eh = String(Math.floor(nextMinutes / 60)).padStart(2, "0");
+          const em = String(nextMinutes % 60).padStart(2, "0");
+
+          slotsToPush.push({
+            date: dateStr,
+            start_time: `${sh}:${sm}`,
+            end_time: `${eh}:${em}`,
+            is_booked: false,
+            status: "available",
+          });
+
+          currentMinutes = nextMinutes;
+        }
+      }
+
+      // Move to next calendar day
+      current.setDate(current.getDate() + 1);
+    }
+
+    if (slotsToPush.length === 0) {
+      alert("No slots generated. Ensure your date range covers your selected days and time bounds.");
+      return;
+    }
+
+    // Filter out duplicates already in state
+    const filteredNewEntries = slotsToPush.filter(
       (newEntry) =>
         !ownerSlots.some(
           (existing) =>
             existing.date === newEntry.date &&
-            existing.time_slot === newEntry.time_slot,
-        ),
+            existing.start_time === newEntry.start_time &&
+            existing.end_time === newEntry.end_time
+        )
     );
 
     if (filteredNewEntries.length === 0) {
-      alert("The selected slot(s) for this date have already been added.");
+      alert("All slots generated for this structure have already been added.");
       return;
     }
 
     setOwnerSlots([...ownerSlots, ...filteredNewEntries]);
-    setSelectedTimeBlocks([]);
+    alert(`Successfully generated and added ${filteredNewEntries.length} timetable slots!`);
   };
 
   const handleRemoveSlot = (index) => {
@@ -311,12 +363,14 @@ export default function NewProperty() {
 
       const propertyId = insertedProperty.id;
       const validSlots = ownerSlots
-        .filter((slot) => slot.date && slot.time_slot)
+        .filter((slot) => slot.date && slot.start_time && slot.end_time)
         .map((slot) => ({
           property_id: propertyId,
           date: slot.date,
-          time_slot: slot.time_slot,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
           is_booked: false,
+          status: slot.status || "available",
         }));
 
       if (validSlots.length > 0) {
@@ -405,7 +459,7 @@ export default function NewProperty() {
             {
               step: 3,
               label: "Visit availability",
-              sub: "Pick calendar slots",
+              sub: "Weekly timetable schedule",
             },
             { step: 4, label: "Location", sub: "Enter your address" },
           ].map((item) => {
@@ -1056,16 +1110,15 @@ export default function NewProperty() {
             </div>
           )}
 
-          {/* STEP 3: VISIT AVAILABILITY */}
+          {/* STEP 3: WEEKLY TIMETABLE SLOT BUILDER */}
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
                 <h3 className="text-base sm:text-lg font-serif font-bold text-[#2D1F1A]">
-                  Select visit dates & time slots
+                  Weekly Timetable & Visit Schedule
                 </h3>
                 <p className="text-xs text-[#6E5D53] mt-0.5 leading-relaxed">
-                  Pick a date from the calendar and tap time blocks to build your
-                  schedule.
+                  Select active days of the week, define start/end hour boundaries, and pick an overall end date.
                 </p>
               </div>
 
@@ -1107,84 +1160,110 @@ export default function NewProperty() {
                 <div className="bg-[#F8F5EE] border border-[#E3D9CC] p-4 sm:p-6 rounded-2xl sm:rounded-3xl space-y-4 box-border">
                   <h4 className="font-serif font-bold text-xs sm:text-sm text-[#2D1F1A] flex items-center gap-2">
                     <CalendarIcon className="w-4 h-4 text-[#C5924E]" />
-                    Calendar for tenant booking
+                    Weekly Timetable Structure
                   </h4>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="block text-xs font-bold text-[#2D1F1A]">
-                        1. Select Date
-                      </label>
-                      <input
-                        type="date"
-                        value={selectedCalendarDate}
-                        min={new Date().toISOString().split("T")[0]}
-                        onChange={(e) =>
-                          setSelectedCalendarDate(e.target.value)
-                        }
-                        className="w-full px-4 py-3 bg-white border border-[#E3D9CC] rounded-xl text-xs sm:text-sm font-bold text-[#2D1F1A] shadow-2xs focus:outline-none focus:border-[#C5924E] box-border"
-                      />
-                      <p className="text-[11px] text-[#6E5D53]">
-                        Chosen Date:{" "}
-                        <span className="font-bold text-[#2D1F1A]">
-                          {selectedCalendarDate}
-                        </span>
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="block text-xs font-bold text-[#2D1F1A]">
-                        2. Pick Time Blocks (Select multiple)
-                      </label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto pr-1">
-                        {presetTimeSlots.map((slotTime) => {
-                          const isSelected =
-                            selectedTimeBlocks.includes(slotTime);
-                          return (
-                            <button
-                              key={slotTime}
-                              type="button"
-                              onClick={() => handleToggleTimeBlock(slotTime)}
-                              className={`px-3 py-2.5 rounded-xl text-xs font-medium border text-left transition-all cursor-pointer flex items-center justify-between ${
-                                isSelected
-                                  ? "bg-[#2D1F1A] text-white border-[#2D1F1A] font-bold shadow-xs"
-                                  : "bg-white text-[#6E5D53] border-[#E3D9CC]"
-                              }`}
-                            >
-                              <span className="truncate">{slotTime}</span>
-                              {isSelected && (
-                                <Check className="w-3.5 h-3.5 text-[#C5924E] flex-shrink-0 ml-1" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
+                  {/* Day Picker Grid */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-[#8A7568]">1. Select Available Days of the Week</label>
+                    <div className="flex flex-wrap gap-2">
+                      {daysOfWeek.map((day) => {
+                        const isSelected = selectedDays.includes(day.id);
+                        return (
+                          <button
+                            key={day.id}
+                            type="button"
+                            onClick={() => toggleDaySelection(day.id)}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-[#2D1F1A] text-white border-[#2D1F1A] shadow-xs"
+                                : "bg-white text-[#6E5D53] border-[#E3D9CC]"
+                            }`}
+                          >
+                            {day.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-[#E3D9CC]">
-                    <span className="text-xs text-[#6E5D53] text-center sm:text-left">
-                      Ready to add these slots to your schedule?
-                    </span>
+                  {/* Date Range Structure */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    <div>
+                      <label className="block text-xs font-bold text-[#8A7568] mb-1">2. Timetable Start Date</label>
+                      <input
+                        type="date"
+                        value={timetableStartDate}
+                        min={new Date().toISOString().split("T")[0]}
+                        onChange={(e) => setTimetableStartDate(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-[#EADBCE] bg-white text-xs font-bold text-[#2D1F1A]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#8A7568] mb-1">3. Timetable End Date</label>
+                      <input
+                        type="date"
+                        value={timetableEndDate}
+                        min={timetableStartDate || new Date().toISOString().split("T")[0]}
+                        onChange={(e) => setTimetableEndDate(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-[#EADBCE] bg-white text-xs font-bold text-[#2D1F1A]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Time Blocks & Durations */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div>
+                      <label className="block text-xs font-bold text-[#8A7568] mb-1">Daily Start Time</label>
+                      <input
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => setStartTime(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-[#EADBCE] bg-white text-xs font-bold text-[#2D1F1A]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#8A7568] mb-1">Daily End Time</label>
+                      <input
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => setEndTime(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-[#EADBCE] bg-white text-xs font-bold text-[#2D1F1A]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-[#8A7568] mb-1">Slot Duration</label>
+                      <select
+                        value={slotDurationMinutes}
+                        onChange={(e) => setSlotDurationMinutes(Number(e.target.value))}
+                        className="w-full p-3 rounded-xl border border-[#EADBCE] bg-white text-xs font-bold text-[#2D1F1A]"
+                      >
+                        <option value={30}>30 Minutes</option>
+                        <option value={60}>1 Hour</option>
+                        <option value={120}>2 Hours</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex justify-end border-t border-[#E3D9CC]">
                     <button
                       type="button"
-                      onClick={handleAddSlotFromCalendar}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 bg-[#C5924E] text-[#2D1F1A] hover:bg-[#b07f3e] rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                      onClick={handleGenerateWeeklyTimetable}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3.5 bg-[#C5924E] text-[#2D1F1A] hover:bg-[#b07f3e] rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
                     >
-                      <Plus className="w-4 h-4" /> Add Slot to Schedule
+                      <Plus className="w-4 h-4" /> Generate Timetable Slots
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-3 pt-2">
                   <h5 className="text-xs font-bold text-[#2D1F1A] uppercase tracking-wider">
-                    Added Slots ({ownerSlots.length})
+                    Generated Schedule Slots ({ownerSlots.length})
                   </h5>
 
                   {ownerSlots.length === 0 ? (
                     <p className="text-xs text-amber-600 bg-amber-50 p-3 rounded-xl border border-amber-200">
-                      No slots added yet. Use the calendar builder above to add
-                      at least one visit window.
+                      No slots generated yet. Configure your weekly timetable structure above.
                     </p>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-48 overflow-y-auto">
@@ -1202,7 +1281,7 @@ export default function NewProperty() {
                                 {slot.date}
                               </strong>
                               <span className="text-[11px] text-[#6E5D53] truncate block">
-                                {slot.time_slot}
+                                {slot.start_time} - {slot.end_time}
                               </span>
                             </div>
                           </div>
@@ -1343,7 +1422,7 @@ export default function NewProperty() {
                   }
                 } else if (currentStep === 3) {
                   if (ownerSlots.length === 0) {
-                    alert("Please add at least one calendar visit slot.");
+                    alert("Please generate and add timetable slots.");
                     return;
                   }
                 } else if (currentStep === 4) {
