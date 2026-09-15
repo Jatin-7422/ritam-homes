@@ -94,10 +94,10 @@ export default function TenantBookings() {
         return;
       }
 
-      const { data, error } = await supabase
+      // 1. Fetch visit slots directly for the current tenant without embedding
+      const { data: slotsData, error: slotsError } = await supabase
         .from("property_visit_slots")
-        .select(
-          `
+        .select(`
           id,
           date,
           start_time,
@@ -105,23 +105,47 @@ export default function TenantBookings() {
           status,
           tenant_id,
           is_booked,
-          properties (
-            id,
-            title,
-            location,
-            price,
-            images,
-            latitude,
-            longitude
-          )
-        `,
-        )
+          property_id
+        `)
         .eq("tenant_id", session.user.id);
 
-      if (error) throw error;
+      if (slotsError) throw slotsError;
+
+      if (!slotsData || slotsData.length === 0) {
+        setBookings([]);
+        return;
+      }
+
+      // 2. Extract unique property IDs to fetch their details separately in a batch
+      const propertyIds = [...new Set(slotsData.map((slot) => slot.property_id).filter(Boolean))];
+
+      let propertyMap = new Map();
+      if (propertyIds.length > 0) {
+        const { data: propertiesData, error: propError } = await supabase
+          .from("properties")
+          .select("id, title, location, price, images, latitude, longitude")
+          .in("id", propertyIds);
+
+        if (!propError && propertiesData) {
+          propertyMap = new Map(propertiesData.map((p) => [p.id, p]));
+        }
+      }
+
+      // 3. Map property details back to each visit slot safely in memory
+      const enrichedBookings = slotsData.map((slot) => ({
+        ...slot,
+        properties: propertyMap.get(slot.property_id) || {
+          title: "Property Listing",
+          location: "Location unavailable",
+          price: 0,
+          images: [],
+          latitude: null,
+          longitude: null,
+        },
+      }));
 
       const today = new Date().toISOString().split("T")[0];
-      const activeBookings = (data || []).filter((slot) => slot.date >= today);
+      const activeBookings = enrichedBookings.filter((slot) => slot.date >= today);
 
       setBookings(activeBookings);
     } catch (err) {

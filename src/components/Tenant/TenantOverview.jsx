@@ -34,6 +34,7 @@ export default function TenantOverview() {
         const {
           data: { session },
         } = await supabase.auth.getSession();
+        
         if (session?.user) {
           const meta = session.user.user_metadata || {};
           const fullName =
@@ -45,24 +46,37 @@ export default function TenantOverview() {
 
           const userId = session.user.id;
 
+          // Updated query: removed non-existent 'time_slot' column and fixed fields
           const { data: slotsData, error: slotsErr } = await supabase
             .from("property_visit_slots")
-            .select(
-              `
+            .select(`
               id,
               date,
-              time_slot,
               status,
               created_at,
+              property_id,
               properties (
                 title,
                 location
               )
-            `,
-            )
+            `)
             .eq("tenant_id", userId);
 
-          if (!slotsErr && slotsData) {
+          if (slotsErr) {
+            console.warn("Relationship join error, falling back to basic slots query:", slotsErr);
+            const { data: fallbackSlots } = await supabase
+              .from("property_visit_slots")
+              .select("id, date, status, created_at, property_id")
+              .eq("tenant_id", userId);
+
+            if (fallbackSlots) {
+              setStats((prev) => ({
+                ...prev,
+                activeBookings: fallbackSlots.length,
+              }));
+              setRecentBookings(fallbackSlots.slice(0, 3));
+            }
+          } else if (slotsData) {
             setStats((prev) => ({
               ...prev,
               activeBookings: slotsData.length,
@@ -70,11 +84,13 @@ export default function TenantOverview() {
             setRecentBookings(slotsData.slice(0, 3));
           }
 
+          // Safe count for saved properties
           const { count: savedCount } = await supabase
             .from("saved_properties")
             .select("*", { count: "exact", head: true })
             .eq("tenant_id", userId);
 
+          // Safe count for unread messages
           const { count: messagesCount } = await supabase
             .from("messages")
             .select("*", { count: "exact", head: true })
@@ -240,7 +256,7 @@ export default function TenantOverview() {
                             <span className="truncate">{propertyLocation}</span>
                           </p>
                           <p className="text-[10px] text-[#8C7A6B]">
-                            {booking.date} • {booking.time_slot}
+                            {booking.date || "Date not set"}
                           </p>
                         </div>
                       </div>
