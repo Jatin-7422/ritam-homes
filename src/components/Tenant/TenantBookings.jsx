@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -32,6 +32,20 @@ L.Icon.Default.mergeOptions({
   shadowUrl:
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
+
+// Helper component to fix Leaflet map gray tile rendering inside modals/transitions
+function MapController({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (map) {
+      setTimeout(() => {
+        map.invalidateSize();
+        map.setView(center, map.getZoom());
+      }, 100);
+    }
+  }, [map, center]);
+  return null;
+}
 
 export default function TenantBookings() {
   const [bookings, setBookings] = useState([]);
@@ -86,7 +100,8 @@ export default function TenantBookings() {
           `
           id,
           date,
-          time_slot,
+          start_time,
+          end_time,
           status,
           tenant_id,
           is_booked,
@@ -121,18 +136,19 @@ export default function TenantBookings() {
 
     setSelectedVisit(slot);
     setLoadingDetails(true);
+    setOwnerDetails(null);
 
     try {
       const { data, error } = await supabase.rpc(
         "get_confirmed_visit_owner_details",
-        { slot_id: slot.id },
+        { p_slot_id: slot.id }
       );
 
       if (error) throw error;
-      if (data && data.length > 0) {
-        setOwnerDetails(data[0]);
-      } else {
-        setOwnerDetails(null);
+      
+      if (data) {
+        const details = Array.isArray(data) ? data[0] : data;
+        setOwnerDetails(details || null);
       }
     } catch (err) {
       console.error("Error fetching owner details:", err);
@@ -173,7 +189,7 @@ export default function TenantBookings() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 w-full space-y-6 sm:space-y-8 text-[#2D1F1A]">
       {/* Header & Search Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/60 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-[#EADBCE]/70 shadow-xs w-full">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/65 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-[#EADBCE]/70 shadow-xs w-full">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF7F2] border border-[#EADBCE] text-[#C5924E] text-[10px] font-bold tracking-widest uppercase">
             <Home className="w-3 h-3" /> Tenant Portal
@@ -254,12 +270,19 @@ export default function TenantBookings() {
             const status = slot.status || "pending";
             const isConfirmed = status === "confirmed";
 
-            const propertyImage =
-              property?.images && property.images.length > 0
-                ? Array.isArray(property.images)
-                  ? property.images[0]
-                  : JSON.parse(property.images)[0]
-                : null;
+            let propertyImage = null;
+            if (property?.images) {
+              try {
+                const parsedImages = typeof property.images === "string" 
+                  ? JSON.parse(property.images) 
+                  : property.images;
+                if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+                  propertyImage = parsedImages[0];
+                }
+              } catch (e) {
+                propertyImage = typeof property.images === "string" ? property.images : null;
+              }
+            }
 
             return (
               <div
@@ -267,12 +290,11 @@ export default function TenantBookings() {
                 className="bg-white border border-[#EADBCE] rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-5 transition-all duration-300 hover:border-[#C5924E] hover:shadow-md hover:-translate-y-0.5 group w-full"
               >
                 <div className="flex items-start sm:items-center gap-4">
-                  {/* Property Image or Placeholder */}
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] overflow-hidden flex items-center justify-center shrink-0 shadow-inner">
                     {propertyImage ? (
                       <img
                         src={propertyImage}
-                        alt={property?.title}
+                        alt={property?.title || "Property"}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
@@ -286,7 +308,6 @@ export default function TenantBookings() {
                         {property?.title || "Property Visit"}
                       </span>
 
-                      {/* Status Badge */}
                       <span
                         className={`px-3 py-1 rounded-full text-[10px] font-bold border tracking-wider uppercase flex items-center gap-1.5 shadow-2xs ${
                           status === "confirmed"
@@ -321,13 +342,14 @@ export default function TenantBookings() {
                       </span>
                       <span className="inline-flex items-center gap-1 bg-[#FAF7F2] px-2.5 py-1 rounded-xl border border-[#EADBCE]">
                         <Clock className="w-3 h-3 text-[#C5924E]" />
-                        <strong className="text-[#2D1F1A]">{slot.time_slot}</strong>
+                        <strong className="text-[#2D1F1A]">
+                          {slot.start_time} {slot.end_time ? `- ${slot.end_time}` : ""}
+                        </strong>
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Right Action / Price Section */}
                 <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-3 pt-3 md:pt-0 border-t md:border-t-0 border-[#FAF7F2]">
                   <div className="text-left md:text-right">
                     <span className="block text-[10px] font-bold uppercase tracking-wider text-[#8A7568]">
@@ -382,7 +404,6 @@ export default function TenantBookings() {
               </div>
             ) : ownerDetails ? (
               <div className="space-y-5">
-                {/* Owner Info Box */}
                 <div className="p-4 rounded-2xl bg-[#FAF7F2] border border-[#EADBCE] space-y-3 shadow-2xs">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#C5924E]">
                     Contact Credentials
@@ -396,7 +417,7 @@ export default function TenantBookings() {
                       <div className="overflow-hidden">
                         <span className="text-[10px] text-[#8A7568] block">Owner Name</span>
                         <strong className="text-xs text-[#2D1F1A] truncate block">
-                          {ownerDetails.owner_name}
+                          {ownerDetails.owner_name || ownerDetails.name || ownerDetails.fullName || "N/A"}
                         </strong>
                       </div>
                     </div>
@@ -408,10 +429,10 @@ export default function TenantBookings() {
                       <div className="overflow-hidden">
                         <span className="text-[10px] text-[#8A7568] block">Phone Number</span>
                         <a
-                          href={`tel:${ownerDetails.owner_phone}`}
+                          href={`tel:${ownerDetails.owner_phone || ownerDetails.phone}`}
                           className="text-xs font-bold text-blue-600 hover:underline truncate block"
                         >
-                          {ownerDetails.owner_phone}
+                          {ownerDetails.owner_phone || ownerDetails.phone || "N/A"}
                         </a>
                       </div>
                     </div>
@@ -424,13 +445,12 @@ export default function TenantBookings() {
                     <div className="overflow-hidden">
                       <span className="text-[10px] text-[#8A7568] block">Email Address</span>
                       <span className="text-xs text-[#2D1F1A] truncate block">
-                        {ownerDetails.owner_email}
+                        {ownerDetails.owner_email || ownerDetails.email || "N/A"}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Leaflet Map Integration */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-[#C5924E]">
@@ -476,11 +496,13 @@ export default function TenantBookings() {
 
                       return (
                         <MapContainer
+                          key={selectedVisit.id + "-" + lat + "-" + lng}
                           center={[lat, lng]}
                           zoom={14}
                           scrollWheelZoom={false}
                           style={{ width: "100%", height: "100%" }}
                         >
+                          <MapController center={[lat, lng]} />
                           <TileLayer
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -501,6 +523,7 @@ export default function TenantBookings() {
                     <MapPin className="w-3.5 h-3.5 text-[#C5924E] shrink-0" />
                     <span className="truncate">
                       {ownerDetails.property_location ||
+                        ownerDetails.location ||
                         selectedVisit.properties?.location ||
                         "Coordinates pinned accurately"}
                     </span>

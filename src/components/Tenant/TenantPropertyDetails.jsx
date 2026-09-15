@@ -5,7 +5,7 @@ import {
   ArrowLeft,
   Heart,
   Share2,
-  Calendar,
+  Calendar as CalendarIcon,
   MessageSquare,
   MapPin,
   Bed,
@@ -35,11 +35,13 @@ export default function PropertyDetails() {
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isSaved, setIsSaved] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   // Selected visit slot state variables
   const [selectedSlotId, setSelectedSlotId] = useState(null);
   const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
+  const [selectedStartTime, setSelectedStartTime] = useState("");
+  const [selectedEndTime, setSelectedEndTime] = useState("");
 
   const [bookingLoading, setBookingLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
@@ -59,8 +61,22 @@ export default function PropertyDetails() {
       fetchPropertyAndData();
       trackUniquePropertyView(id);
       checkIfSaved(id);
+      fetchCurrentUser();
     }
   }, [id]);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setCurrentUserId(session.user.id);
+      }
+    } catch (err) {
+      console.error("Error fetching current user:", err);
+    }
+  };
+
+  const isOwner = property && currentUserId && property.owner_id === currentUserId;
 
   const trackUniquePropertyView = async (propertyId) => {
     try {
@@ -192,7 +208,8 @@ export default function PropertyDetails() {
         .eq("property_id", id)
         .eq("is_booked", false)
         .gte("date", today)
-        .order("date", { ascending: true });
+        .order("date", { ascending: true })
+        .order("start_time", { ascending: true });
 
       setAvailableSlots(slotData || []);
 
@@ -235,8 +252,12 @@ export default function PropertyDetails() {
 
   const handleBookVisit = async (e) => {
     e.preventDefault();
+    if (isOwner) {
+      showToast("You cannot book a visit for your own property.");
+      return;
+    }
     if (!selectedSlotId) {
-      showToast("Please select an available visit slot from the list.");
+      showToast("Please select an available visit slot from the list or calendar.");
       return;
     }
 
@@ -253,7 +274,7 @@ export default function PropertyDetails() {
         .update({
           status: "pending",
           tenant_id: session.user.id,
-          is_booked: false,
+          is_booked: true,
         })
         .eq("id", selectedSlotId);
 
@@ -261,6 +282,9 @@ export default function PropertyDetails() {
 
       showToast("Visit request sent to the owner for approval!");
       setSelectedSlotId(null);
+      setSelectedDate("");
+      setSelectedStartTime("");
+      setSelectedEndTime("");
       fetchPropertyAndData();
     } catch (err) {
       console.error("Booking error:", err);
@@ -271,6 +295,11 @@ export default function PropertyDetails() {
   };
 
   const handleChatWithOwner = async () => {
+    if (isOwner) {
+      showToast("You cannot send a message to your own property.");
+      return;
+    }
+
     try {
       setChatLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
@@ -313,6 +342,115 @@ export default function PropertyDetails() {
     }
   };
 
+  const renderInteractiveCalendar = () => {
+    const slotsByDate = {};
+    availableSlots.forEach(slot => {
+      if (!slotsByDate[slot.date]) {
+        slotsByDate[slot.date] = [];
+      }
+      slotsByDate[slot.date].push(slot);
+    });
+
+    const availableDates = Object.keys(slotsByDate).sort();
+
+    if (availableDates.length === 0) {
+      return (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 space-y-1">
+          <p className="font-bold">No open slots available</p>
+          <p className="text-[11px] leading-relaxed">
+            The owner hasn't listed specific open slots yet. You can still reach out directly via live chat.
+          </p>
+        </div>
+      );
+    }
+
+    const activeSlotsForDate = selectedDate ? slotsByDate[selectedDate] || [] : [];
+
+    return (
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <span className="text-[10px] font-bold text-[#8A7568] uppercase tracking-wider block">
+            1. Select Available Date
+          </span>
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+            {availableDates.map((dateStr) => {
+              const isDateSelected = selectedDate === dateStr;
+              const dateObj = new Date(dateStr);
+              const dayName = dateObj.toLocaleDateString("en-US", { weekday: "short" });
+              const monthName = dateObj.toLocaleDateString("en-US", { month: "short" });
+              const dayNum = dateObj.getDate();
+
+              return (
+                <button
+                  type="button"
+                  key={dateStr}
+                  onClick={() => {
+                    setSelectedDate(dateStr);
+                    setSelectedSlotId(null);
+                    setSelectedStartTime("");
+                    setSelectedEndTime("");
+                  }}
+                  className={`flex flex-col items-center justify-center px-3 py-2.5 rounded-2xl border shrink-0 transition-all cursor-pointer ${
+                    isDateSelected
+                      ? "bg-[#2D1F1A] text-white border-[#2D1F1A] shadow-md scale-105"
+                      : "bg-[#FAF7F2] text-[#2D1F1A] border-[#EADBCE] hover:bg-[#F2ECE1]"
+                  }`}
+                >
+                  <span className={`text-[9px] uppercase font-bold ${isDateSelected ? "text-[#C5924E]" : "text-[#8A7568]"}`}>
+                    {dayName}
+                  </span>
+                  <span className="text-sm font-bold font-serif my-0.5">
+                    {dayNum}
+                  </span>
+                  <span className={`text-[9px] ${isDateSelected ? "text-[#D9C4B0]" : "text-[#6E5D53]"}`}>
+                    {monthName}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {selectedDate && (
+          <div className="space-y-2 pt-2 border-t border-[#F0E6D8] animate-fadeIn">
+            <span className="text-[10px] font-bold text-[#8A7568] uppercase tracking-wider block">
+              2. Select Time Slot on {selectedDate}
+            </span>
+            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
+              {activeSlotsForDate.map((slot) => {
+                const isSelected = selectedSlotId === slot.id;
+                return (
+                  <button
+                    type="button"
+                    key={slot.id}
+                    onClick={() => {
+                      setSelectedSlotId(slot.id);
+                      setSelectedStartTime(slot.start_time);
+                      setSelectedEndTime(slot.end_time);
+                    }}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-[#C5924E] text-white border-[#C5924E] shadow-sm"
+                        : "bg-[#FAF7F2] text-[#2D1F1A] border-[#EADBCE] hover:bg-[#F2ECE1]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Clock className={`w-3.5 h-3.5 ${isSelected ? "text-white" : "text-[#C5924E]"}`} />
+                      <span className="text-xs font-bold">
+                        {slot.start_time && slot.end_time ? `${slot.start_time} - ${slot.end_time}` : slot.time_slot}
+                      </span>
+                    </div>
+                    {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-[#FDFBF7]">
@@ -349,7 +487,6 @@ export default function PropertyDetails() {
   return (
     <div className="min-h-screen w-full bg-[#FDFBF7] text-[#2D1F1A] pb-24 overflow-x-hidden">
       
-      {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed top-6 right-6 z-50 px-5 py-3 bg-[#2D1F1A] text-white text-xs font-bold rounded-2xl shadow-2xl border border-[#C5924E] animate-bounce">
           {toastMessage}
@@ -359,7 +496,6 @@ export default function PropertyDetails() {
       {/* ================= DESKTOP VIEW ================= */}
       <div className="hidden lg:block w-full px-6 lg:px-12 pt-6 space-y-6">
         
-        {/* Navigation & Action Bar */}
         <div className="flex items-center justify-between w-full">
           <Link
             to="/tenant-dashboard/explore"
@@ -394,7 +530,6 @@ export default function PropertyDetails() {
           </div>
         </div>
 
-        {/* Title Header */}
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-3 py-1 bg-[#C5924E]/10 text-[#C5924E] border border-[#C5924E]/20 rounded-full text-[10px] font-extrabold uppercase tracking-wider">
@@ -413,10 +548,8 @@ export default function PropertyDetails() {
           </p>
         </div>
 
-        {/* MAIN FULL-WIDTH GRID */}
         <div className="grid grid-cols-12 gap-8 items-start w-full">
           
-          {/* LEFT COLUMN */}
           <div className="col-span-7 space-y-6 w-full">
             <div className="relative w-full h-[480px] rounded-3xl overflow-hidden border border-[#EADBCE] shadow-md bg-slate-100 group">
               <img
@@ -586,7 +719,6 @@ export default function PropertyDetails() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN */}
           <div className="col-span-5 space-y-6 sticky top-6 w-full">
             <div className="bg-white rounded-3xl p-7 border border-[#EADBCE] shadow-xl space-y-6">
               
@@ -607,86 +739,48 @@ export default function PropertyDetails() {
                 </span>
               </div>
 
-              <form onSubmit={handleBookVisit} className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#8A7568]">
-                    Select Owner's Visit Slot
-                  </h4>
-                  <span className="text-[10px] text-[#C5924E] font-bold">
-                    {availableSlots.length} slots available
-                  </span>
+              {isOwner ? (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 space-y-1 text-center">
+                  <p className="font-bold">This is your own property</p>
+                  <p className="text-[11px] leading-relaxed">
+                    You cannot request a visit or chat with yourself regarding this listing.
+                  </p>
                 </div>
-
-                {availableSlots.length === 0 ? (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 space-y-1">
-                    <p className="font-bold">No open slots available</p>
-                    <p className="text-[11px] leading-relaxed">
-                      The owner hasn't listed specific open slots yet. You can still reach out directly via live chat.
-                    </p>
+              ) : (
+                <form onSubmit={handleBookVisit} className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#8A7568]">
+                      Interactive Calendar Visit Planner
+                    </h4>
+                    <span className="text-[10px] text-[#C5924E] font-bold">
+                      {availableSlots.length} slots available
+                    </span>
                   </div>
-                ) : (
-                  <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1 scrollbar-thin">
-                    {availableSlots.map((slot) => {
-                      const isSelected = selectedSlotId === slot.id;
-                      return (
-                        <div
-                          key={slot.id}
-                          onClick={() => {
-                            setSelectedSlotId(slot.id);
-                            setSelectedDate(slot.date);
-                            setSelectedTimeSlot(slot.time_slot);
-                          }}
-                          className={`flex items-center justify-between p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                            isSelected
-                              ? "bg-[#2D1F1A] text-white border-[#2D1F1A] shadow-md scale-[1.01]"
-                              : "bg-[#FAF7F2] text-[#2D1F1A] border-[#EADBCE] hover:bg-[#F2ECE1]"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? "bg-[#C5924E] text-white" : "bg-[#C5924E]/10 text-[#C5924E]"}`}>
-                              <Clock className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <strong className={`block text-xs font-bold ${isSelected ? "text-white" : "text-[#2D1F1A]"}`}>
-                                {slot.date}
-                              </strong>
-                              <span className={`text-[11px] ${isSelected ? "text-[#D9C4B0]" : "text-[#6E5D53]"}`}>
-                                {slot.time_slot}
-                              </span>
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <div className="w-6 h-6 bg-[#C5924E] rounded-full flex items-center justify-center text-white shrink-0">
-                              <Check className="w-3.5 h-3.5" />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
 
-                <button
-                  type="submit"
-                  disabled={bookingLoading || availableSlots.length === 0}
-                  className={`w-full py-4 rounded-2xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 ${
-                    availableSlots.length === 0 ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-[#2D1F1A] hover:bg-[#3E2E27] text-white cursor-pointer"
-                  }`}
-                >
-                  {bookingLoading ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Calendar className="w-4 h-4 text-[#C5924E]" />}
-                  <span>{bookingLoading ? "Submitting Request..." : "Request Property Visit"}</span>
-                </button>
+                  {renderInteractiveCalendar()}
 
-                <button
-                  type="button"
-                  onClick={handleChatWithOwner}
-                  disabled={chatLoading}
-                  className="w-full py-4 bg-white hover:bg-[#FAF7F2] border border-[#EADBCE] text-[#2D1F1A] rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-                >
-                  {chatLoading ? <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" /> : <MessageSquare className="w-4 h-4 text-[#C5924E]" />}
-                  <span>{chatLoading ? "Opening Chat..." : "Chat with Owner Directly"}</span>
-                </button>
-              </form>
+                  <button
+                    type="submit"
+                    disabled={bookingLoading || !selectedSlotId}
+                    className={`w-full py-4 rounded-2xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 ${
+                      !selectedSlotId ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-[#2D1F1A] hover:bg-[#3E2E27] text-white cursor-pointer"
+                    }`}
+                  >
+                    {bookingLoading ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <CalendarIcon className="w-4 h-4 text-[#C5924E]" />}
+                    <span>{bookingLoading ? "Submitting Request..." : "Request Property Visit"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleChatWithOwner}
+                    disabled={chatLoading}
+                    className="w-full py-4 bg-white hover:bg-[#FAF7F2] border border-[#EADBCE] text-[#2D1F1A] rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                  >
+                    {chatLoading ? <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" /> : <MessageSquare className="w-4 h-4 text-[#C5924E]" />}
+                    <span>{chatLoading ? "Opening Chat..." : "Chat with Owner Directly"}</span>
+                  </button>
+                </form>
+              )}
 
               <div className="pt-4 border-t border-[#F0E6D8] flex items-center gap-3 text-xs text-[#6E5D53]">
                 <div className="w-10 h-10 rounded-2xl bg-[#C5924E]/10 flex items-center justify-center text-[#C5924E] shrink-0">
@@ -694,7 +788,7 @@ export default function PropertyDetails() {
                 </div>
                 <div>
                   <strong className="block text-[#2D1F1A] font-bold">Ritam Verified Guarantee</strong>
-                  <span className="text-[11px]">Direct owner interaction with secure visit scheduling.</span>
+                  <span className="text-[11px]">Direct owner interaction with secure calendar scheduling.</span>
                 </div>
               </div>
 
@@ -703,7 +797,6 @@ export default function PropertyDetails() {
 
         </div>
 
-        {/* AMAZON-STYLE RECOMMENDATIONS (DESKTOP) - CLEAN CARD LAYOUT MATCHING EXPLORE FEED */}
         {suggestedProperties.length > 0 && (
           <div className="mt-16 pt-10 border-t border-[#EADBCE] space-y-6 w-full">
             <div className="flex items-end justify-between px-2">
@@ -751,7 +844,6 @@ export default function PropertyDetails() {
                     }}
                     className="w-[280px] shrink-0 bg-white rounded-3xl border border-[#EADBCE] shadow-sm hover:shadow-md transition-all cursor-pointer overflow-hidden snap-start flex flex-col group"
                   >
-                    {/* Clean Image Container with Heart Action */}
                     <div className="relative h-44 w-full overflow-hidden bg-slate-100 m-2 rounded-2xl">
                       <img
                         src={itemImage}
@@ -773,7 +865,6 @@ export default function PropertyDetails() {
                       </div>
                     </div>
 
-                    {/* Card Content Matching Feed Structure */}
                     <div className="px-4 pb-4 pt-1 space-y-2 flex-1 flex flex-col justify-between">
                       <div className="space-y-1">
                         <h4 className="text-xs font-bold text-[#2D1F1A] truncate group-hover:text-[#C5924E] transition-colors">
@@ -801,11 +892,9 @@ export default function PropertyDetails() {
 
       </div>
 
-
       {/* ================= MOBILE VIEW ================= */}
       <div className="block lg:hidden w-full max-w-md mx-auto px-3 pt-4 space-y-4 text-left">
         
-        {/* Navigation & Action Bar */}
         <div className="flex items-center justify-between w-full">
           <Link
             to="/tenant-dashboard/explore"
@@ -840,7 +929,6 @@ export default function PropertyDetails() {
           </div>
         </div>
 
-        {/* Title Header */}
         <div className="space-y-1 w-full text-left">
           <h1 className="text-2xl font-serif font-bold text-[#2D1F1A] tracking-tight">
             {property.title}
@@ -851,7 +939,6 @@ export default function PropertyDetails() {
           </p>
         </div>
 
-        {/* IMAGE CARD CONTAINER */}
         <div className="bg-white rounded-3xl p-3 border border-[#EADBCE] shadow-sm space-y-3 w-full">
           <div className="relative w-full h-[220px] rounded-2xl overflow-hidden border border-[#EADBCE] bg-slate-100 group">
             <img
@@ -901,7 +988,6 @@ export default function PropertyDetails() {
           )}
         </div>
 
-        {/* PRICING & SPECIFICATIONS GRID CARD */}
         <div className="bg-white rounded-3xl p-4 border border-[#EADBCE] shadow-sm space-y-4 w-full">
           <div className="flex items-baseline justify-between">
             <div className="flex items-baseline gap-1">
@@ -947,7 +1033,6 @@ export default function PropertyDetails() {
           </div>
         </div>
 
-        {/* ABOUT THIS PROPERTY CARD */}
         <div className="bg-white rounded-3xl p-4 border border-[#EADBCE] shadow-sm space-y-4 w-full text-left">
           <h3 className="text-sm font-serif font-bold text-[#2D1F1A]">About This Property</h3>
           <p className="text-xs text-[#6E5D53] leading-relaxed">
@@ -1003,7 +1088,6 @@ export default function PropertyDetails() {
           </div>
         </div>
 
-        {/* PROPERTY DETAILS TABLE CARD */}
         <div className="bg-white rounded-3xl p-4 border border-[#EADBCE] shadow-sm space-y-3 w-full text-left">
           <h3 className="text-sm font-serif font-bold text-[#2D1F1A]">Property Details</h3>
           <div className="space-y-2 text-xs divide-y divide-[#F0E6D8]">
@@ -1042,89 +1126,49 @@ export default function PropertyDetails() {
           </div>
         </div>
 
-        {/* VISIT SLOT BOOKING SECTION */}
         <div className="bg-white rounded-3xl p-4 border border-[#EADBCE] shadow-sm space-y-4 w-full text-left">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#8A7568]">
-              Select Visit Slot
+              Interactive Calendar Visit Planner
             </h4>
             <span className="text-[10px] text-[#C5924E] font-bold">
               {availableSlots.length} slots available
             </span>
           </div>
 
-          <form onSubmit={handleBookVisit} className="space-y-3">
-            {availableSlots.length === 0 ? (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 space-y-1">
-                <p className="font-bold">No open slots available</p>
-                <p className="text-[11px]">Contact owner directly via live chat below.</p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
-                {availableSlots.map((slot) => {
-                  const isSelected = selectedSlotId === slot.id;
-                  return (
-                    <div
-                      key={slot.id}
-                      onClick={() => {
-                        setSelectedSlotId(slot.id);
-                        setSelectedDate(slot.date);
-                        setSelectedTimeSlot(slot.time_slot);
-                      }}
-                      className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
-                        isSelected
-                          ? "bg-[#2D1F1A] text-white border-[#2D1F1A] shadow-md scale-[1.01]"
-                          : "bg-[#FAF7F2] text-[#2D1F1A] border-[#EADBCE] hover:bg-[#F2ECE1]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${isSelected ? "bg-[#C5924E] text-white" : "bg-[#C5924E]/10 text-[#C5924E]"}`}>
-                          <Clock className="w-3.5 h-3.5" />
-                        </div>
-                        <div>
-                          <strong className={`block text-[11px] font-bold ${isSelected ? "text-white" : "text-[#2D1F1A]"}`}>
-                            {slot.date}
-                          </strong>
-                          <span className={`text-[10px] ${isSelected ? "text-[#D9C4B0]" : "text-[#6E5D53]"}`}>
-                            {slot.time_slot}
-                          </span>
-                        </div>
-                      </div>
-                      {isSelected && (
-                        <div className="w-4 h-4 bg-[#C5924E] rounded-full flex items-center justify-center text-white shrink-0">
-                          <Check className="w-2.5 h-2.5" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          {isOwner ? (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 space-y-1 text-center">
+              <p className="font-bold">This is your own property</p>
+              <p className="text-[11px]">You cannot request a visit or chat with yourself.</p>
+            </div>
+          ) : (
+            <form onSubmit={handleBookVisit} className="space-y-3">
+              {renderInteractiveCalendar()}
 
-            <button
-              type="submit"
-              disabled={bookingLoading || availableSlots.length === 0}
-              className={`w-full py-3 rounded-2xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 ${
-                availableSlots.length === 0 ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-[#2D1F1A] hover:bg-[#3E2E27] text-white cursor-pointer"
-              }`}
-            >
-              {bookingLoading ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Calendar className="w-4 h-4 text-[#C5924E]" />}
-              <span>{bookingLoading ? "Submitting..." : "Request Property Visit"}</span>
-            </button>
+              <button
+                type="submit"
+                disabled={bookingLoading || !selectedSlotId}
+                className={`w-full py-3 rounded-2xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 ${
+                  !selectedSlotId ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-[#2D1F1A] hover:bg-[#3E2E27] text-white cursor-pointer"
+                }`}
+              >
+                {bookingLoading ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <CalendarIcon className="w-4 h-4 text-[#C5924E]" />}
+                <span>{bookingLoading ? "Submitting..." : "Request Property Visit"}</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={handleChatWithOwner}
-              disabled={chatLoading}
-              className="w-full py-3 bg-white hover:bg-[#FAF7F2] border border-[#EADBCE] text-[#2D1F1A] rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-            >
-              {chatLoading ? <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" /> : <MessageSquare className="w-4 h-4 text-[#C5924E]" />}
-              <span>{chatLoading ? "Opening Chat..." : "Chat with Owner"}</span>
-            </button>
-          </form>
+              <button
+                type="button"
+                onClick={handleChatWithOwner}
+                disabled={chatLoading}
+                className="w-full py-3 bg-white hover:bg-[#FAF7F2] border border-[#EADBCE] text-[#2D1F1A] rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+              >
+                {chatLoading ? <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" /> : <MessageSquare className="w-4 h-4 text-[#C5924E]" />}
+                <span>{chatLoading ? "Opening Chat..." : "Chat with Owner"}</span>
+              </button>
+            </form>
+          )}
         </div>
 
-        {/* AMAZON-STYLE RECOMMENDATIONS (MOBILE) */}
         {suggestedProperties.length > 0 && (
           <div className="mt-8 pt-6 border-t border-[#EADBCE] space-y-4 w-full text-left">
             <div className="flex items-end justify-between px-1">

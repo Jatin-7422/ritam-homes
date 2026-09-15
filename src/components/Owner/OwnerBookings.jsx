@@ -6,12 +6,8 @@ import {
   MapPin,
   Loader2,
   Search,
-  Users,
-  CheckCircle,
-  Clock3,
   Check,
   X,
-  XCircle,
   Building,
   User,
   Mail,
@@ -35,7 +31,7 @@ export default function OwnerBookings() {
   }, []);
 
   const resetExpiredSlots = async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toLocaleDateString('en-CA'); // Local date YYYY-MM-DD
     try {
       await supabase
         .from("property_visit_slots")
@@ -61,13 +57,15 @@ export default function OwnerBookings() {
 
       if (sessionError || !session) return;
 
+      // FIXED: Fetch slots where is_booked is true OR status is not available
       const { data: slotsData, error: slotsError } = await supabase
         .from("property_visit_slots")
         .select(
           `
             id,
             date,
-            time_slot,
+            start_time,
+            end_time,
             status,
             tenant_id,
             is_booked,
@@ -76,11 +74,12 @@ export default function OwnerBookings() {
               title,
               location,
               price,
-              owner_id
+              owner_id,
+              images
             )
           `
         )
-        .neq("status", "available");
+        .or("is_booked.eq.true,status.neq.available");
 
       if (slotsError) throw slotsError;
 
@@ -89,7 +88,8 @@ export default function OwnerBookings() {
           slot.properties && slot.properties.owner_id === session.user.id
       );
 
-      const today = new Date().toISOString().split("T")[0];
+      // Use local date string to prevent timezone discrepancies
+      const today = new Date().toLocaleDateString('en-CA');
       const activeBookings = ownerBookings.filter((slot) => slot.date >= today);
 
       setBookings(activeBookings);
@@ -119,7 +119,7 @@ export default function OwnerBookings() {
         ...slot,
         profiles: tenantInfo
           ? {
-              full_name: tenantInfo.full_name || "Tenant",
+              full_name: tenantInfo.full_name || tenantInfo.name || "Tenant",
               email: tenantInfo.email,
               phone: tenantInfo.phone || "Not Provided",
             }
@@ -150,9 +150,13 @@ export default function OwnerBookings() {
         const titleText = isConfirmed
           ? "Visit Request Accepted ⚡"
           : "Visit Request Declined";
+        const timeDisplay = slot.start_time && slot.end_time 
+          ? `${slot.start_time} - ${slot.end_time}` 
+          : (slot.start_time || slot.end_time || "");
+        
         const messageText = `Your visit request for ${
           slot.properties?.title || "the property"
-        } on ${slot.date} at ${slot.time_slot} was ${
+        } on ${slot.date}${timeDisplay ? ` at ${timeDisplay}` : ""} was ${
           isConfirmed ? "accepted" : "declined"
         }.`;
 
@@ -176,7 +180,7 @@ export default function OwnerBookings() {
   const totalBookings = bookings.length;
   const activeBookings = bookings.filter((b) => b.status === "confirmed").length;
   const pendingBookings = bookings.filter(
-    (b) => b.status === "pending" || !b.status
+    (b) => b.status === "pending" || (!b.status && b.is_booked)
   ).length;
 
   const estRevenue = bookings
@@ -189,7 +193,7 @@ export default function OwnerBookings() {
     const query = searchQuery.toLowerCase();
     const matchesSearch = title.includes(query) || location.includes(query);
 
-    const slotStatus = item.status || "pending";
+    const slotStatus = item.status || (item.is_booked ? "pending" : "available");
     if (filter === "All") return matchesSearch;
     if (filter === "Pending") return matchesSearch && slotStatus === "pending";
     if (filter === "Confirmed") return matchesSearch && slotStatus === "confirmed";
@@ -211,7 +215,7 @@ export default function OwnerBookings() {
 
   return (
     <div className="min-h-screen w-full bg-[#FAF7F2] text-[#2D1F1A] px-4 md:px-10 py-8 space-y-8 selection:bg-[#C5924E]/20 selection:text-[#2D1F1A]">
-      {/* Modern Glassmorphic Header */}
+      {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white/70 border border-[#EADBCE]/80 backdrop-blur-xl p-6 md:p-8 rounded-3xl shadow-xl relative overflow-hidden">
         <div className="absolute -right-10 -top-10 w-48 h-48 bg-[#C5924E]/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -241,27 +245,27 @@ export default function OwnerBookings() {
         </div>
       </div>
 
-      {/* Sleek Modern Metrics Grid */}
+      {/* Metrics Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white/80 border border-[#EADBCE]/85 backdrop-blur-md p-5 rounded-2xl space-y-2 hover:border-[#C5924E]/50 transition-colors shadow-xs">
+        <div className="bg-white/80 border border-[#EADBCE]/85 backdrop-blur-md p-5 rounded-2xl space-y-2">
           <div className="text-[11px] font-mono tracking-wider uppercase text-[#8A7568]">Total Bookings</div>
           <div className="text-2xl font-serif font-bold text-[#2D1F1A]">{totalBookings}</div>
           <div className="text-[10px] text-[#6E5D53]">All registered appointments</div>
         </div>
 
-        <div className="bg-white/80 border border-[#EADBCE]/85 backdrop-blur-md p-5 rounded-2xl space-y-2 hover:border-[#C5924E]/50 transition-colors shadow-xs">
+        <div className="bg-white/80 border border-[#EADBCE]/85 backdrop-blur-md p-5 rounded-2xl space-y-2">
           <div className="text-[11px] font-mono tracking-wider uppercase text-[#8A7568]">Confirmed</div>
           <div className="text-2xl font-serif font-bold text-emerald-600">{activeBookings}</div>
           <div className="text-[10px] text-[#6E5D53]">Ready for tours</div>
         </div>
 
-        <div className="bg-white/80 border border-[#EADBCE]/85 backdrop-blur-md p-5 rounded-2xl space-y-2 hover:border-[#C5924E]/50 transition-colors shadow-xs">
+        <div className="bg-white/80 border border-[#EADBCE]/85 backdrop-blur-md p-5 rounded-2xl space-y-2">
           <div className="text-[11px] font-mono tracking-wider uppercase text-[#8A7568]">Pending Review</div>
           <div className="text-2xl font-serif font-bold text-amber-600">{pendingBookings}</div>
           <div className="text-[10px] text-[#6E5D53]">Action required</div>
         </div>
 
-        <div className="bg-white/80 border border-[#EADBCE]/85 backdrop-blur-md p-5 rounded-2xl space-y-2 hover:border-[#C5924E]/50 transition-colors shadow-xs">
+        <div className="bg-white/80 border border-[#EADBCE]/85 backdrop-blur-md p-5 rounded-2xl space-y-2">
           <div className="text-[11px] font-mono tracking-wider uppercase text-[#8A7568]">Est. Revenue</div>
           <div className="text-2xl font-serif font-bold text-[#2D1F1A]">₹{estRevenue.toLocaleString()}</div>
           <div className="text-[10px] text-[#6E5D53]">From confirmed listings</div>
@@ -311,10 +315,24 @@ export default function OwnerBookings() {
             filteredBookings.map((slot) => {
               const property = slot.properties;
               const status = slot.status || "pending";
-              const propertyImage =
-                property?.images && property.images.length > 0
-                  ? property.images[0]
-                  : null;
+              
+              let propertyImage = null;
+              if (property?.images) {
+                try {
+                  const parsedImages = typeof property.images === "string" 
+                    ? JSON.parse(property.images) 
+                    : property.images;
+                  if (Array.isArray(parsedImages) && parsedImages.length > 0) {
+                    propertyImage = parsedImages[0];
+                  }
+                } catch (e) {
+                  propertyImage = typeof property.images === "string" ? property.images : null;
+                }
+              }
+
+              const timeDisplay = slot.start_time && slot.end_time 
+                ? `${slot.start_time} - ${slot.end_time}` 
+                : (slot.start_time || slot.end_time || "Flexible");
 
               return (
                 <div
@@ -327,7 +345,7 @@ export default function OwnerBookings() {
                       {propertyImage ? (
                         <img
                           src={propertyImage}
-                          alt={property?.title}
+                          alt={property?.title || "Property"}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
@@ -366,7 +384,7 @@ export default function OwnerBookings() {
                         </span>
                         <span className="flex items-center gap-1.5 bg-[#FAF7F2] px-2 py-0.5 rounded border border-[#EADBCE]/60">
                           <Clock className="w-3 h-3 text-[#C5924E]" />
-                          <span className="text-[#2D1F1A]">{slot.time_slot}</span>
+                          <span className="text-[#2D1F1A]">{timeDisplay}</span>
                         </span>
                       </div>
                     </div>
@@ -410,7 +428,7 @@ export default function OwnerBookings() {
         </div>
       </div>
 
-      {/* MODERN GLASS POPUP MODAL */}
+      {/* Tenant Profile Modal */}
       {selectedBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="bg-white border border-[#EADBCE] rounded-3xl shadow-2xl max-w-sm w-full p-6 space-y-6 animate-in zoom-in-95 duration-200 relative overflow-hidden">
@@ -479,7 +497,9 @@ export default function OwnerBookings() {
                 </div>
                 <div className="flex justify-between py-1 border-b border-[#FAF7F2]">
                   <span className="text-[#8A7568]">Schedule</span>
-                  <span className="text-[#2D1F1A]">{selectedBooking.date} • {selectedBooking.time_slot}</span>
+                  <span className="text-[#2D1F1A]">
+                    {selectedBooking.date} • {selectedBooking.start_time && selectedBooking.end_time ? `${selectedBooking.start_time} - ${selectedBooking.end_time}` : (selectedBooking.start_time || selectedBooking.end_time || "")}
+                  </span>
                 </div>
                 <div className="flex justify-between py-1">
                   <span className="text-[#8A7568]">Status</span>
