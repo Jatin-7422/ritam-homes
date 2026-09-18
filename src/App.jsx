@@ -87,6 +87,8 @@ export function AppProvider({ children }) {
   });
 
   const [toastMessage, setToastMessage] = useState("");
+  // Added auth loading state for caching & session guard
+  const [authLoading, setAuthLoading] = useState(true);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -107,11 +109,21 @@ export function AppProvider({ children }) {
         const {
           data: { session },
         } = await supabase.auth.getSession();
+        
         if (session && session.user) {
           const user = session.user;
+          
+          // State Caching: Fetch profile data once right after login from database/metadata
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+
           const metadata = user.user_metadata || {};
 
           const rawName =
+            profileData?.full_name ||
             metadata.full_name ||
             metadata.name ||
             user.email?.split("@")[0] ||
@@ -131,16 +143,18 @@ export function AppProvider({ children }) {
             ...prev,
             fullName: formattedName,
             email: user.email || "",
-            phone: metadata.phone || metadata.phone_number || prev.phone,
+            phone: profileData?.phone || metadata.phone || metadata.phone_number || prev.phone,
             businessName:
-              metadata.business_name || metadata.company || prev.businessName,
-            role: metadata.role || prev.role,
+              profileData?.business_name || metadata.business_name || metadata.company || prev.businessName,
+            role: profileData?.role || metadata.role || prev.role,
             location: metadata.location || prev.location,
             memberSince: createdAt,
           }));
         }
       } catch (err) {
         console.error("Error loading session user in AppProvider:", err.message);
+      } finally {
+        setAuthLoading(false); // Release loading guard once cached
       }
     };
     fetchSessionUser();
@@ -155,6 +169,7 @@ export function AppProvider({ children }) {
         setPreferences,
         toastMessage,
         showToast,
+        authLoading,
       }}
     >
       {children}
@@ -162,6 +177,9 @@ export function AppProvider({ children }) {
   );
 }
 
+// ==========================================
+// 🛠️ COMPLETE PROFILE PAGE VIEW (Standalone)
+// ==========================================
 // ==========================================
 // 🛠️ COMPLETE PROFILE PAGE VIEW (Standalone)
 // ==========================================
@@ -176,18 +194,42 @@ function CompleteProfileView() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const checkExistingProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session && session.user) {
-        setSessionUser(session.user);
-        const meta = session.user.user_metadata || {};
-        setFullName(meta.full_name || meta.name || "");
-      } else {
+      if (!session || !session.user) {
         navigate("/login", { replace: true });
+        return;
       }
+
+      setSessionUser(session.user);
+      const user = session.user;
+
+      // Check if the user already has a profile in the database
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      // If the profile already exists and has a phone/name, skip this page automatically
+      if (profileData && profileData.phone && profileData.role) {
+        if (profileData.role === "owner") {
+          navigate("/owner-dashboard", { replace: true });
+        } else {
+          navigate("/tenant-dashboard", { replace: true });
+        }
+        return;
+      }
+
+      const meta = user.user_metadata || {};
+      setFullName(meta.full_name || meta.name || "");
+      setPhone(profileData?.phone || meta.phone || "");
+      setRole(profileData?.role || meta.role || "tenant");
+      setBusinessName(profileData?.business_name || meta.business_name || "");
+      
       setLoading(false);
     };
-    fetchUser();
+    checkExistingProfile();
   }, [navigate]);
 
   const handleSubmit = async (e) => {
@@ -196,6 +238,7 @@ function CompleteProfileView() {
     setSubmitting(true);
 
     try {
+      // 1. Update Auth User Metadata
       const { error: authError } = await supabase.auth.updateUser({
         data: {
           full_name: fullName,
@@ -206,6 +249,7 @@ function CompleteProfileView() {
       });
       if (authError) throw authError;
 
+      // 2. Upsert into the 'profiles' table so it persists reliably
       const { error: dbError } = await supabase.from("profiles").upsert({
         id: sessionUser.id,
         full_name: fullName,
@@ -216,8 +260,9 @@ function CompleteProfileView() {
         updated_at: new Date(),
       });
 
-      if (dbError) console.error("Database sync warning:", dbError.message);
+      if (dbError) throw dbError;
 
+      // 3. Navigate cleanly based on selected role
       if (role === "owner") {
         navigate("/owner-dashboard", { replace: true });
       } else {
@@ -542,7 +587,8 @@ function AppLayout() {
   const [loading, setLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
 
-  const { preferences, toastMessage } = useContext(AppContext);
+  // Added authLoading to the loading guard condition
+  const { preferences, toastMessage, authLoading } = useContext(AppContext);
   const isDarkTheme =
     preferences.theme === "Dark Mode" || preferences.theme === "Dark";
 
@@ -577,6 +623,16 @@ function AppLayout() {
     location.pathname.startsWith("/admin/") ||
     location.pathname === "/tenant-dashboard" ||
     location.pathname.startsWith("/tenant-dashboard/");
+
+  // Loading Guard: Wait until Supabase finishes reading client storage / session
+  if (authLoading) {
+    return (
+      <div className="min-h-screen w-full bg-[#1A120B] text-white flex flex-col items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#C5924E] mb-3" />
+        <p className="text-xs font-semibold tracking-wide text-[#D1C2B4]">Loading session...</p>
+      </div>
+    );
+  }
 
   return (
     <div
