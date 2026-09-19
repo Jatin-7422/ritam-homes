@@ -116,6 +116,16 @@ export default function OwnerPropertyDetails() {
     images = Array.isArray(property.image) ? property.image : [property.image];
   }
 
+  // Water supply formatting helper ("both" or both options checked)
+  const getWaterSupplyText = (supply) => {
+    if (!supply) return "Borewell & Tank Water";
+    const s = String(supply).toLowerCase();
+    if (s.includes("both") || (s.includes("borewell") && s.includes("tank"))) {
+      return "Borewell & Tank Water";
+    }
+    return property.water_supply;
+  };
+
   // Parse amenities & nearby places
   let amenitiesList = [];
   if (Array.isArray(property.amenities)) {
@@ -130,7 +140,7 @@ export default function OwnerPropertyDetails() {
   if (amenitiesList.length === 0) {
     amenitiesList = [
       "Lift Available",
-      `Water: ${property.water_supply || "Tank water"}`,
+      `Water: ${getWaterSupplyText(property.water_supply)}`,
       "Schools Nearby",
       "Hospital Nearby",
     ];
@@ -302,7 +312,7 @@ export default function OwnerPropertyDetails() {
             <div className="flex items-center gap-2 p-2.5 bg-[#FAF7F2] rounded-xl border border-[#EADBCE]">
               <Maximize2 className="w-4 h-4 text-[#C5924E] flex-shrink-0" />
               <span className="font-bold text-[#2D1F1A] truncate">
-                {property.area || property.built_up_area || "500 sq. ft"}
+                {property.area || property.built_up_area || "500"} Sq. ft
               </span>
             </div>
             <div className="flex items-center gap-2 p-2.5 bg-[#FAF7F2] rounded-xl border border-[#EADBCE]">
@@ -410,7 +420,7 @@ export default function OwnerPropertyDetails() {
               },
               {
                 label: "Built-up Area",
-                val: property.area || property.built_up_area || "500 sq. ft.",
+                val: `${property.area || property.built_up_area || "500"} Sq. ft`,
               },
               { label: "Floor", val: property.floor || "2" },
               {
@@ -424,7 +434,7 @@ export default function OwnerPropertyDetails() {
               { label: "Bathrooms", val: property.bathrooms || "2" },
               {
                 label: "Water Supply",
-                val: property.water_supply || "Tank water",
+                val: getWaterSupplyText(property.water_supply),
               },
               {
                 label: "Facing (Vastu)",
@@ -608,7 +618,7 @@ export default function OwnerPropertyDetails() {
                 },
                 {
                   label: "Built-up Area",
-                  val: property.area || property.built_up_area || "500 sq. ft.",
+                  val: `${property.area || property.built_up_area || "500"} Sq. ft`,
                 },
                 { label: "Floor", val: property.floor || "2" },
                 {
@@ -622,7 +632,7 @@ export default function OwnerPropertyDetails() {
                 { label: "Bathrooms", val: property.bathrooms || "2" },
                 {
                   label: "Water Supply",
-                  val: property.water_supply || "Tank water",
+                  val: getWaterSupplyText(property.water_supply),
                 },
                 {
                   label: "Facing (Vastu)",
@@ -694,7 +704,7 @@ export default function OwnerPropertyDetails() {
               <div className="flex items-center gap-2.5 p-3.5 bg-[#FAF7F2] rounded-xl border border-[#EADBCE]">
                 <Maximize2 className="w-4 h-4 text-[#C5924E] flex-shrink-0" />
                 <span className="font-bold text-[#2D1F1A] truncate">
-                  {property.area || property.built_up_area || "500 sq. ft"}
+                  {property.area || property.built_up_area || "500"} Sq. ft
                 </span>
               </div>
               <div className="flex items-center gap-2.5 p-3.5 bg-[#FAF7F2] rounded-xl border border-[#EADBCE]">
