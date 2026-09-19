@@ -55,6 +55,14 @@ export default function TenantDashboard() {
     ...(isTenantSection ? [{ name: "Settings", icon: Settings, path: "/tenant-dashboard/settings" }] : []),
   ];
 
+  // Helper function to accurately determine if a navigation item is active
+  const checkIsActive = (path) => {
+    if (path === "/tenant-dashboard") {
+      return location.pathname === "/tenant-dashboard";
+    }
+    return location.pathname.startsWith(path);
+  };
+
   useEffect(() => {
     const fetchTenantNotifications = async () => {
       try {
@@ -162,7 +170,7 @@ export default function TenantDashboard() {
             </button>
           </div>
 
-          {/* Desktop Logo (Compact sizing) */}
+          {/* Desktop Logo */}
           <div className="hidden md:flex items-center gap-2 shrink-0">
             <Link to="/tenant-dashboard" className="flex items-center">
               <img
@@ -184,13 +192,11 @@ export default function TenantDashboard() {
             </Link>
           </div>
 
-          {/* DESKTOP NAVIGATION (Tuned spacing & sizing to fit standard screens perfectly) */}
+          {/* DESKTOP NAVIGATION */}
           <nav className="hidden lg:flex items-center justify-center gap-1 xl:gap-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = item.path === "/tenant-dashboard"
-                ? location.pathname === "/tenant-dashboard"
-                : location.pathname.startsWith(item.path);
+              const isActive = checkIsActive(item.path);
 
               return (
                 <Link
@@ -214,7 +220,7 @@ export default function TenantDashboard() {
             })}
           </nav>
 
-          {/* RIGHT SECTION (Compact & guaranteed visible layout) */}
+          {/* RIGHT SECTION */}
           <div className="flex items-center gap-2 z-10 shrink-0">
             {/* Notification Bell */}
             <div className="relative" ref={notificationRef}>
@@ -288,9 +294,7 @@ export default function TenantDashboard() {
         }`}>
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = item.path === "/tenant-dashboard"
-              ? location.pathname === "/tenant-dashboard"
-              : location.pathname.startsWith(item.path);
+            const isActive = checkIsActive(item.path);
 
             return (
               <Link
@@ -318,54 +322,61 @@ export default function TenantDashboard() {
       {/* MOBILE MENU DRAWER */}
       <div className={`fixed inset-0 z-50 md:hidden flex transition-all duration-300 ${isMobileMenuOpen ? "pointer-events-auto" : "pointer-events-none"}`}>
         <div className={`fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity ${isMobileMenuOpen ? "opacity-100" : "opacity-0"}`} onClick={() => setIsMobileMenuOpen(false)} />
-        <div className={`relative w-72 max-w-full flex flex-col h-full shadow-2xl z-10 transition-transform ${isDarkTheme ? "bg-[#221A17] text-white" : "bg-white text-[#2D1F1A]"} ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className={`relative w-[85vw] max-w-sm flex flex-col h-full shadow-2xl z-10 transition-transform ${isDarkTheme ? "bg-[#221A17] text-white" : "bg-white text-[#2D1F1A]"} ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          
+          {/* Drawer Header */}
           <div className="p-4 flex items-center justify-between border-b border-neutral-700/30">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 overflow-hidden pr-2">
               {userInfo?.avatar ? (
-                <img src={userInfo.avatar} alt="Profile" className="w-10 h-10 rounded-full object-cover border border-[#C5924E]" />
+                <img src={userInfo.avatar} alt="Profile" className="w-10 h-10 rounded-full object-cover border border-[#C5924E] shrink-0" />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-[#C5924E] flex items-center justify-center text-white font-bold text-base">
+                <div className="w-10 h-10 rounded-full bg-[#C5924E] flex items-center justify-center text-white font-bold text-base shrink-0">
                   {userInfo?.fullName ? userInfo.fullName.charAt(0).toUpperCase() : "T"}
                 </div>
               )}
-              <div>
+              <div className="overflow-hidden">
                 <p className="text-sm font-bold truncate">{userInfo?.fullName || "Tenant User"}</p>
                 <p className="text-xs text-gray-400 truncate">{userInfo?.email}</p>
               </div>
             </div>
-            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-xl">
+            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-xl shrink-0 hover:bg-neutral-500/10">
               <X className="w-5 h-5" />
             </button>
           </div>
 
+          {/* Drawer Navigation Links */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname.startsWith(item.path);
+              const isActive = checkIsActive(item.path);
               return (
                 <Link
                   key={item.name}
                   to={item.path}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                    isActive ? "bg-[#C5924E] text-white" : "hover:bg-neutral-800/20"
+                    isActive ? "bg-[#C5924E] text-white shadow-sm" : "hover:bg-neutral-800/10"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className="w-5 h-5" />
+                    <Icon className="w-5 h-5 shrink-0" />
                     <span>{item.name}</span>
                   </div>
+                  {item.hasNotification && (
+                    <span className="w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse"></span>
+                  )}
                 </Link>
               );
             })}
           </div>
 
-          <div className="p-4 border-t space-y-2">
-            <Link to="/owner-dashboard" onClick={() => setIsMobileMenuOpen(false)} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-[#C5924E]">
-              <Building2 className="w-4 h-4" /> Switch to Hosting
+          {/* Drawer Footer Actions */}
+          <div className="p-4 border-t border-neutral-700/30 space-y-2">
+            <Link to="/owner-dashboard" onClick={() => setIsMobileMenuOpen(false)} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-[#C5924E] hover:bg-[#C5924E]/10 transition-colors">
+              <Building2 className="w-4 h-4 shrink-0" /> Switch to Hosting
             </Link>
-            <button onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-rose-500">
-              <LogOut className="w-4 h-4" /> Logout Account
+            <button onClick={() => { setIsMobileMenuOpen(false); handleLogout(); }} className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors">
+              <LogOut className="w-4 h-4 shrink-0" /> Logout Account
             </button>
           </div>
         </div>

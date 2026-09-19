@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
-import { Bell, MessageSquare, Calendar, Home, Check, Trash2 } from "lucide-react";
+import { Bell, MessageSquare, Calendar, Building2, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-export default function TenantNotifications() {
+export default function OwnerNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Fetch unread notifications for the logged-in tenant
-  const fetchNotifications = async () => {
+  // Fetch unread notifications for the logged-in owner
+  const fetchOwnerNotifications = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || !session.user) return;
@@ -26,18 +26,18 @@ export default function TenantNotifications() {
         setNotifications(data);
       }
     } catch (err) {
-      console.error("Error fetching notifications:", err);
+      console.error("Error fetching owner notifications:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchNotifications();
+    fetchOwnerNotifications();
 
     // Setup Realtime listener for incoming & deleted notifications
     const channel = supabase
-      .channel("tenant-notifications-realtime")
+      .channel("owner-notifications-realtime")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notifications" },
@@ -59,10 +59,9 @@ export default function TenantNotifications() {
     };
   }, []);
 
-  // Clicking a notification marks it as read (triggering automatic deletion) and redirects if reference_id exists
+  // Clicking a notification marks it as read (triggering automatic deletion) and routes accordingly
   const handleNotificationClick = async (item) => {
     try {
-      // Updating is_read to true will automatically fire our Postgres trigger to delete it from the table
       await supabase
         .from("notifications")
         .update({ is_read: true })
@@ -71,18 +70,16 @@ export default function TenantNotifications() {
       // Optimistically remove from UI state immediately
       setNotifications((prev) => prev.filter((n) => n.id !== item.id));
 
-      // Optional smart routing based on notification type & reference_id
-      if (item.reference_id) {
-        if (item.type === "message") {
-          navigate("/tenant-dashboard/messages");
-        } else if (item.type.includes("slot")) {
-          navigate("/tenant-dashboard/bookings");
-        } else if (item.type === "new_property") {
-          navigate(`/tenant-dashboard/explore`);
-        }
+      // Smart routing based on notification type for owners
+      if (item.type === "message") {
+        navigate("/owner-dashboard/messages");
+      } else if (item.type === "booking" || item.type.includes("slot")) {
+        navigate("/owner-dashboard/bookings");
+      } else if (item.type === "property_listed") {
+        navigate("/owner-dashboard/properties");
       }
     } catch (err) {
-      console.error("Error processing notification click:", err);
+      console.error("Error processing owner notification click:", err);
     }
   };
 
@@ -91,7 +88,6 @@ export default function TenantNotifications() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || !session.user) return;
 
-      // Mark all as read, causing the database trigger to clean them all up
       await supabase
         .from("notifications")
         .update({ is_read: true })
@@ -100,19 +96,19 @@ export default function TenantNotifications() {
 
       setNotifications([]);
     } catch (err) {
-      console.error("Error clearing notifications:", err);
+      console.error("Error clearing owner notifications:", err);
     }
   };
 
   const getIcon = (type) => {
     switch (type) {
+      case "booking":
       case "slot_booking":
-      case "slot_status":
         return <Calendar className="w-4 h-4 text-amber-500" />;
       case "message":
         return <MessageSquare className="w-4 h-4 text-blue-500" />;
-      case "new_property":
-        return <Home className="w-4 h-4 text-emerald-500" />;
+      case "property_listed":
+        return <Building2 className="w-4 h-4 text-emerald-500" />;
       default:
         return <Bell className="w-4 h-4 text-[#C5924E]" />;
     }
@@ -124,7 +120,7 @@ export default function TenantNotifications() {
       <div className="px-4 py-3 border-b border-[#E3D9CC] dark:border-neutral-800 flex items-center justify-between bg-[#FAF7F2] dark:bg-[#1A120B]">
         <div className="flex items-center gap-2">
           <Bell className="w-4 h-4 text-[#C5924E]" />
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[#2D1F1A] dark:text-white">Notifications</h3>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[#2D1F1A] dark:text-white">Hosting Alerts</h3>
         </div>
         {notifications.length > 0 && (
           <button
@@ -139,11 +135,11 @@ export default function TenantNotifications() {
       {/* Content List */}
       <div className="overflow-y-auto flex-1 divide-y divide-[#E3D9CC]/50 dark:divide-neutral-800/50">
         {loading ? (
-          <div className="p-6 text-center text-xs text-gray-400">Loading notifications...</div>
+          <div className="p-6 text-center text-xs text-gray-400">Loading alerts...</div>
         ) : notifications.length === 0 ? (
           <div className="p-8 text-center flex flex-col items-center justify-center text-gray-400 gap-2">
             <Bell className="w-8 h-8 opacity-40 text-[#C5924E]" />
-            <p className="text-xs font-medium">You're all caught up!</p>
+            <p className="text-xs font-medium">No hosting alerts right now</p>
           </div>
         ) : (
           notifications.map((item) => (

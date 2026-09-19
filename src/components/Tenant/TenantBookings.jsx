@@ -20,6 +20,7 @@ import {
   X,
   Home,
   ExternalLink,
+  Bell,
 } from "lucide-react";
 
 // Fix Leaflet default marker icon issue in React
@@ -53,15 +54,68 @@ export default function TenantBookings() {
   const [filter, setFilter] = useState("All"); // All, Pending, Confirmed, Rejected
   const [searchQuery, setSearchQuery] = useState("");
 
+  // State for Toast Alerts & Realtime listeners
+  const [toastMessage, setToastMessage] = useState(null);
+
   // State for Owner Details & Map Modal
   const [selectedVisit, setSelectedVisit] = useState(null);
   const [ownerDetails, setOwnerDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
 
   useEffect(() => {
-    resetExpiredSlots().then(() => {
-      fetchTenantBookings();
-    });
+    let channel;
+    let userId = null;
+
+    const initializeData = async () => {
+      await resetExpiredSlots();
+      await fetchTenantBookings();
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        userId = session.user.id;
+
+        // Setup Realtime listener for visit status updates & incoming notifications
+        channel = supabase
+          .channel(`tenant-channel-${userId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "property_visit_slots",
+              filter: `tenant_id=eq.${userId}`,
+            },
+            (payload) => {
+              const updatedSlot = payload.new;
+              if (updatedSlot.status === "confirmed") {
+                setToastMessage("🎉 An owner has confirmed your property visit!");
+                setTimeout(() => setToastMessage(null), 5000);
+              }
+              fetchTenantBookings();
+            }
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "notifications",
+              filter: `user_id=eq.${userId}`,
+            },
+            (payload) => {
+              setToastMessage(payload.new.message || "New notification received!");
+              setTimeout(() => setToastMessage(null), 5000);
+            }
+          )
+          .subscribe();
+      }
+    };
+
+    initializeData();
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, []);
 
   const resetExpiredSlots = async () => {
@@ -94,7 +148,6 @@ export default function TenantBookings() {
         return;
       }
 
-      // 1. Fetch visit slots directly for the current tenant without embedding
       const { data: slotsData, error: slotsError } = await supabase
         .from("property_visit_slots")
         .select(`
@@ -116,7 +169,6 @@ export default function TenantBookings() {
         return;
       }
 
-      // 2. Extract unique property IDs to fetch their details separately in a batch
       const propertyIds = [...new Set(slotsData.map((slot) => slot.property_id).filter(Boolean))];
 
       let propertyMap = new Map();
@@ -131,7 +183,6 @@ export default function TenantBookings() {
         }
       }
 
-      // 3. Map property details back to each visit slot safely in memory
       const enrichedBookings = slotsData.map((slot) => ({
         ...slot,
         properties: propertyMap.get(slot.property_id) || {
@@ -211,12 +262,22 @@ export default function TenantBookings() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 w-full space-y-6 sm:space-y-8 text-[#2D1F1A]">
+    <div className="p-4 sm:p-6 lg:p-8 w-full space-y-6 sm:space-y-8 text-[#2D1F1A] relative">
+      {/* Toast Alert Banner for Realtime Update */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 bg-[#2D1F1A] text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 animate-bounce border border-[#C5924E]">
+          <Bell className="w-4 h-4 text-[#C5924E]" />
+          <p className="text-xs font-bold">{toastMessage}</p>
+        </div>
+      )}
+
       {/* Header & Search Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/65 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-[#EADBCE]/70 shadow-xs w-full">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/65 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-[#EADBCE]/70 shadow-xs w-full relative">
         <div className="space-y-1">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF7F2] border border-[#EADBCE] text-[#C5924E] text-[10px] font-bold tracking-widest uppercase">
-            <Home className="w-3 h-3" /> Tenant Portal
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF7F2] border border-[#EADBCE] text-[#C5924E] text-[10px] font-bold tracking-widest uppercase">
+              <Home className="w-3 h-3" /> Tenant Portal
+            </div>
           </div>
           <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#2D1F1A]">
             My Property Bookings 🏡
@@ -226,23 +287,25 @@ export default function TenantBookings() {
           </p>
         </div>
 
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A7568]" />
-          <input
-            type="text"
-            placeholder="Search property or location..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-[#FAF7F2]/80 border border-[#EADBCE] rounded-2xl text-xs font-medium text-[#2D1F1A] placeholder-[#8A7568] focus:outline-none focus:border-[#C5924E] focus:bg-white transition-all shadow-2xs"
-          />
-          {searchQuery && (
-            <button 
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A7568] hover:text-[#2D1F1A]"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A7568]" />
+            <input
+              type="text"
+              placeholder="Search property or location..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-[#FAF7F2]/80 border border-[#EADBCE] rounded-2xl text-xs font-medium text-[#2D1F1A] placeholder-[#8A7568] focus:outline-none focus:border-[#C5924E] focus:bg-white transition-all shadow-2xs"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A7568] hover:text-[#2D1F1A]"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

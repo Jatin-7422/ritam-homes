@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "../../supabaseClient";
-import { Send, User, Loader2, MessageSquare, Trash2, ArrowLeft, Check, CheckCheck, Home } from "lucide-react";
+import { Send, User, Loader2, MessageSquare, Trash2, ArrowLeft, Check, CheckCheck, Home, Bell } from "lucide-react";
 
 export default function TenantMessages() {
   const [conversations, setConversations] = useState([]);
@@ -11,6 +11,9 @@ export default function TenantMessages() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   
+  // NEW: State to hold the latest notification popup data
+  const [incomingAlert, setIncomingAlert] = useState(null);
+
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -32,7 +35,6 @@ export default function TenantMessages() {
     async function fetchTenantConversations() {
       setLoadingConversations(true);
       try {
-        // 1. Fetch messages and property details without nested profile hint crashes
         const { data: messagesData, error: msgError } = await supabase
           .from("messages")
           .select(`
@@ -48,12 +50,10 @@ export default function TenantMessages() {
 
         if (msgError) throw msgError;
 
-        // Filter to only show conversations where the current user is NOT the owner of the property
         const tenantFilteredData = (messagesData || []).filter(
           (msg) => msg.properties?.owner_id !== currentUserId
         );
 
-        // 2. Collect unique owner IDs to batch fetch their profile names cleanly
         const ownerIds = [...new Set(tenantFilteredData.map((msg) => msg.properties?.owner_id).filter(Boolean))];
 
         let profileMap = new Map();
@@ -68,7 +68,6 @@ export default function TenantMessages() {
           }
         }
 
-        // 3. Attach profile names back into the message properties structure
         const enrichedData = tenantFilteredData.map((msg) => ({
           ...msg,
           properties: msg.properties
@@ -89,16 +88,33 @@ export default function TenantMessages() {
 
     fetchTenantConversations();
 
+    // GLOBAL CHANNEL FOR REAL-TIME NOTIFICATIONS
     const globalChannel = supabase
       .channel("tenant_global_messages")
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "messages",
         },
-        () => {
+        async (payload) => {
+          const newMsg = payload.new;
+          
+          // Check if message is incoming FOR the current user
+          if (newMsg.receiver_id === currentUserId) {
+            // Trigger Notification Banner/Alert
+            setIncomingAlert({
+              content: newMsg.content,
+              time: new Date(),
+            });
+
+            // Auto-hide alert after 4 seconds
+            setTimeout(() => {
+              setIncomingAlert(null);
+            }, 4000);
+          }
+
           fetchTenantConversations();
         }
       )
@@ -305,7 +321,21 @@ export default function TenantMessages() {
   };
 
   return (
-    <div className="px-4 sm:px-10 py-6 max-w-7xl mx-auto w-full h-[calc(100vh-80px)] flex flex-col">
+    <div className="px-4 sm:px-10 py-6 max-w-7xl mx-auto w-full h-[calc(100vh-80px)] flex flex-col relative">
+      
+      {/* FLOATING NOTIFICATION TOAST */}
+      {incomingAlert && (
+        <div className="absolute top-4 right-4 z-50 bg-[#2D1F1A] text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-[#C5924E]/40 animate-bounce">
+          <div className="w-8 h-8 rounded-full bg-[#C5924E]/20 flex items-center justify-center text-[#C5924E]">
+            <Bell className="w-4 h-4 animate-spin" />
+          </div>
+          <div>
+            <p className="text-xs font-bold text-[#C5924E]">New Message Received!</p>
+            <p className="text-[11px] text-gray-200 truncate max-w-xs">{incomingAlert.content}</p>
+          </div>
+        </div>
+      )}
+
       <div className="mb-4 flex-shrink-0 flex items-center justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#2D1F1A]">
