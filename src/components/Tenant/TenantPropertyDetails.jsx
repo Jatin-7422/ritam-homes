@@ -484,6 +484,18 @@ export default function PropertyDetails() {
   const monthlyRent = Number(property.price || 0);
   const securityDeposit = property.security_deposit || monthlyRent * 2;
 
+  // Helper to handle both water supply types (bor and tank water) if both exist or are selected
+  const getWaterSupplyDisplay = () => {
+    const supply = property.water_supply;
+    if (Array.isArray(supply)) {
+      return supply.join(" and ");
+    }
+    if (typeof supply === "string" && (supply.toLowerCase().includes("both") || (supply.toLowerCase().includes("bor") && supply.toLowerCase().includes("tank")))) {
+      return "bore and tank water";
+    }
+    return supply || "Borewell";
+  };
+
   return (
     <div className="min-h-screen w-full bg-[#FDFBF7] text-[#2D1F1A] pb-24 overflow-x-hidden">
       
@@ -609,7 +621,7 @@ export default function PropertyDetails() {
               <div className="p-3 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE]">
                 <Maximize2 className="w-5 h-5 text-[#C5924E] mx-auto mb-1" />
                 <span className="block text-[10px] text-[#8A7568] uppercase font-bold">Area</span>
-                <span className="text-sm font-bold text-[#2D1F1A]">{property.built_up_area || "950"} sq.ft</span>
+                <span className="text-sm font-bold text-[#2D1F1A]">{property.built_up_area || "950"} Sq. ft</span>
               </div>
               <div className="p-3 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE]">
                 <Home className="w-5 h-5 text-[#C5924E] mx-auto mb-1" />
@@ -652,12 +664,10 @@ export default function PropertyDetails() {
                       <span className="truncate">Lift Available</span>
                     </div>
                   )}
-                  {property.water_supply && (
-                    <div className="flex items-center gap-2 text-xs text-[#2D1F1A] bg-[#FAF7F2] p-3 rounded-2xl border border-[#EADBCE]">
-                      <Droplet className="w-4 h-4 text-[#C5924E] shrink-0" />
-                      <span className="truncate">Water: {property.water_supply}</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 text-xs text-[#2D1F1A] bg-[#FAF7F2] p-3 rounded-2xl border border-[#EADBCE]">
+                    <Droplet className="w-4 h-4 text-[#C5924E] shrink-0" />
+                    <span className="truncate">Water: {getWaterSupplyDisplay()}</span>
+                  </div>
                   {property.amenities?.securityGuard && (
                     <div className="flex items-center gap-2 text-xs text-[#2D1F1A] bg-[#FAF7F2] p-3 rounded-2xl border border-[#EADBCE]">
                       <ShieldCheck className="w-4 h-4 text-[#C5924E] shrink-0" />
@@ -693,7 +703,7 @@ export default function PropertyDetails() {
                 </div>
                 <div className="flex items-center justify-between p-3.5 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE]">
                   <span className="text-[#8A7568] flex items-center gap-2"><Maximize2 className="w-4 h-4 text-[#C5924E]" /> Built-up Area</span>
-                  <span className="font-bold text-[#2D1F1A]">{property.built_up_area || "N/A"} sq. ft.</span>
+                  <span className="font-bold text-[#2D1F1A]">{property.built_up_area || "N/A"} Sq. ft</span>
                 </div>
                 <div className="flex items-center justify-between p-3.5 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE]">
                   <span className="text-[#8A7568] flex items-center gap-2"><Building className="w-4 h-4 text-[#C5924E]" /> Floor Level</span>
@@ -713,7 +723,7 @@ export default function PropertyDetails() {
                 </div>
                 <div className="flex items-center justify-between p-3.5 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE]">
                   <span className="text-[#8A7568] flex items-center gap-2"><Droplet className="w-4 h-4 text-[#C5924E]" /> Water Supply</span>
-                  <span className="font-bold text-[#2D1F1A]">{property.water_supply || "N/A"}</span>
+                  <span className="font-bold text-[#2D1F1A]">{getWaterSupplyDisplay()}</span>
                 </div>
               </div>
             </div>
@@ -1020,7 +1030,7 @@ export default function PropertyDetails() {
               <Maximize2 className="w-4 h-4 text-[#C5924E] shrink-0" />
               <div>
                 <span className="block text-[9px] text-[#8A7568] uppercase font-bold">Built-up Area</span>
-                <span className="text-xs font-bold text-[#2D1F1A]">{property.built_up_area || "1200"}</span>
+                <span className="text-xs font-bold text-[#2D1F1A]">{property.built_up_area || "1200"} Sq. ft</span>
               </div>
             </div>
             <div className="flex items-center gap-2 p-3 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE]">
@@ -1070,7 +1080,7 @@ export default function PropertyDetails() {
               )}
               <div className="flex items-center gap-2.5 p-3 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE] text-xs text-[#2D1F1A]">
                 <CheckCircle2 className="w-4 h-4 text-[#C5924E] shrink-0" />
-                <span>Water: {property.water_supply || "Borewell"}</span>
+                <span>Water: {getWaterSupplyDisplay()}</span>
               </div>
               {property.amenities?.schoolsNearby !== false && (
                 <div className="flex items-center gap-2.5 p-3 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE] text-xs text-[#2D1F1A]">
@@ -1101,7 +1111,7 @@ export default function PropertyDetails() {
             </div>
             <div className="flex items-center justify-between pt-2">
               <span className="text-[#8A7568]">Built-up Area</span>
-              <span className="font-bold text-[#2D1F1A]">{property.built_up_area || "1200"}</span>
+              <span className="font-bold text-[#2D1F1A]">{property.built_up_area || "1200"} Sq. ft</span>
             </div>
             <div className="flex items-center justify-between pt-2">
               <span className="text-[#8A7568]">Floor</span>
@@ -1121,7 +1131,7 @@ export default function PropertyDetails() {
             </div>
             <div className="flex items-center justify-between pt-2">
               <span className="text-[#8A7568]">Water Supply</span>
-              <span className="font-bold text-[#2D1F1A]">{property.water_supply || "Borewell"}</span>
+              <span className="font-bold text-[#2D1F1A]">{getWaterSupplyDisplay()}</span>
             </div>
           </div>
         </div>
