@@ -400,10 +400,14 @@ export default function NewProperty() {
         console.error("Error saving notification:", notificationError.message);
       }
 
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Property Published!", {
-          body: `Your listing "${insertedProperty.title}" is now live for tenants to see.`,
-          icon: "/favicon.ico",
+      if ("serviceWorker" in navigator && "Notification" in window && Notification.permission === "granted") {
+        navigator.serviceWorker.ready.then((registration) => {
+          registration.showNotification("Property Published!", {
+            body: `Your listing "${insertedProperty.title}" is now live for tenants to see.`,
+            icon: "/favicon.ico",
+          });
+        }).catch((err) => {
+          console.error("Service worker notification error:", err);
         });
       }
 
