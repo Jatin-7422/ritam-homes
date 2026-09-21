@@ -484,7 +484,6 @@ export default function PropertyDetails() {
   const monthlyRent = Number(property.price || 0);
   const securityDeposit = property.security_deposit || monthlyRent * 2;
 
-  // Helper to handle both water supply types (bor and tank water) if both exist or are selected
   const getWaterSupplyDisplay = () => {
     const supply = property.water_supply;
     if (Array.isArray(supply)) {
@@ -655,37 +654,33 @@ export default function PropertyDetails() {
                 </div>
               </div>
 
+              {/* UNIVERSAL AMENITIES RENDERER (DESKTOP) */}
               <div className="space-y-3 pt-4 border-t border-[#F0E6D8]">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-[#8A7568]">Amenities & Facilities</h4>
                 <div className="grid grid-cols-3 gap-3">
-                  {property.amenities?.lift !== false && (
-                    <div className="flex items-center gap-2 text-xs text-[#2D1F1A] bg-[#FAF7F2] p-3 rounded-2xl border border-[#EADBCE]">
-                      <CheckCircle2 className="w-4 h-4 text-[#C5924E] shrink-0" />
-                      <span className="truncate">Lift Available</span>
-                    </div>
-                  )}
+                  {Array.isArray(property.amenities) ? (
+                    property.amenities.map((amenity, index) => (
+                      <div key={index} className="flex items-center gap-2 text-xs text-[#2D1F1A] bg-[#FAF7F2] p-3 rounded-2xl border border-[#EADBCE]">
+                        <CheckCircle2 className="w-4 h-4 text-[#C5924E] shrink-0" />
+                        <span className="truncate">{typeof amenity === 'string' ? amenity : amenity.name || JSON.stringify(amenity)}</span>
+                      </div>
+                    ))
+                  ) : property.amenities && typeof property.amenities === 'object' ? (
+                    Object.entries(property.amenities).map(([key, val], index) => {
+                      if (!val) return null;
+                      const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                      return (
+                        <div key={index} className="flex items-center gap-2 text-xs text-[#2D1F1A] bg-[#FAF7F2] p-3 rounded-2xl border border-[#EADBCE]">
+                          <CheckCircle2 className="w-4 h-4 text-[#C5924E] shrink-0" />
+                          <span className="truncate">{formattedKey}</span>
+                        </div>
+                      );
+                    })
+                  ) : null}
                   <div className="flex items-center gap-2 text-xs text-[#2D1F1A] bg-[#FAF7F2] p-3 rounded-2xl border border-[#EADBCE]">
                     <Droplet className="w-4 h-4 text-[#C5924E] shrink-0" />
                     <span className="truncate">Water: {getWaterSupplyDisplay()}</span>
                   </div>
-                  {property.amenities?.securityGuard && (
-                    <div className="flex items-center gap-2 text-xs text-[#2D1F1A] bg-[#FAF7F2] p-3 rounded-2xl border border-[#EADBCE]">
-                      <ShieldCheck className="w-4 h-4 text-[#C5924E] shrink-0" />
-                      <span className="truncate">Security Guard</span>
-                    </div>
-                  )}
-                  {property.amenities?.schoolsNearby !== false && (
-                    <div className="flex items-center gap-2 text-xs text-[#2D1F1A] bg-[#FAF7F2] p-3 rounded-2xl border border-[#EADBCE]">
-                      <CheckCircle2 className="w-4 h-4 text-[#C5924E] shrink-0" />
-                      <span className="truncate">Schools Nearby</span>
-                    </div>
-                  )}
-                  {property.amenities?.hospitalNearby !== false && (
-                    <div className="flex items-center gap-2 text-xs text-[#2D1F1A] bg-[#FAF7F2] p-3 rounded-2xl border border-[#EADBCE]">
-                      <CheckCircle2 className="w-4 h-4 text-[#C5924E] shrink-0" />
-                      <span className="truncate">Hospital Nearby</span>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -1067,33 +1062,35 @@ export default function PropertyDetails() {
             </div>
           </div>
 
+          {/* UNIVERSAL AMENITIES RENDERER (MOBILE) */}
           <div className="space-y-2 pt-2 border-t border-[#F0E6D8]">
             <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#8A7568]">
               Amenities & Nearby Places
             </h4>
             <div className="space-y-2">
-              {property.amenities?.lift !== false && (
-                <div className="flex items-center gap-2.5 p-3 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE] text-xs text-[#2D1F1A]">
-                  <CheckCircle2 className="w-4 h-4 text-[#C5924E] shrink-0" />
-                  <span>Lift Available</span>
-                </div>
-              )}
+              {Array.isArray(property.amenities) ? (
+                property.amenities.map((amenity, index) => (
+                  <div key={index} className="flex items-center gap-2.5 p-3 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE] text-xs text-[#2D1F1A]">
+                    <CheckCircle2 className="w-4 h-4 text-[#C5924E] shrink-0" />
+                    <span>{typeof amenity === 'string' ? amenity : amenity.name || JSON.stringify(amenity)}</span>
+                  </div>
+                ))
+              ) : property.amenities && typeof property.amenities === 'object' ? (
+                Object.entries(property.amenities).map(([key, val], index) => {
+                  if (!val) return null;
+                  const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                  return (
+                    <div key={index} className="flex items-center gap-2.5 p-3 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE] text-xs text-[#2D1F1A]">
+                      <CheckCircle2 className="w-4 h-4 text-[#C5924E] shrink-0" />
+                      <span>{formattedKey}</span>
+                    </div>
+                  );
+                })
+              ) : null}
               <div className="flex items-center gap-2.5 p-3 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE] text-xs text-[#2D1F1A]">
                 <CheckCircle2 className="w-4 h-4 text-[#C5924E] shrink-0" />
                 <span>Water: {getWaterSupplyDisplay()}</span>
               </div>
-              {property.amenities?.schoolsNearby !== false && (
-                <div className="flex items-center gap-2.5 p-3 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE] text-xs text-[#2D1F1A]">
-                  <CheckCircle2 className="w-4 h-4 text-[#C5924E] shrink-0" />
-                  <span>Schools Nearby</span>
-                </div>
-              )}
-              {property.amenities?.hospitalNearby !== false && (
-                <div className="flex items-center gap-2.5 p-3 bg-[#FAF7F2] rounded-2xl border border-[#EADBCE] text-xs text-[#2D1F1A]">
-                  <CheckCircle2 className="w-4 h-4 text-[#C5924E] shrink-0" />
-                  <span>Hospital Nearby</span>
-                </div>
-              )}
             </div>
           </div>
         </div>

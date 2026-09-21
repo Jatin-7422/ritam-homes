@@ -312,6 +312,25 @@ export default function NewProperty() {
         }
       }
 
+      // Compile checklist amenities and custom amenities into a single array for display and storage
+      const amenityLabels = {
+        lift: "Lift",
+        water247: "24x7 Water",
+        securityGuard: "Security Guard",
+        schoolsNearby: "Schools Nearby",
+        hospitalNearby: "Hospital Nearby",
+        parkNearby: "Park Nearby",
+      };
+
+      const activeChecklistAmenities = Object.entries(propertyDetails.amenities)
+        .filter(([_, isChecked]) => isChecked)
+        .map(([key]) => amenityLabels[key] || key);
+
+      const combinedAmenities = [
+        ...activeChecklistAmenities,
+        ...propertyDetails.customAmenities,
+      ];
+
       const propertyPayload = {
         owner_id: ownerId,
         owner_name: ownerName,
@@ -320,7 +339,7 @@ export default function NewProperty() {
         title:
           propertyDetails.title ||
           `${propertyDetails.configuration} ${propertyDetails.propertyType}`,
-        description: propertyDetails.description,
+        description: propertyDetails.description || "",
         location: locationAddress,
         latitude: latitude,
         longitude: longitude,
@@ -343,7 +362,7 @@ export default function NewProperty() {
         food_preference: propertyDetails.foodPreference,
         security_deposit: parseFloat(propertyDetails.securityDeposit) || 0,
 
-        amenities: propertyDetails.amenities,
+        amenities: combinedAmenities,
         custom_amenities: propertyDetails.customAmenities,
         visit_availability: {
           mode: bookingMode,
@@ -400,14 +419,10 @@ export default function NewProperty() {
         console.error("Error saving notification:", notificationError.message);
       }
 
-      if ("serviceWorker" in navigator && "Notification" in window && Notification.permission === "granted") {
-        navigator.serviceWorker.ready.then((registration) => {
-          registration.showNotification("Property Published!", {
-            body: `Your listing "${insertedProperty.title}" is now live for tenants to see.`,
-            icon: "/favicon.ico",
-          });
-        }).catch((err) => {
-          console.error("Service worker notification error:", err);
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Property Published!", {
+          body: `Your listing "${insertedProperty.title}" is now live for tenants to see.`,
+          icon: "/favicon.ico",
         });
       }
 
