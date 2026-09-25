@@ -180,9 +180,6 @@ export function AppProvider({ children }) {
 // ==========================================
 // 🛠️ COMPLETE PROFILE PAGE VIEW (Standalone)
 // ==========================================
-// ==========================================
-// 🛠️ COMPLETE PROFILE PAGE VIEW (Standalone)
-// ==========================================
 function CompleteProfileView() {
   const [sessionUser, setSessionUser] = useState(null);
   const [fullName, setFullName] = useState("");
@@ -567,13 +564,25 @@ function ProtectedRoute({ children, allowedRole }) {
   return children;
 }
 
-// 🏠 Home Component
+// 🏠 Home Component (Updated to fetch properties from Supabase and pass them to FeaturedProperties)
 function Home() {
+  const [properties, setProperties] = useState([]);
+
+  useEffect(() => {
+    const fetchProperties = async () => {
+      const { data, error } = await supabase.from("properties").select("*");
+      if (!error && data) {
+        setProperties(data);
+      }
+    };
+    fetchProperties();
+  }, []);
+
   return (
     <>
       <Hero />
       <SearchBar />
-      <FeaturedProperties />
+      <FeaturedProperties properties={properties} />
       <WhyChooseUs />
       <HowItWorks />
       <AboutUs />

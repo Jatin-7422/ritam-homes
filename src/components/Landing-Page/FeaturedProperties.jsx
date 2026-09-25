@@ -1,90 +1,23 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Heart, ChevronRight, PlusCircle, LayoutDashboard, X, AlertCircle, ChevronLeft } from "lucide-react";
+import { ChevronRight, PlusCircle, LayoutDashboard, X, AlertCircle, ChevronLeft } from "lucide-react";
 
-export default function FeaturedProperties({ isHostMode, isLoggedIn }) {
+export default function FeaturedProperties({ isHostMode, isLoggedIn, properties = [] }) {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const scrollContainerRef = useRef(null);
   const isAutoScrolling = useRef(true);
   const requestRef = useRef(null);
 
-  const baseProperties = [
-    {
-      title: "Luxury Apartment",
-      loc: "Koramangala, Bangalore",
-      price: "₹22,000",
-      specs: "2 BHK • 1200 sq.ft",
-      rating: "4.8",
-      img: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      title: "Cozy 1BHK Flat",
-      loc: "Indiranagar, Bangalore",
-      price: "₹15,000",
-      specs: "1 BHK • 650 sq.ft",
-      rating: "4.6",
-      img: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      title: "Spacious Home",
-      loc: "Whitefield, Bangalore",
-      price: "₹28,000",
-      specs: "3 BHK • 1600 sq.ft",
-      rating: "4.9",
-      img: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      title: "Premium House",
-      loc: "HSR Layout, Bangalore",
-      price: "₹45,000",
-      specs: "4 BHK • 2500 sq.ft",
-      rating: "4.9",
-      img: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      title: "Modern Studio",
-      loc: "JP Nagar, Bangalore",
-      price: "₹18,000",
-      specs: "1 RK • 500 sq.ft",
-      rating: "4.7",
-      img: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      title: "Executive Villa",
-      loc: "Hebbal, Bangalore",
-      price: "₹65,000",
-      specs: "4 BHK • 3200 sq.ft",
-      rating: "5.0",
-      img: "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      title: "Cozy Penthouse",
-      loc: "MG Road, Bangalore",
-      price: "₹55,000",
-      specs: "3 BHK • 2200 sq.ft",
-      rating: "4.9",
-      img: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=600&q=80",
-    },
-    {
-      title: "Urban Loft",
-      loc: "Bannerghatta Road, Bangalore",
-      price: "₹25,000",
-      specs: "2 BHK • 1100 sq.ft",
-      rating: "4.5",
-      img: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=600&q=80",
-    },
-  ];
-
-  const properties = [
-    ...baseProperties,
-    ...baseProperties,
-    ...baseProperties,
-    ...baseProperties,
-    ...baseProperties,
-  ];
+  // Fallback if properties array is empty or still loading
+  const displayProperties = properties.length > 0 ? properties : [];
+  
+  // Duplicate array multiple times for smooth infinite loop effect if enough items exist
+  const extendedProperties = displayProperties.length > 0 
+    ? [...displayProperties, ...displayProperties, ...displayProperties, ...displayProperties, ...displayProperties]
+    : [];
 
   useEffect(() => {
     const container = scrollContainerRef.current;
-    if (!container) return;
+    if (!container || extendedProperties.length === 0) return;
 
     const singleSetWidth = container.scrollWidth / 5;
     container.scrollLeft = singleSetWidth * 2;
@@ -108,11 +41,11 @@ export default function FeaturedProperties({ isHostMode, isLoggedIn }) {
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, []);
+  }, [extendedProperties.length]);
 
   const handleScroll = () => {
     const container = scrollContainerRef.current;
-    if (!container) return;
+    if (!container || extendedProperties.length === 0) return;
 
     const singleSetWidth = container.scrollWidth / 5;
 
@@ -133,24 +66,35 @@ export default function FeaturedProperties({ isHostMode, isLoggedIn }) {
     }, 2000);
   };
 
-  const handleCardClick = (itemTitle) => {
+  // WhatsApp Chat Redirection Logic
+  const handleWhatsAppRedirect = (e, item) => {
+    e.stopPropagation(); // Prevent card click event from firing simultaneously
+
+    if (!isLoggedIn) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    const ownerPhone = item.ownerPhone || item.phone || "919876543210"; // Fallback owner phone if missing
+    const cleanPhone = ownerPhone.replace(/\D/g, "");
+    
+    const message = `Hi, I found your property "${item.title || item.name}" (ID: ${item.id || item._id}) on Ritam Homes and I'm interested. Is it still available?`;
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+
+    window.open(whatsappUrl, "_blank");
+  };
+
+  const handleCardClick = (item) => {
     if (!isLoggedIn) {
       setShowAuthModal(true);
       return;
     }
     
     if (isHostMode) {
-      alert(`Managing inquiries for your property: ${itemTitle}`);
+      alert(`Managing inquiries for your property: ${item.title || item.name}`);
     } else {
-      alert(`Opening details for ${itemTitle}`);
-    }
-  };
-
-  const handleViewAllClick = (e) => {
-    if (!isLoggedIn) {
-      e.preventDefault();
-      setShowAuthModal(true);
-      return;
+      // Trigger opening property detail view or modal
+      window.location.href = `/property/${item.id || item._id}`;
     }
   };
 
@@ -196,7 +140,6 @@ export default function FeaturedProperties({ isHostMode, isLoggedIn }) {
             ) : (
               <a
                 href="#all"
-                onClick={handleViewAllClick}
                 className="flex items-center gap-1 text-xs font-bold text-[#2D1F1A] hover:underline"
               >
                 View All Properties <ChevronRight className="w-4 h-4" />
@@ -230,73 +173,67 @@ export default function FeaturedProperties({ isHostMode, isLoggedIn }) {
         onTouchStart={() => (isAutoScrolling.current = false)}
         onTouchEnd={() => setTimeout(() => (isAutoScrolling.current = true), 2000)}
       >
-        <div
-          ref={scrollContainerRef}
-          onScroll={handleScroll}
-          className="flex gap-3 sm:gap-5 overflow-x-auto no-scrollbar pb-2 pt-1 px-1"
-          style={{ 
-            scrollbarWidth: "none", 
-            msOverflowStyle: "none",
-            WebkitOverflowScrolling: "touch",
-            willChange: "scroll-position" 
-          }}
-        >
-          {properties.map((item, idx) => (
-            <div
-              key={idx}
-              onClick={() => handleCardClick(item.title)}
-              className="w-[210px] sm:w-[320px] flex-shrink-0 bg-[#EFEAE1]/95 backdrop-blur-md rounded-xl sm:rounded-2xl overflow-hidden border border-[#E3D9CC] shadow-md hover:shadow-xl transition-all group relative cursor-pointer"
-            >
-              {isHostMode && (
-                <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 z-10 px-2 sm:px-2.5 py-0.5 rounded-md sm:rounded-lg bg-[#2D1F1A]/95 backdrop-blur-md text-[8px] sm:text-[9px] font-bold text-[#C5924E] border border-[#C5924E]/30 shadow-md">
-                  ● Live Listing
-                </div>
-              )}
-
-              <div className="relative h-32 sm:h-52 overflow-hidden">
-                <img
-                  src={item.img}
-                  alt={item.title}
-                  loading="lazy"
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!isLoggedIn) {
-                      setShowAuthModal(true);
-                      return;
-                    }
-                    alert("Added to favorites!");
-                  }}
-                  className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 p-1.5 sm:p-2 rounded-full bg-white/90 text-[#2D1F1A] shadow-md hover:bg-white cursor-pointer transition-transform active:scale-95"
-                >
-                  <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
-                </button>
-              </div>
-
-              <div className="p-3 sm:p-5 space-y-1 sm:space-y-2">
-                <h3 className="font-bold text-xs sm:text-base text-[#2D1F1A] truncate">{item.title}</h3>
-                <p className="text-[10px] sm:text-xs text-[#6E5D53] font-medium truncate">{item.loc}</p>
-                <div className="text-sm sm:text-lg font-black text-[#2D1F1A] pt-0.5 flex items-center justify-between">
-                  <div>
-                    {item.price} <span className="text-[9px] sm:text-xs font-normal text-[#6E5D53]">/mo</span>
+        {displayProperties.length === 0 ? (
+          <div className="w-full py-12 text-center text-[#6E5D53] bg-white/50 rounded-2xl border border-[#E3D9CC]">
+            <p className="text-sm font-semibold">No properties available from backend yet.</p>
+          </div>
+        ) : (
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="flex gap-3 sm:gap-5 overflow-x-auto no-scrollbar pb-2 pt-1 px-1"
+            style={{ 
+              scrollbarWidth: "none", 
+              msOverflowStyle: "none",
+              WebkitOverflowScrolling: "touch",
+              willChange: "scroll-position" 
+            }}
+          >
+            {extendedProperties.map((item, idx) => (
+              <div
+                key={idx}
+                onClick={() => handleCardClick(item)}
+                className="w-[210px] sm:w-[320px] flex-shrink-0 bg-[#EFEAE1]/95 backdrop-blur-md rounded-xl sm:rounded-2xl overflow-hidden border border-[#E3D9CC] shadow-md hover:shadow-xl transition-all group relative cursor-pointer"
+              >
+                {isHostMode && (
+                  <div className="absolute top-2 left-2 sm:top-2.5 sm:left-2.5 z-10 px-2 sm:px-2.5 py-0.5 rounded-md sm:rounded-lg bg-[#2D1F1A]/95 backdrop-blur-md text-[8px] sm:text-[9px] font-bold text-[#C5924E] border border-[#C5924E]/30 shadow-md">
+                    ● Live Listing
                   </div>
-                  {isHostMode && (
-                    <span className="text-[8px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-md">
-                      2 Inquiries
-                    </span>
-                  )}
+                )}
+
+                <div className="relative h-32 sm:h-52 overflow-hidden">
+                  <img
+                    src={item.img || item.image || item.images?.[0]}
+                    alt={item.title || item.name}
+                    loading="lazy"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />  
                 </div>
 
-                <div className="pt-2 mt-1 sm:pt-2.5 sm:mt-1.5 border-t border-[#E3D9CC] flex items-center justify-between text-[10px] sm:text-xs font-semibold text-[#57463D]">
-                  <span className="truncate pr-1">{item.specs}</span>
-                  <span className="flex items-center gap-0.5 text-amber-700 font-bold shrink-0">★ {item.rating}</span>
+                <div className="p-3 sm:p-5 space-y-1 sm:space-y-2">
+                  <h3 className="font-bold text-xs sm:text-base text-[#2D1F1A] truncate">{item.title || item.name}</h3>
+                  <p className="text-[10px] sm:text-xs text-[#6E5D53] font-medium truncate">{item.loc || item.location || item.address}</p>
+                  
+                  <div className="text-sm sm:text-lg font-black text-[#2D1F1A] pt-0.5 flex items-center justify-between">
+                    <div>
+                      ₹{item.price} <span className="text-[9px] sm:text-xs font-normal text-[#6E5D53]">/mo</span>
+                    </div>
+                    {isHostMode && (
+                      <span className="text-[8px] sm:text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-md">
+                        {item.inquiriesCount || 0} Inquiries
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="pt-2 mt-1 sm:pt-2.5 sm:mt-1.5 border-t border-[#E3D9CC] flex items-center justify-between text-[10px] sm:text-xs font-semibold text-[#57463D]">
+                    <span className="truncate pr-1">{item.specs || `${item.bedrooms || 2} BHK • ${item.sqft || 1000} sq.ft`}</span>
+                    <span className="flex items-center gap-0.5 text-amber-700 font-bold shrink-0">★ {item.rating || "4.8"}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {showAuthModal && (
@@ -316,7 +253,7 @@ export default function FeaturedProperties({ isHostMode, isLoggedIn }) {
             <div className="text-center space-y-2">
               <h3 className="text-xl font-extrabold text-white">Authentication Required</h3>
               <p className="text-sm text-[#D5C9B8] leading-relaxed">
-                Please log in or create an account to view the featured properties.
+                Please log in or create an account to view properties or chat with owners.
               </p>
             </div>
 
