@@ -47,6 +47,9 @@ export default function PropertyDetails() {
   const [chatLoading, setChatLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
+  // State to track if the user has booked a slot for this property
+  const [hasBookedSlot, setHasBookedSlot] = useState(false);
+
   // Carousel refs
   const desktopCarouselRef = useRef(null);
   const mobileCarouselRef = useRef(null);
@@ -70,9 +73,29 @@ export default function PropertyDetails() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setCurrentUserId(session.user.id);
+        checkIfUserBookedSlot(session.user.id, id);
       }
     } catch (err) {
       console.error("Error fetching current user:", err);
+    }
+  };
+
+  // Check if the current user has already booked a slot for this property
+  const checkIfUserBookedSlot = async (userId, propertyId) => {
+    try {
+      const { data, error } = await supabase
+        .from("property_visit_slots")
+        .select("id")
+        .eq("property_id", propertyId)
+        .eq("tenant_id", userId)
+        .eq("is_booked", true)
+        .maybeSingle();
+
+      if (data) {
+        setHasBookedSlot(true);
+      }
+    } catch (err) {
+      console.error("Error checking booking status:", err);
     }
   };
 
@@ -281,6 +304,7 @@ export default function PropertyDetails() {
       if (updateError) throw updateError;
 
       showToast("Visit request sent to the owner for approval!");
+      setHasBookedSlot(true); // Unlock chat capability immediately upon booking
       setSelectedSlotId(null);
       setSelectedDate("");
       setSelectedStartTime("");
@@ -297,6 +321,12 @@ export default function PropertyDetails() {
   const handleChatWithOwner = async () => {
     if (isOwner) {
       showToast("You cannot send a message to your own property.");
+      return;
+    }
+
+    // Restriction check: Ensure user has booked a slot first
+    if (!hasBookedSlot) {
+      showToast("You can only chat with the owner after you have booked a visit slot.");
       return;
     }
 
@@ -358,7 +388,7 @@ export default function PropertyDetails() {
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 space-y-1">
           <p className="font-bold">No open slots available</p>
           <p className="text-[11px] leading-relaxed">
-            The owner hasn't listed specific open slots yet. You can still reach out directly via live chat.
+            The owner hasn't listed specific open slots yet. Please check back later.
           </p>
         </div>
       );
@@ -779,10 +809,20 @@ export default function PropertyDetails() {
                     type="button"
                     onClick={handleChatWithOwner}
                     disabled={chatLoading}
-                    className="w-full py-4 bg-white hover:bg-[#FAF7F2] border border-[#EADBCE] text-[#2D1F1A] rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                    className={`w-full py-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm ${
+                      !hasBookedSlot 
+                        ? "bg-gray-100 border border-gray-300 text-gray-400 cursor-not-allowed" 
+                        : "bg-white hover:bg-[#FAF7F2] border border-[#EADBCE] text-[#2D1F1A] cursor-pointer"
+                    }`}
                   >
                     {chatLoading ? <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" /> : <MessageSquare className="w-4 h-4 text-[#C5924E]" />}
-                    <span>{chatLoading ? "Opening Chat..." : "Chat with Owner Directly"}</span>
+                    <span>
+                      {chatLoading 
+                        ? "Opening Chat..." 
+                        : hasBookedSlot 
+                        ? "Chat with Owner Directly" 
+                        : "Book a slot to chat with owner"}
+                    </span>
                   </button>
                 </form>
               )}
@@ -793,7 +833,7 @@ export default function PropertyDetails() {
                 </div>
                 <div>
                   <strong className="block text-[#2D1F1A] font-bold">Ritam Verified Guarantee</strong>
-                  <span className="text-[11px]">Direct owner interaction with secure calendar scheduling.</span>
+                  <span className="text-[11px]">Direct owner interaction unlocked after booking a slot.</span>
                 </div>
               </div>
 
@@ -1167,10 +1207,20 @@ export default function PropertyDetails() {
                 type="button"
                 onClick={handleChatWithOwner}
                 disabled={chatLoading}
-                className="w-full py-3 bg-white hover:bg-[#FAF7F2] border border-[#EADBCE] text-[#2D1F1A] rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                className={`w-full py-3 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm ${
+                  !hasBookedSlot 
+                    ? "bg-gray-100 border border-gray-300 text-gray-400 cursor-not-allowed" 
+                    : "bg-white hover:bg-[#FAF7F2] border border-[#EADBCE] text-[#2D1F1A] cursor-pointer"
+                }`}
               >
                 {chatLoading ? <Loader2 className="w-4 h-4 animate-spin text-[#C5924E]" /> : <MessageSquare className="w-4 h-4 text-[#C5924E]" />}
-                <span>{chatLoading ? "Opening Chat..." : "Chat with Owner"}</span>
+                <span>
+                  {chatLoading 
+                    ? "Opening Chat..." 
+                    : hasBookedSlot 
+                    ? "Chat with Owner" 
+                    : "Book a slot to chat with owner"}
+                </span>
               </button>
             </form>
           )}
