@@ -66,6 +66,7 @@ export default function NewProperty() {
   const [propertyDetails, setPropertyDetails] = useState({
     title: "",
     description: "",
+    listingType: "Rent", // Added: "Rent", "Sale", "Lease"
     propertyType: "Apartment / Flat",
     configuration: "2 BHK",
     monthlyRent: "",
@@ -149,9 +150,8 @@ export default function NewProperty() {
     const slotsToPush = [];
 
     while (current <= last) {
-      const dayOfWeek = current.getDay(); // 0 for Sunday, 1 for Monday, etc.
+      const dayOfWeek = current.getDay();
 
-      // Check if this day is selected in the weekly timetable structure
       if (selectedDays.includes(dayOfWeek)) {
         const dateStr = current.toISOString().split("T")[0];
 
@@ -181,7 +181,6 @@ export default function NewProperty() {
         }
       }
 
-      // Move to next calendar day
       current.setDate(current.getDate() + 1);
     }
 
@@ -190,7 +189,6 @@ export default function NewProperty() {
       return;
     }
 
-    // Filter out duplicates already in state
     const filteredNewEntries = slotsToPush.filter(
       (newEntry) =>
         !ownerSlots.some(
@@ -221,7 +219,6 @@ export default function NewProperty() {
   const [latitude, setLatitude] = useState(12.9716);
   const [longitude, setLongitude] = useState(77.5946);
 
-  // Handle Marker drag to update coordinates and reverse geocode if needed
   const handleMarkerDragEnd = async (e) => {
     const marker = e.target;
     const position = marker.getLatLng();
@@ -241,7 +238,6 @@ export default function NewProperty() {
     }
   };
 
-  // Photo handlers
   const handlePhotoUpload = (e) => {
     const files = Array.from(e.target.files);
     const remainingSlots = 10 - photos.length;
@@ -312,7 +308,6 @@ export default function NewProperty() {
         }
       }
 
-      // Compile checklist amenities and custom amenities into a single array for display and storage
       const amenityLabels = {
         lift: "Lift",
         water247: "24x7 Water",
@@ -345,6 +340,7 @@ export default function NewProperty() {
         longitude: longitude,
         price: parseFloat(propertyDetails.monthlyRent) || 0,
         type: propertyDetails.propertyType,
+        listing_type: propertyDetails.listingType, // Added listing type
         status: "Active",
         views: 0,
         images: uploadedImageUrls,
@@ -360,7 +356,7 @@ export default function NewProperty() {
         water_supply: propertyDetails.waterSupply,
         facing: propertyDetails.facing,
         food_preference: propertyDetails.foodPreference,
-        security_deposit: parseFloat(propertyDetails.securityDeposit) || 0,
+        security_deposit: propertyDetails.listingType === "Sale" ? 0 : parseFloat(propertyDetails.securityDeposit) || 0,
 
         amenities: combinedAmenities,
         custom_amenities: propertyDetails.customAmenities,
@@ -421,7 +417,7 @@ export default function NewProperty() {
 
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification("Property Published!", {
-          body: `Your listing "${insertedProperty.title}" is now live for tenants to see.`,
+          body: `Your listing "${insertedProperty.title}" is now live for buyers/tenants to see.`,
           icon: "/favicon.ico",
         });
       }
@@ -469,11 +465,11 @@ export default function NewProperty() {
       <div className="px-3 sm:px-10 py-3 sm:py-4 w-full box-border">
         <div className="hidden md:grid md:grid-cols-4 gap-3">
           {[
-            { step: 1, label: "Photos", sub: "Show your home" },
+            { step: 1, label: "Photos", sub: "Show your home or shop" },
             {
               step: 2,
               label: "Property details",
-              sub: "Furnishing, rent, amenities",
+              sub: "Pricing, type, amenities",
             },
             {
               step: 3,
@@ -691,19 +687,47 @@ export default function NewProperty() {
                   Property details
                 </h3>
                 <p className="text-xs text-[#6E5D53] mt-0.5 leading-relaxed">
-                  These details help tenants filter and understand your home
+                  These details help buyers and tenants filter and understand your property
                   before requesting a visit.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* LISTING TYPE SELECTION (Rent / Sale / Lease) */}
+                <div className="sm:col-span-2 space-y-1.5">
+                  <label className="text-xs font-bold text-[#2D1F1A]">
+                    Listing Type <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {["Rent", "Sale", "Lease"].map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() =>
+                          setPropertyDetails({
+                            ...propertyDetails,
+                            listingType: type,
+                          })
+                        }
+                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                          propertyDetails.listingType === type
+                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Property Title <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Luxury 2 BHK Apartment in Gandhi Nagar"
+                    placeholder="e.g. Luxury 2 BHK Apartment or Commercial Shop in Main Road"
                     value={propertyDetails.title}
                     onChange={(e) =>
                       setPropertyDetails({
@@ -750,6 +774,7 @@ export default function NewProperty() {
                     <option>Apartment / Flat</option>
                     <option>Independent house</option>
                     <option>Villa</option>
+                    <option>Shop / Commercial</option>
                     <option>PG / Shared room</option>
                   </select>
                 </div>
@@ -773,16 +798,22 @@ export default function NewProperty() {
                     <option>2 BHK</option>
                     <option>3 BHK</option>
                     <option>4+ BHK</option>
+                    <option>Commercial Space / Shop</option>
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
-                    Monthly rent (₹) <span className="text-red-500">*</span>
+                    {propertyDetails.listingType === "Sale"
+                      ? "Total Price (₹)"
+                      : propertyDetails.listingType === "Lease"
+                      ? "Lease Amount (₹)"
+                      : "Monthly rent (₹)"}{" "}
+                    <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="number"
-                    placeholder="e.g. 12000"
+                    placeholder={propertyDetails.listingType === "Sale" ? "e.g. 4500000" : "e.g. 12000"}
                     value={propertyDetails.monthlyRent}
                     onChange={(e) =>
                       setPropertyDetails({
@@ -794,23 +825,25 @@ export default function NewProperty() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Security deposit (₹) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 30000"
-                    value={propertyDetails.securityDeposit}
-                    onChange={(e) =>
-                      setPropertyDetails({
-                        ...propertyDetails,
-                        securityDeposit: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
-                  />
-                </div>
+                {propertyDetails.listingType !== "Sale" && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-[#2D1F1A]">
+                      Security deposit (₹) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 30000"
+                      value={propertyDetails.securityDeposit}
+                      onChange={(e) =>
+                        setPropertyDetails({
+                          ...propertyDetails,
+                          securityDeposit: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
@@ -836,7 +869,7 @@ export default function NewProperty() {
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. 2nd of 4"
+                    placeholder="e.g. Ground or 2nd of 4"
                     value={propertyDetails.floorDetails}
                     onChange={(e) =>
                       setPropertyDetails({
@@ -879,10 +912,10 @@ export default function NewProperty() {
 
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
-                    Preferred tenants
+                    Preferred tenants / buyers
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {["Any", "Family", "Bachelors", "Working professionals"].map(
+                    {["Any", "Family", "Bachelors", "Working professionals", "Business / Commercial"].map(
                       (opt) => (
                         <button
                           key={opt}
@@ -937,7 +970,7 @@ export default function NewProperty() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
-                    Bathrooms
+                    Bathrooms / Washrooms
                   </label>
                   <select
                     value={propertyDetails.bathrooms}
@@ -949,6 +982,7 @@ export default function NewProperty() {
                     }
                     className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                   >
+                    <option>0</option>
                     <option>1</option>
                     <option>2</option>
                     <option>3</option>
@@ -1017,7 +1051,7 @@ export default function NewProperty() {
 
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
-                    Food / cooking preference
+                    Food / cooking preference (For residential)
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {[
@@ -1084,7 +1118,7 @@ export default function NewProperty() {
                   <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     <input
                       type="text"
-                      placeholder="e.g. Metro station nearby"
+                      placeholder="e.g. Main road parking or corner shop"
                       value={propertyDetails.newAmenityInput}
                       onChange={(e) =>
                         setPropertyDetails({
@@ -1424,10 +1458,10 @@ export default function NewProperty() {
                     return;
                   }
                   if (!propertyDetails.monthlyRent) {
-                    alert("Please enter the monthly rent.");
+                    alert(`Please enter the ${propertyDetails.listingType === "Sale" ? "total price" : propertyDetails.listingType === "Lease" ? "lease amount" : "monthly rent"}.`);
                     return;
                   }
-                  if (!propertyDetails.securityDeposit) {
+                  if (propertyDetails.listingType !== "Sale" && !propertyDetails.securityDeposit) {
                     alert("Please enter the security deposit.");
                     return;
                   }

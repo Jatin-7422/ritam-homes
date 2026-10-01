@@ -116,7 +116,8 @@ export default function OwnerProperties() {
   const filteredProperties = properties.filter((prop) => {
     const matchesSearch = prop.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           prop.location?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || (prop.status || "active").toLowerCase() === statusFilter;
+    const propStatus = (prop.status || "Active").toLowerCase();
+    const matchesStatus = statusFilter === "all" || propStatus === statusFilter.toLowerCase();
     return matchesSearch && matchesStatus;
   });
 
@@ -186,12 +187,12 @@ export default function OwnerProperties() {
           </div>
 
           <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-            {["all", "active", "rented", "pending"].map((status) => (
+            {["all", "Active", "Rented"].map((status) => (
               <button
                 key={status}
-                onClick={() => setStatusFilter(status)}
+                onClick={() => setStatusFilter(status.toLowerCase())}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-mono capitalize transition-all cursor-pointer whitespace-nowrap ${
-                  statusFilter === status
+                  statusFilter === status.toLowerCase()
                     ? "bg-[#C5924E] text-white shadow-sm font-bold"
                     : "bg-[#FAF7F2] text-[#6E5D53] border border-[#EADBCE] hover:bg-[#EADBCE]/50"
                 }`}
@@ -219,7 +220,7 @@ export default function OwnerProperties() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredProperties.map((property) => {
-            const propStatus = (property.status || "active").toLowerCase();
+            const propStatus = property.status || "Active";
             const imageUrl = property.image_url || (property.images && property.images.length > 0 ? property.images[0] : null);
 
             return (
@@ -240,15 +241,12 @@ export default function OwnerProperties() {
                   
                   <div className="absolute top-3 left-3 flex items-center gap-1.5">
                     <span className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-1 shadow-sm ${
-                      propStatus === 'active' 
+                      propStatus.toLowerCase() === 'active' 
                         ? 'bg-emerald-900/80 text-emerald-200 border border-emerald-700/50' 
-                        : propStatus === 'rented'
-                        ? 'bg-blue-900/80 text-blue-200 border border-blue-700/50'
-                        : 'bg-amber-900/80 text-amber-200 border border-amber-700/50'
+                        : 'bg-blue-900/80 text-blue-200 border border-blue-700/50'
                     }`}>
-                      {propStatus === 'active' && <CheckCircle2 className="w-3 h-3" />}
-                      {propStatus === 'rented' && <BookmarkCheck className="w-3 h-3" />}
-                      {propStatus === 'pending' && <Clock className="w-3 h-3" />}
+                      {propStatus.toLowerCase() === 'active' && <CheckCircle2 className="w-3 h-3" />}
+                      {propStatus.toLowerCase() === 'rented' && <BookmarkCheck className="w-3 h-3" />}
                       {propStatus}
                     </span>
                   </div>
@@ -276,14 +274,14 @@ export default function OwnerProperties() {
                     {/* Quick Status Selector */}
                     <div className="p-2.5 bg-[#FAF7F2] rounded-xl border border-[#EADBCE] flex items-center justify-between mt-2">
                       <span className="text-[10px] font-mono text-[#6E5D53] uppercase tracking-wider">Status:</span>
-                      <div className="flex items-center gap-1">
-                        {["active", "rented", "pending"].map((st) => (
+                      <div className="flex items-center gap-1.5">
+                        {["Active", "Rented"].map((st) => (
                           <button
                             key={st}
                             onClick={(e) => handleStatusChange(e, property.id, st)}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold uppercase transition-all cursor-pointer ${
-                              propStatus === st
-                                ? st === 'active' ? 'bg-emerald-600 text-white shadow-xs' : st === 'rented' ? 'bg-blue-600 text-white shadow-xs' : 'bg-amber-600 text-white shadow-xs'
+                            className={`px-3 py-1 rounded-lg text-[10px] font-mono font-bold uppercase transition-all cursor-pointer ${
+                              propStatus.toLowerCase() === st.toLowerCase()
+                                ? st.toLowerCase() === 'active' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-blue-600 text-white shadow-xs'
                                 : 'bg-white text-[#6E5D53] border border-[#EADBCE] hover:bg-[#EADBCE]/50'
                             }`}
                           >
