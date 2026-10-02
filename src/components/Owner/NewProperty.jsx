@@ -317,9 +317,13 @@ export default function NewProperty() {
         parkNearby: "Park Nearby",
       };
 
-      const activeChecklistAmenities = Object.entries(propertyDetails.amenities)
-        .filter(([_, isChecked]) => isChecked)
-        .map(([key]) => amenityLabels[key] || key);
+      const isShop = propertyDetails.propertyType === "Shop / Commercial";
+
+      const activeChecklistAmenities = isShop 
+        ? [] 
+        : Object.entries(propertyDetails.amenities)
+            .filter(([_, isChecked]) => isChecked)
+            .map(([key]) => amenityLabels[key] || key);
 
       const combinedAmenities = [
         ...activeChecklistAmenities,
@@ -333,29 +337,29 @@ export default function NewProperty() {
         owner_email: ownerEmail,
         title:
           propertyDetails.title ||
-          `${propertyDetails.configuration} ${propertyDetails.propertyType}`,
+          `${isShop ? "Commercial Shop" : propertyDetails.configuration} ${propertyDetails.propertyType}`,
         description: propertyDetails.description || "",
         location: locationAddress,
         latitude: latitude,
         longitude: longitude,
         price: parseFloat(propertyDetails.monthlyRent) || 0,
         type: propertyDetails.propertyType,
-        listing_type: propertyDetails.listingType, // Added listing type
+        listing_type: propertyDetails.listingType,
         status: "Active",
         views: 0,
         images: uploadedImageUrls,
         image_url: uploadedImageUrls[0] || "",
 
-        configuration: propertyDetails.configuration,
+        configuration: isShop ? "Commercial Space" : propertyDetails.configuration,
         built_up_area: parseFloat(propertyDetails.builtUpArea) || 0,
-        floor: propertyDetails.floorDetails,
-        furnishing: propertyDetails.furnishing,
-        preferred_tenants: propertyDetails.preferredTenant,
-        parking: propertyDetails.parking,
-        bathrooms: propertyDetails.bathrooms,
-        water_supply: propertyDetails.waterSupply,
-        facing: propertyDetails.facing,
-        food_preference: propertyDetails.foodPreference,
+        floor: isShop ? "Ground" : propertyDetails.floorDetails,
+        furnishing: isShop ? "Unfurnished" : propertyDetails.furnishing,
+        preferred_tenants: isShop ? "Business / Commercial" : propertyDetails.preferredTenant,
+        parking: isShop ? "Two-wheeler" : propertyDetails.parking,
+        bathrooms: isShop ? "1" : propertyDetails.bathrooms,
+        water_supply: isShop ? "Borewell" : propertyDetails.waterSupply,
+        facing: isShop ? "North facing" : propertyDetails.facing,
+        food_preference: isShop ? "Veg and non-veg both allowed" : propertyDetails.foodPreference,
         security_deposit: propertyDetails.listingType === "Sale" ? 0 : parseFloat(propertyDetails.securityDeposit) || 0,
 
         amenities: combinedAmenities,
@@ -721,6 +725,91 @@ export default function NewProperty() {
                   </div>
                 </div>
 
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#2D1F1A]">
+                    Property type
+                  </label>
+                  <select
+                    value={propertyDetails.propertyType}
+                    onChange={(e) =>
+                      setPropertyDetails({
+                        ...propertyDetails,
+                        propertyType: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
+                  >
+                    <option>Apartment / Flat</option>
+                    <option>Independent house</option>
+                    <option>Villa</option>
+                    <option>Shop / Commercial</option>
+                    <option>PG / Shared room</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#2D1F1A]">
+                    Built-up area (sq. ft.) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 950"
+                    value={propertyDetails.builtUpArea}
+                    onChange={(e) =>
+                      setPropertyDetails({
+                        ...propertyDetails,
+                        builtUpArea: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
+                  />
+                </div>
+
+                {/* PRICING FIELDS (Dynamic based on Listing Type) */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#2D1F1A]">
+                    {propertyDetails.listingType === "Sale"
+                      ? "Total Price (₹)"
+                      : propertyDetails.listingType === "Lease"
+                      ? "Lease Amount (₹)"
+                      : "Monthly rent (₹)"}{" "}
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    placeholder={propertyDetails.listingType === "Sale" ? "e.g. 4500000" : "e.g. 12000"}
+                    value={propertyDetails.monthlyRent}
+                    onChange={(e) =>
+                      setPropertyDetails({
+                        ...propertyDetails,
+                        monthlyRent: e.target.value,
+                      })
+                    }
+                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
+                  />
+                </div>
+
+                {/* Security Deposit: Hidden for Sale, and for Lease we keep only one option (Lease Amount or Security Deposit) */}
+                {propertyDetails.listingType !== "Sale" && propertyDetails.listingType !== "Lease" && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-[#2D1F1A]">
+                      Security deposit (₹) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 30000"
+                      value={propertyDetails.securityDeposit}
+                      onChange={(e) =>
+                        setPropertyDetails({
+                          ...propertyDetails,
+                          securityDeposit: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
+                    />
+                  </div>
+                )}
+
                 <div className="sm:col-span-2 space-y-1.5">
                   <label className="text-xs font-bold text-[#2D1F1A]">
                     Property Title <span className="text-red-500">*</span>
@@ -757,408 +846,329 @@ export default function NewProperty() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Property type
-                  </label>
-                  <select
-                    value={propertyDetails.propertyType}
-                    onChange={(e) =>
-                      setPropertyDetails({
-                        ...propertyDetails,
-                        propertyType: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
-                  >
-                    <option>Apartment / Flat</option>
-                    <option>Independent house</option>
-                    <option>Villa</option>
-                    <option>Shop / Commercial</option>
-                    <option>PG / Shared room</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Configuration
-                  </label>
-                  <select
-                    value={propertyDetails.configuration}
-                    onChange={(e) =>
-                      setPropertyDetails({
-                        ...propertyDetails,
-                        configuration: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
-                  >
-                    <option>1 RK</option>
-                    <option>1 BHK</option>
-                    <option>2 BHK</option>
-                    <option>3 BHK</option>
-                    <option>4+ BHK</option>
-                    <option>Commercial Space / Shop</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    {propertyDetails.listingType === "Sale"
-                      ? "Total Price (₹)"
-                      : propertyDetails.listingType === "Lease"
-                      ? "Lease Amount (₹)"
-                      : "Monthly rent (₹)"}{" "}
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    placeholder={propertyDetails.listingType === "Sale" ? "e.g. 4500000" : "e.g. 12000"}
-                    value={propertyDetails.monthlyRent}
-                    onChange={(e) =>
-                      setPropertyDetails({
-                        ...propertyDetails,
-                        monthlyRent: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
-                  />
-                </div>
-
-                {propertyDetails.listingType !== "Sale" && (
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-[#2D1F1A]">
-                      Security deposit (₹) <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="e.g. 30000"
-                      value={propertyDetails.securityDeposit}
-                      onChange={(e) =>
-                        setPropertyDetails({
-                          ...propertyDetails,
-                          securityDeposit: e.target.value,
-                        })
-                      }
-                      className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
-                    />
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Built-up area (sq. ft.) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 950"
-                    value={propertyDetails.builtUpArea}
-                    onChange={(e) =>
-                      setPropertyDetails({
-                        ...propertyDetails,
-                        builtUpArea: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Floor / total floors <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Ground or 2nd of 4"
-                    value={propertyDetails.floorDetails}
-                    onChange={(e) =>
-                      setPropertyDetails({
-                        ...propertyDetails,
-                        floorDetails: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Furnishing
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {["Unfurnished", "Semi-furnished", "Fully furnished"].map(
-                      (opt) => (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() =>
-                            setPropertyDetails({
-                              ...propertyDetails,
-                              furnishing: opt,
-                            })
-                          }
-                          className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
-                            propertyDetails.furnishing === opt
-                              ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                              : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      ),
-                    )}
-                  </div>
-                </div>
-
-                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Preferred tenants / buyers
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {["Any", "Family", "Bachelors", "Working professionals", "Business / Commercial"].map(
-                      (opt) => (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() =>
-                            setPropertyDetails({
-                              ...propertyDetails,
-                              preferredTenant: opt,
-                            })
-                          }
-                          className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
-                            propertyDetails.preferredTenant === opt
-                              ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                              : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      ),
-                    )}
-                  </div>
-                </div>
-
-                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Parking
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {["None", "Two-wheeler", "Two + four-wheeler"].map(
-                      (opt) => (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() =>
-                            setPropertyDetails({
-                              ...propertyDetails,
-                              parking: opt,
-                            })
-                          }
-                          className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
-                            propertyDetails.parking === opt
-                              ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                              : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      ),
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Bathrooms / Washrooms
-                  </label>
-                  <select
-                    value={propertyDetails.bathrooms}
-                    onChange={(e) =>
-                      setPropertyDetails({
-                        ...propertyDetails,
-                        bathrooms: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
-                  >
-                    <option>0</option>
-                    <option>1</option>
-                    <option>2</option>
-                    <option>3</option>
-                    <option>4+</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Water supply
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {["Borewell", "Tank water", "Both"].map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() =>
+                {/* CONDITIONAL RENDER: HIDE BHK, FLOORS, TENANTS, PARKING, WATER, VASTU, FOOD, AMENITIES IF SHOP */}
+                {propertyDetails.propertyType !== "Shop / Commercial" && (
+                  <>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-[#2D1F1A]">
+                        Configuration
+                      </label>
+                      <select
+                        value={propertyDetails.configuration}
+                        onChange={(e) =>
                           setPropertyDetails({
                             ...propertyDetails,
-                            waterSupply: opt,
+                            configuration: e.target.value,
                           })
                         }
-                        className={`px-1 py-2.5 rounded-xl text-[10px] sm:text-xs font-medium border cursor-pointer transition-all text-center truncate ${
-                          propertyDetails.waterSupply === opt
-                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                        }`}
+                        className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                       >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                        <option>1 RK</option>
+                        <option>1 BHK</option>
+                        <option>2 BHK</option>
+                        <option>3 BHK</option>
+                        <option>4+ BHK</option>
+                      </select>
+                    </div>
 
-                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Facing (Vastu direction)
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      "North facing",
-                      "East facing",
-                      "West facing",
-                      "South facing",
-                    ].map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() =>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-[#2D1F1A]">
+                        Floor / total floors <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Ground or 2nd of 4"
+                        value={propertyDetails.floorDetails}
+                        onChange={(e) =>
                           setPropertyDetails({
                             ...propertyDetails,
-                            facing: opt,
+                            floorDetails: e.target.value,
                           })
                         }
-                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
-                          propertyDetails.facing === opt
-                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                        className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
+                      />
+                    </div>
 
-                <div className="sm:col-span-2 space-y-1.5">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Food / cooking preference (For residential)
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {[
-                      "Veg and non-veg both allowed",
-                      "Veg only",
-                      "Non-veg only",
-                    ].map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() =>
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <label className="text-xs font-bold text-[#2D1F1A]">
+                        Furnishing
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {["Unfurnished", "Semi-furnished", "Fully furnished"].map(
+                          (opt) => (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() =>
+                                setPropertyDetails({
+                                  ...propertyDetails,
+                                  furnishing: opt,
+                                })
+                              }
+                              className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                                propertyDetails.furnishing === opt
+                                  ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                                  : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <label className="text-xs font-bold text-[#2D1F1A]">
+                        Preferred tenants / buyers
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {["Any", "Family", "Bachelors", "Working professionals"].map(
+                          (opt) => (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() =>
+                                setPropertyDetails({
+                                  ...propertyDetails,
+                                  preferredTenant: opt,
+                                })
+                              }
+                              className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                                propertyDetails.preferredTenant === opt
+                                  ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                                  : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <label className="text-xs font-bold text-[#2D1F1A]">
+                        Parking
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {["None", "Two-wheeler", "Two + four-wheeler"].map(
+                          (opt) => (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() =>
+                                setPropertyDetails({
+                                  ...propertyDetails,
+                                  parking: opt,
+                                })
+                              }
+                              className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                                propertyDetails.parking === opt
+                                  ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                                  : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                              }`}
+                            >
+                              {opt}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-[#2D1F1A]">
+                        Bathrooms / Washrooms
+                      </label>
+                      <select
+                        value={propertyDetails.bathrooms}
+                        onChange={(e) =>
                           setPropertyDetails({
                             ...propertyDetails,
-                            foodPreference: opt,
+                            bathrooms: e.target.value,
                           })
                         }
-                        className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
-                          propertyDetails.foodPreference === opt
-                            ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
-                            : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
-                        }`}
+                        className="w-full px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                       >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                        <option>0</option>
+                        <option>1</option>
+                        <option>2</option>
+                        <option>3</option>
+                        <option>4+</option>
+                      </select>
+                    </div>
 
-                <div className="sm:col-span-2 space-y-2 pt-2">
-                  <label className="text-xs font-bold text-[#2D1F1A]">
-                    Amenities and nearby places
-                  </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {[
-                      { key: "lift", label: "Lift" },
-                      { key: "water247", label: "24x7 water" },
-                      { key: "securityGuard", label: "Security guard" },
-                      { key: "schoolsNearby", label: "Schools nearby" },
-                      { key: "hospitalNearby", label: "Hospital nearby" },
-                      { key: "parkNearby", label: "Park nearby" },
-                    ].map((item) => (
-                      <label
-                        key={item.key}
-                        className="flex items-center gap-2 text-xs cursor-pointer p-2 bg-[#F8F5EE] rounded-xl border border-[#E3D9CC]"
-                      >
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-[#2D1F1A]">
+                        Water supply
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {["Borewell", "Tank water", "Both"].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() =>
+                              setPropertyDetails({
+                                ...propertyDetails,
+                                waterSupply: opt,
+                              })
+                            }
+                            className={`px-1 py-2.5 rounded-xl text-[10px] sm:text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                              propertyDetails.waterSupply === opt
+                                ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                                : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <label className="text-xs font-bold text-[#2D1F1A]">
+                        Facing (Vastu direction)
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          "North facing",
+                          "East facing",
+                          "West facing",
+                          "South facing",
+                        ].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() =>
+                              setPropertyDetails({
+                                ...propertyDetails,
+                                facing: opt,
+                              })
+                            }
+                            className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                              propertyDetails.facing === opt
+                                ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                                : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-2 space-y-1.5">
+                      <label className="text-xs font-bold text-[#2D1F1A]">
+                        Food / cooking preference (For residential)
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {[
+                          "Veg and non-veg both allowed",
+                          "Veg only",
+                          "Non-veg only",
+                        ].map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() =>
+                              setPropertyDetails({
+                                ...propertyDetails,
+                                foodPreference: opt,
+                              })
+                            }
+                            className={`px-3 py-2.5 rounded-xl text-xs font-medium border cursor-pointer transition-all text-center truncate ${
+                              propertyDetails.foodPreference === opt
+                                ? "bg-[#C5924E]/20 text-[#2D1F1A] border-[#C5924E] font-bold shadow-xs"
+                                : "bg-[#F8F5EE] text-[#6E5D53] border-[#E3D9CC]"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-2 space-y-2 pt-2">
+                      <label className="text-xs font-bold text-[#2D1F1A]">
+                        Amenities and nearby places
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {[
+                          { key: "lift", label: "Lift" },
+                          { key: "water247", label: "24x7 water" },
+                          { key: "securityGuard", label: "Security guard" },
+                          { key: "schoolsNearby", label: "Schools nearby" },
+                          { key: "hospitalNearby", label: "Hospital nearby" },
+                          { key: "parkNearby", label: "Park nearby" },
+                        ].map((item) => (
+                          <label
+                            key={item.key}
+                            className="flex items-center gap-2 text-xs cursor-pointer p-2 bg-[#F8F5EE] rounded-xl border border-[#E3D9CC]"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={propertyDetails.amenities[item.key]}
+                              onChange={(e) =>
+                                setPropertyDetails({
+                                  ...propertyDetails,
+                                  amenities: {
+                                    ...propertyDetails.amenities,
+                                    [item.key]: e.target.checked,
+                                  },
+                                })
+                              }
+                              className="rounded border-[#E3D9CC] text-[#C5924E] focus:ring-0 w-4 h-4 flex-shrink-0"
+                            />
+                            <span className="truncate">{item.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2 pt-2">
                         <input
-                          type="checkbox"
-                          checked={propertyDetails.amenities[item.key]}
+                          type="text"
+                          placeholder="e.g. Main road parking or corner shop"
+                          value={propertyDetails.newAmenityInput}
                           onChange={(e) =>
                             setPropertyDetails({
                               ...propertyDetails,
-                              amenities: {
-                                ...propertyDetails.amenities,
-                                [item.key]: e.target.checked,
-                              },
+                              newAmenityInput: e.target.value,
                             })
                           }
-                          className="rounded border-[#E3D9CC] text-[#C5924E] focus:ring-0 w-4 h-4 flex-shrink-0"
+                          className="flex-1 px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
                         />
-                        <span className="truncate">{item.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. Main road parking or corner shop"
-                      value={propertyDetails.newAmenityInput}
-                      onChange={(e) =>
-                        setPropertyDetails({
-                          ...propertyDetails,
-                          newAmenityInput: e.target.value,
-                        })
-                      }
-                      className="flex-1 px-3 py-3 rounded-xl border border-[#E3D9CC] bg-[#F8F5EE] text-xs sm:text-sm text-[#2D1F1A] focus:outline-none focus:border-[#C5924E] box-border"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!propertyDetails.newAmenityInput.trim()) return;
-                        setPropertyDetails((prev) => ({
-                          ...prev,
-                          customAmenities: [
-                            ...prev.customAmenities,
-                            prev.newAmenityInput.trim(),
-                          ],
-                          newAmenityInput: "",
-                        }));
-                      }}
-                      className="px-4 py-3 bg-white border border-[#C5924E] text-[#2D1F1A] rounded-xl text-xs font-bold hover:bg-[#C5924E]/10 transition-all cursor-pointer whitespace-nowrap"
-                    >
-                      Add option
-                    </button>
-                  </div>
-                  {propertyDetails.customAmenities.length > 0 && (
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {propertyDetails.customAmenities.map((custom, cIdx) => (
-                        <span
-                          key={cIdx}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#C5924E]/10 border border-[#C5924E]/45 rounded-full text-xs text-[#2D1F1A] max-w-full break-words"
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!propertyDetails.newAmenityInput.trim()) return;
+                            setPropertyDetails((prev) => ({
+                              ...prev,
+                              customAmenities: [
+                                ...prev.customAmenities,
+                                prev.newAmenityInput.trim(),
+                              ],
+                              newAmenityInput: "",
+                            }));
+                          }}
+                          className="px-4 py-3 bg-white border border-[#C5924E] text-[#2D1F1A] rounded-xl text-xs font-bold hover:bg-[#C5924E]/10 transition-all cursor-pointer whitespace-nowrap"
                         >
-                          ✓ {custom}
-                        </span>
-                      ))}
+                          Add option
+                        </button>
+                      </div>
+                      {propertyDetails.customAmenities.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {propertyDetails.customAmenities.map((custom, cIdx) => (
+                            <span
+                              key={cIdx}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#C5924E]/10 border border-[#C5924E]/45 rounded-full text-xs text-[#2D1F1A] max-w-full break-words"
+                            >
+                              ✓ {custom}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -1461,7 +1471,7 @@ export default function NewProperty() {
                     alert(`Please enter the ${propertyDetails.listingType === "Sale" ? "total price" : propertyDetails.listingType === "Lease" ? "lease amount" : "monthly rent"}.`);
                     return;
                   }
-                  if (propertyDetails.listingType !== "Sale" && !propertyDetails.securityDeposit) {
+                  if (propertyDetails.listingType !== "Sale" && propertyDetails.listingType !== "Lease" && !propertyDetails.securityDeposit) {
                     alert("Please enter the security deposit.");
                     return;
                   }
@@ -1469,7 +1479,7 @@ export default function NewProperty() {
                     alert("Please enter the built-up area.");
                     return;
                   }
-                  if (!propertyDetails.floorDetails.trim()) {
+                  if (propertyDetails.propertyType !== "Shop / Commercial" && !propertyDetails.floorDetails.trim()) {
                     alert("Please enter floor details.");
                     return;
                   }
